@@ -376,7 +376,7 @@ function loadSettings() {
   catch { return defaultSettings(); }
 }
 function defaultSettings() {
-  return { driverName: '', state: 'CA', customTotal: null, customNight: null };
+  return { driverName: '', state: 'CA', customTotal: null, customNight: null, goalDate: '' };
 }
 function saveSettings() { localStorage.setItem('dl_settings', JSON.stringify(settings)); }
 
@@ -436,6 +436,63 @@ function navigate(view) {
 // ═══════════════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════════════
+function goalCard(reqs, totals) {
+  if (!settings.goalDate) return '';
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const goal = new Date(settings.goalDate + 'T00:00:00');
+  const daysLeft = Math.ceil((goal - today) / 86400000);
+
+  if (daysLeft <= 0) {
+    const hoursLeft = Math.max(reqs.total - totals.totalHours, 0);
+    const nightLeft = Math.max(reqs.night - totals.nightHours, 0);
+    if (hoursLeft === 0 && nightLeft === 0) {
+      return `<div class="card" style="background:var(--green-lt);border:1.5px solid var(--green)">
+        <div style="font-weight:700;color:var(--green);font-size:1rem">🎉 Goal date reached — requirements met!</div>
+      </div>`;
+    }
+    return `<div class="card" style="background:var(--red-lt);border:1.5px solid var(--red)">
+      <div style="font-weight:700;color:var(--red);margin-bottom:4px">⚠️ Goal date passed</div>
+      <div style="font-size:.82rem;color:var(--red)">${hoursLeft.toFixed(1)} total hrs and ${nightLeft.toFixed(1)} night hrs still needed.</div>
+    </div>`;
+  }
+
+  const weeksLeft = daysLeft / 7;
+  const hoursLeft = Math.max(reqs.total - totals.totalHours, 0);
+  const nightLeft = Math.max(reqs.night - totals.nightHours, 0);
+  const hrsPerWeek = hoursLeft / weeksLeft;
+  const nightPerWeek = nightLeft / weeksLeft;
+  const onTrack = reqs.total === 0 || hrsPerWeek <= 5; // warn if > 5 hrs/week needed
+  const accent = onTrack ? 'var(--green)' : 'var(--amber)';
+  const accentLt = onTrack ? 'var(--green-lt)' : 'var(--amber-lt)';
+
+  const daysLabel = daysLeft === 1 ? '1 day' : daysLeft < 14 ? `${daysLeft} days` : `${Math.round(weeksLeft)} weeks`;
+  const goalFmt = goal.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+
+  if (hoursLeft === 0 && nightLeft === 0) {
+    return `<div class="card" style="background:var(--green-lt);border:1.5px solid var(--green)">
+      <div style="font-weight:700;color:var(--green)">✅ All hours complete! ${daysLabel} until ${goalFmt}.</div>
+    </div>`;
+  }
+
+  return `<div class="card" style="background:${accentLt};border:1.5px solid ${accent}">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div>
+        <div style="font-weight:700;font-size:.92rem;color:${accent}">📅 Goal: ${goalFmt}</div>
+        <div style="font-size:.75rem;color:var(--muted);margin-top:2px">${daysLabel} remaining</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:1.6rem;font-weight:800;color:${accent};line-height:1">${hrsPerWeek.toFixed(1)}</div>
+        <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)">hrs/week</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:16px;font-size:.78rem">
+      <span>⏱ ${hoursLeft.toFixed(1)} total hrs left</span>
+      ${reqs.night > 0 ? `<span>🌙 ${nightLeft.toFixed(1)} night hrs left · ${nightPerWeek.toFixed(1)}/wk</span>` : ''}
+    </div>
+  </div>`;
+}
+
 function renderDashboard() {
   const reqs = getReqs();
   const totals = getTotals();
@@ -484,6 +541,7 @@ function renderDashboard() {
         <div class="stat-box"><div class="val">${totals.sessions > 0 ? fmtDur(totals.totalHours*60/totals.sessions) : '—'}</div><div class="lbl">Avg</div></div>
       </div>
     </div>
+    ${goalCard(reqs, totals)}
     ${!activeSession ? `<button class="start-fab" onclick="navigate('drive')">Start a Drive</button>` : ''}
     <div class="section-title">Recent Sessions</div>
     ${recent.length ? `<div class="card">${recent.map(sessionRow).join('')}</div>` : `<div class="empty-state"><div class="e-icon">🚗</div><div>No sessions yet.<br>Tap <b>Drive</b> to log your first drive.</div></div>`}
@@ -829,6 +887,10 @@ function renderSettings() {
         <input id="s-name" type="text" value="${settings.driverName}" placeholder="e.g. Alex" onchange="saveSettingsForm()" onblur="saveSettingsForm()">
       </div>
       <div class="form-group">
+        <label>Goal Date (optional)</label>
+        <input id="s-goal" type="date" value="${settings.goalDate || ''}" onchange="saveSettingsForm()" style="color-scheme:light">
+      </div>
+      <div class="form-group">
         <label>State</label>
         <select id="s-state" onchange="previewState(this.value);saveSettingsForm()">${stateOptions}</select>
         <div class="req-display">
@@ -887,6 +949,7 @@ function saveSettingsForm() {
   const cn = document.getElementById('s-custom-night').value;
   settings.customTotal = ct !== '' ? +ct : null;
   settings.customNight = cn !== '' ? +cn : null;
+  settings.goalDate = document.getElementById('s-goal').value || '';
   saveSettings();
 }
 
