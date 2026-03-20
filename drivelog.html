@@ -212,6 +212,7 @@
     <div class="modal-body" id="modal-body"></div>
     <div class="modal-actions">
       <button class="btn-del" id="modal-del-btn">Delete</button>
+      <button class="btn-outline" id="modal-edit-btn" style="flex:1">Edit</button>
       <button class="btn-save-notes" id="modal-save-btn">Save Notes</button>
     </div>
   </div>
@@ -220,7 +221,7 @@
 <div id="manual-modal">
   <div class="modal-card">
     <div class="modal-header">
-      <h3>Add Drive Manually</h3>
+      <h3 id="manual-modal-title">Add Drive Manually</h3>
       <button class="close-btn" onclick="closeManualModal()">✕</button>
     </div>
     <div class="modal-body">
@@ -755,6 +756,7 @@ function showSessionDetail(id) {
   `;
 
   document.getElementById('modal-del-btn').onclick = () => deleteSession(id);
+  document.getElementById('modal-edit-btn').onclick = () => { closeModal(); openManualModal(id); };
   document.getElementById('modal-save-btn').onclick = () => saveNotes(id);
   document.getElementById('modal').classList.add('open');
 
@@ -1038,23 +1040,44 @@ function toast(msg) {
 // ═══════════════════════════════════════════════════════
 // MANUAL ENTRY
 // ═══════════════════════════════════════════════════════
-function openManualModal() {
-  const now = new Date();
+let editingSessionId = null;
+
+function openManualModal(editId = null) {
+  editingSessionId = editId;
   const pad = n => String(n).padStart(2,'0');
-  const dateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
-  const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
-  document.getElementById('m-date').value = dateStr;
-  document.getElementById('m-start').value = timeStr;
-  document.getElementById('m-end').value = '';
-  document.getElementById('m-dur-h').value = '';
-  document.getElementById('m-dur-m').value = '';
-  document.getElementById('m-daynight').value = isNightByTime(now) ? 'night' : 'day';
-  document.getElementById('m-location').value = '';
-  document.getElementById('m-notes').value = '';
+
+  if (editId) {
+    const s = sessions.find(x => x.id === editId);
+    if (!s) return;
+    const start = new Date(s.startTime);
+    const end = s.endTime ? new Date(s.endTime) : null;
+    document.getElementById('manual-modal-title').textContent = 'Edit Drive';
+    document.getElementById('m-date').value = `${start.getFullYear()}-${pad(start.getMonth()+1)}-${pad(start.getDate())}`;
+    document.getElementById('m-start').value = `${pad(start.getHours())}:${pad(start.getMinutes())}`;
+    document.getElementById('m-end').value = end ? `${pad(end.getHours())}:${pad(end.getMinutes())}` : '';
+    document.getElementById('m-dur-h').value = '';
+    document.getElementById('m-dur-m').value = '';
+    document.getElementById('m-daynight').value = s.isNight ? 'night' : 'day';
+    document.getElementById('m-location').value = s.startLocation?.city || s.startLocation?.address || '';
+    document.getElementById('m-notes').value = s.notes || '';
+  } else {
+    const now = new Date();
+    document.getElementById('manual-modal-title').textContent = 'Add Drive Manually';
+    document.getElementById('m-date').value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+    document.getElementById('m-start').value = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    document.getElementById('m-end').value = '';
+    document.getElementById('m-dur-h').value = '';
+    document.getElementById('m-dur-m').value = '';
+    document.getElementById('m-daynight').value = isNightByTime(now) ? 'night' : 'day';
+    document.getElementById('m-location').value = '';
+    document.getElementById('m-notes').value = '';
+  }
+
   document.getElementById('manual-modal').classList.add('open');
 }
 
 function closeManualModal() {
+  editingSessionId = null;
   document.getElementById('manual-modal').classList.remove('open');
 }
 
@@ -1098,25 +1121,43 @@ function saveManualDrive() {
 
   const endTime = new Date(new Date(startTime).getTime() + duration * 60000).toISOString();
 
-  const session = {
-    id: genId(),
-    startTime,
-    endTime,
-    duration,
-    isNight,
-    startLocation: location ? { lat: null, lng: null, city: location, address: location } : null,
-    endLocation: null,
-    weather: null,
-    route: [],
-    distance: 0,
-    notes,
-    manual: true
-  };
-
-  sessions.push(session);
-  saveSessions();
-  closeManualModal();
-  toast('Drive added');
+  if (editingSessionId) {
+    const idx = sessions.findIndex(x => x.id === editingSessionId);
+    if (idx !== -1) {
+      const existing = sessions[idx];
+      sessions[idx] = {
+        ...existing,
+        startTime,
+        endTime,
+        duration,
+        isNight,
+        startLocation: location ? { lat: existing.startLocation?.lat || null, lng: existing.startLocation?.lng || null, city: location, address: location } : existing.startLocation,
+        notes,
+      };
+    }
+    saveSessions();
+    closeManualModal();
+    toast('Drive updated');
+  } else {
+    const session = {
+      id: genId(),
+      startTime,
+      endTime,
+      duration,
+      isNight,
+      startLocation: location ? { lat: null, lng: null, city: location, address: location } : null,
+      endLocation: null,
+      weather: null,
+      route: [],
+      distance: 0,
+      notes,
+      manual: true
+    };
+    sessions.push(session);
+    saveSessions();
+    closeManualModal();
+    toast('Drive added');
+  }
   if (currentView === 'history') renderHistory();
   else if (currentView === 'dashboard') renderDashboard();
   else if (currentView === 'drive') renderDrive();
