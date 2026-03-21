@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <rect width="192" height="192" rx="40" fill="#2563eb"/>
+  <text x="96" y="72" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="18" font-weight="800" fill="white" text-anchor="middle" letter-spacing="1">DRIVE</text>
+  <!-- Car body -->
+  <rect x="34" y="108" width="124" height="38" rx="10" fill="white"/>
+  <!-- Roof -->
+  <path d="M58 108 L72 82 H120 L134 108Z" fill="white"/>
+  <!-- Windows -->
+  <path d="M76 108 L84 90 H108 L116 108Z" fill="#2563eb"/>
+  <!-- Wheels -->
+  <circle cx="62" cy="148" r="16" fill="#1e293b"/>
+  <circle cx="62" cy="148" r="7" fill="#2563eb"/>
+  <circle cx="130" cy="148" r="16" fill="#1e293b"/>
+  <circle cx="130" cy="148" r="7" fill="#2563eb"/>
+  <text x="96" y="175" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="13" font-weight="700" fill="white" text-anchor="middle" opacity="0.8">LOG</text>
+</svg>

@@ -1,0 +1,24 @@
+{
+  "name": "DriveLog — Permit Tracker",
+  "short_name": "DriveLog",
+  "description": "Track supervised driving hours toward your license",
+  "start_url": "./drivelog.html",
+  "display": "standalone",
+  "background_color": "#f1f5f9",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "icon-192.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any maskable" },
+    { "src": "icon-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Start a Drive",
+      "short_name": "Drive",
+      "description": "Jump straight to the drive recorder",
+      "url": "./drivelog.html#drive",
+      "icons": [{ "src": "icon-192.svg", "sizes": "192x192" }]
+    }
+  ],
+  "categories": ["lifestyle", "utilities"]
+}
