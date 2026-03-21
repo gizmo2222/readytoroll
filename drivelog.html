@@ -355,14 +355,14 @@ body{display:flex;flex-direction:column;overflow:hidden}
       <div class="form-group"><label>Location (optional)</label><input type="text" id="m-location" placeholder="e.g. Springfield, IL"></div>
       <div class="form-group"><label>Quick Tags</label>
         <div class="tag-chips" id="m-tags">
-          <span class="tag-chip" data-tag="highway">🛣️ Highway</span>
-          <span class="tag-chip" data-tag="city">🏙️ City</span>
-          <span class="tag-chip" data-tag="rural">🌳 Rural</span>
-          <span class="tag-chip" data-tag="parking">🅿️ Parking</span>
-          <span class="tag-chip" data-tag="rain">🌧️ Rain</span>
-          <span class="tag-chip" data-tag="snow">❄️ Snow</span>
-          <span class="tag-chip" data-tag="confident">💪 Confident</span>
-          <span class="tag-chip" data-tag="challenging">😰 Tough</span>
+          <span class="tag-chip" data-tag="highway" onclick="this.classList.toggle('active')">🛣️ Highway</span>
+          <span class="tag-chip" data-tag="city" onclick="this.classList.toggle('active')">🏙️ City</span>
+          <span class="tag-chip" data-tag="rural" onclick="this.classList.toggle('active')">🌳 Rural</span>
+          <span class="tag-chip" data-tag="parking" onclick="this.classList.toggle('active')">🅿️ Parking</span>
+          <span class="tag-chip" data-tag="rain" onclick="this.classList.toggle('active')">🌧️ Rain</span>
+          <span class="tag-chip" data-tag="snow" onclick="this.classList.toggle('active')">❄️ Snow</span>
+          <span class="tag-chip" data-tag="confident" onclick="this.classList.toggle('active')">💪 Confident</span>
+          <span class="tag-chip" data-tag="challenging" onclick="this.classList.toggle('active')">😰 Tough</span>
         </div>
       </div>
       <div class="form-group"><label>Notes (optional)</label><textarea id="m-notes" rows="2" placeholder="Add notes…"></textarea></div>
@@ -699,37 +699,65 @@ function testDateCard(reqs,totals){
   const holdMonths=st.holdMonths||6;
   const handbookUrl=st.handbookUrl||'#';
   const hoursLeft=Math.max(reqs.total-totals.totalHours,0);
+  const today=new Date();today.setHours(0,0,0,0);
 
-  // Estimate hours completion date based on 4-week rolling pace
-  const fourWeeksAgo=new Date(Date.now()-28*24*60*60*1000);
-  const recentHrs=sessions.filter(s=>new Date(s.startTime)>=fourWeeksAgo).reduce((a,s)=>a+(s.duration||0)/60,0);
-  const weeklyPace=recentHrs/4;
+  // ── Hours completion estimate ──
+  // Use rolling pace from most recent 8 weeks; fall back to all-time if sparse
   let hrsCompleteDate=null;
-  if(reqs.total===0||hoursLeft===0){hrsCompleteDate=new Date();}
-  else if(weeklyPace>0){hrsCompleteDate=new Date(Date.now()+(hoursLeft/weeklyPace)*7*24*60*60*1000);}
+  if(reqs.total===0||hoursLeft===0){
+    hrsCompleteDate=new Date(today);
+  } else if(sessions.length>=2){
+    const eightWeeksAgo=new Date(Date.now()-56*24*60*60*1000);
+    let windowSessions=sessions.filter(s=>new Date(s.startTime)>=eightWeeksAgo);
+    // Fall back to all sessions if fewer than 2 in the window
+    if(windowSessions.length<2)windowSessions=sessions;
+    const spanMs=Date.now()-new Date(windowSessions[windowSessions.length-1].startTime).getTime();
+    const spanWeeks=Math.max(spanMs/(7*24*60*60*1000),1);
+    const windowHrs=windowSessions.reduce((a,s)=>a+(s.duration||0)/60,0);
+    const weeklyPace=windowHrs/spanWeeks;
+    if(weeklyPace>0){
+      hrsCompleteDate=new Date(Date.now()+(hoursLeft/weeklyPace)*7*24*60*60*1000);
+    }
+  }
 
-  // Hold period end date
+  // ── Hold period ──
   let holdEndDate=null;
   if(settings.permitDate){
     holdEndDate=new Date(settings.permitDate+'T00:00:00');
     holdEndDate.setMonth(holdEndDate.getMonth()+holdMonths);
   }
 
-  // Earliest test date = max of both constraints
+  // ── Earliest test = max of both constraints ──
   let earliestTest=null;
   if(hrsCompleteDate&&holdEndDate)earliestTest=new Date(Math.max(hrsCompleteDate,holdEndDate));
   else if(hrsCompleteDate)earliestTest=hrsCompleteDate;
   else if(holdEndDate)earliestTest=holdEndDate;
 
-  const today=new Date();today.setHours(0,0,0,0);
-  const testFmt=earliestTest?earliestTest.toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'}):'';
-  const daysToTest=earliestTest?Math.ceil((earliestTest-today)/86400000):null;
-  const testReady=earliestTest&&earliestTest<=today;
+  // Nothing to show yet — just show the handbook link
+  if(!earliestTest&&!settings.permitDate&&!sessions.length){
+    return`<div class="card" style="display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:.85rem;color:var(--muted)">🎓 Add your permit date to track test eligibility</div>
+      <a href="${handbookUrl}" target="_blank" rel="noopener" style="font-size:.72rem;color:var(--accent);font-weight:600;text-decoration:none;flex-shrink:0;margin-left:10px">📖 Handbook →</a>
+    </div>`;
+  }
 
-  const holdStatus=holdEndDate?(holdEndDate<=today
-    ?`<span style="color:var(--green)">✅ ${holdMonths}-month hold complete</span>`
-    :`<span>📋 ${Math.ceil((holdEndDate-today)/86400000)} days left on ${holdMonths}-month hold</span>`)
+  const testReady=earliestTest&&earliestTest<=today;
+  const daysToTest=earliestTest?Math.max(0,Math.ceil((earliestTest-today)/86400000)):null;
+  const testFmt=earliestTest?earliestTest.toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'}):'—';
+
+  const holdStatus=holdEndDate
+    ?(holdEndDate<=today
+      ?`<span style="color:var(--green)">✅ ${holdMonths}-month hold complete</span>`
+      :`<span>📋 ${Math.ceil((holdEndDate-today)/86400000)} days left on ${holdMonths}-month hold</span>`)
     :`<span style="color:var(--muted)">Add permit date in Settings to track hold period</span>`;
+
+  const hrsStatus=reqs.total===0
+    ?`<span style="color:var(--green)">✅ No hour requirement for ${st.name}</span>`
+    :hoursLeft===0
+      ?`<span style="color:var(--green)">✅ Hours complete</span>`
+      :hrsCompleteDate
+        ?`<span>⏱ ${hoursLeft.toFixed(1)} hrs left — est. complete ${hrsCompleteDate.toLocaleDateString([],{month:'short',day:'numeric'})}</span>`
+        :`<span>⏱ ${hoursLeft.toFixed(1)} hrs left — log more drives to estimate completion</span>`;
 
   return`<div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -738,16 +766,16 @@ function testDateCard(reqs,totals){
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
       <div class="stat-box" style="background:var(--bg);border-radius:10px;padding:10px">
-        <div class="val" style="font-size:1.1rem">${testReady?'Now!':testFmt||'—'}</div>
+        <div class="val" style="font-size:1rem">${testReady?'Ready Now!':testFmt}</div>
         <div class="lbl">Earliest Test Date</div>
       </div>
       <div class="stat-box" style="background:var(--bg);border-radius:10px;padding:10px">
-        <div class="val" style="font-size:1.1rem">${testReady?'✅':daysToTest!=null?daysToTest+' days':'—'}</div>
+        <div class="val" style="font-size:1.1rem;color:${testReady?'var(--green)':'inherit'}">${testReady?'✅':daysToTest!=null?daysToTest+' days':'—'}</div>
         <div class="lbl">${testReady?'Ready to Test':'Days Away'}</div>
       </div>
     </div>
-    <div style="font-size:.76rem;color:var(--muted);display:flex;flex-direction:column;gap:4px">
-      <span>${hoursLeft===0?'<span style="color:var(--green)">✅ Hours complete</span>':`⏱ ${hoursLeft.toFixed(1)} hrs left`}</span>
+    <div style="font-size:.76rem;color:var(--muted);display:flex;flex-direction:column;gap:5px">
+      ${hrsStatus}
       ${holdStatus}
     </div>
   </div>`;
@@ -1549,11 +1577,11 @@ function renderSettings(){
   const accentSwatches=ACCENT_COLORS.map(c=>`<div class="color-swatch ${c.id===settings.accentId?'active':''}" style="background:${c.main}" onclick="setAccent('${c.id}')" title="${c.label}"></div>`).join('');
   document.getElementById('settings-content').innerHTML=`
     <div class="card">
-      <div class="form-group"><label>Driver Name</label><input id="s-name" type="text" value="${settings.driverName}" placeholder="e.g. Alex"></div>
-      <div class="form-group"><label>Permit Issue Date</label><input id="s-permit" type="date" value="${settings.permitDate||''}" style="color-scheme:light dark"><div style="font-size:.72rem;color:var(--muted);margin-top:4px">Used to calculate your hold period and earliest test date</div></div>
-      <div class="form-group"><label>Goal Date (optional)</label><input id="s-goal" type="date" value="${settings.goalDate||''}" style="color-scheme:light dark"></div>
+      <div class="form-group"><label>Driver Name</label><input id="s-name" type="text" value="${settings.driverName}" placeholder="e.g. Alex" onchange="saveSettingsForm()" onblur="saveSettingsForm()"></div>
+      <div class="form-group"><label>Permit Issue Date</label><input id="s-permit" type="date" value="${settings.permitDate||''}" style="color-scheme:light dark" onchange="saveSettingsForm()"><div style="font-size:.72rem;color:var(--muted);margin-top:4px">Used to calculate your hold period and earliest test date</div></div>
+      <div class="form-group"><label>Goal Date (optional)</label><input id="s-goal" type="date" value="${settings.goalDate||''}" style="color-scheme:light dark" onchange="saveSettingsForm()"></div>
       <div class="form-group"><label>State</label>
-        <select id="s-state" onchange="previewState(this.value)">${stateOptions}</select>
+        <select id="s-state" onchange="previewState(this.value);saveSettingsForm()">${stateOptions}</select>
         <div class="req-display">
           <div class="req-box"><div class="rv" id="req-total">${reqs.total||'—'}</div><div class="rl">Total Hours</div></div>
           <div class="req-box night-box"><div class="rv" id="req-night">${reqs.night||'—'}</div><div class="rl">Night Hours</div></div>
@@ -1565,8 +1593,8 @@ function renderSettings(){
     <div class="card">
       <div class="section-title" style="margin-top:0">Override Hours (optional)</div>
       <div style="display:flex;gap:10px">
-        <div class="form-group" style="flex:1"><label>Total Hours</label><input id="s-custom-total" type="number" min="0" max="999" value="${settings.customTotal!=null?settings.customTotal:''}" placeholder="State default"></div>
-        <div class="form-group" style="flex:1"><label>Night Hours</label><input id="s-custom-night" type="number" min="0" max="999" value="${settings.customNight!=null?settings.customNight:''}" placeholder="State default"></div>
+        <div class="form-group" style="flex:1"><label>Total Hours</label><input id="s-custom-total" type="number" min="0" max="999" value="${settings.customTotal!=null?settings.customTotal:''}" placeholder="State default" onchange="saveSettingsForm()" onblur="saveSettingsForm()"></div>
+        <div class="form-group" style="flex:1"><label>Night Hours</label><input id="s-custom-night" type="number" min="0" max="999" value="${settings.customNight!=null?settings.customNight:''}" placeholder="State default" onchange="saveSettingsForm()" onblur="saveSettingsForm()"></div>
       </div>
     </div>
     <div class="card">
@@ -1771,14 +1799,12 @@ function openManualModal(editId=null){
     document.getElementById('m-supervisor').value='';document.getElementById('m-license').value='';
     document.getElementById('m-location').value='';document.getElementById('m-notes').value='';
   }
-  document.getElementById('manual-modal').classList.add('open');
-  // Wire tag chips
-  const tagChips=document.querySelectorAll('#m-tags .tag-chip');
+  // Reset tag chips then apply saved tags for edits
   const activeTags=editingSessionId?(sessions.find(x=>x.id===editingSessionId)?.tags||[]):[];
-  tagChips.forEach(chip=>{
-    if(activeTags.includes(chip.dataset.tag))chip.classList.add('active');
-    chip.addEventListener('click',()=>chip.classList.toggle('active'));
+  document.querySelectorAll('#m-tags .tag-chip').forEach(chip=>{
+    chip.classList.toggle('active', activeTags.includes(chip.dataset.tag));
   });
+  document.getElementById('manual-modal').classList.add('open');
 }
 
 function closeManualModal(){editingSessionId=null;document.getElementById('manual-modal').classList.remove('open');}
