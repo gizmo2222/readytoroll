@@ -11,6 +11,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Stamp version
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          DATE=$(date +'%Y.%m.%d')
+          VERSION="${DATE}-${SHORT_SHA}"
+          sed -i "s/const APP_VERSION = '[^']*'/const APP_VERSION = '${VERSION}'/" readytoroll.html
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+
       - name: Upload via SFTP
         env:
           SSHPASS: ${{ secrets.SFTP_PASSWORD }}
@@ -23,4 +31,4 @@ jobs:
           SFTP
 
       - name: Confirm
-        run: echo "✅ readytoroll.html deployed to metacrystal.com"
+        run: echo "✅ Deployed ReadyToRoll ${{ env.VERSION }} to metacrystal.com"
