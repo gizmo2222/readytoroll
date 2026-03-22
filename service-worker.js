@@ -36,7 +36,12 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // Always go network-first for Open-Meteo weather and Nominatim geocoding
+  // Always go network-first for sync endpoint, weather, and geocoding
+  if (url.hostname === 'metacrystal.com' && url.pathname.includes('rtr-sync')) {
+    e.respondWith(fetch(e.request).catch(() => new Response('{"ok":false,"error":"offline"}', { headers: { 'Content-Type': 'application/json' } })));
+    return;
+  }
+
   if (url.hostname === 'api.open-meteo.com' || url.hostname === 'nominatim.openstreetmap.org') {
     e.respondWith(
       fetch(e.request).catch(() => new Response('{}', { headers: { 'Content-Type': 'application/json' } }))

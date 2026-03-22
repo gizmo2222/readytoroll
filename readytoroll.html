@@ -329,6 +329,40 @@ body{display:flex;flex-direction:column;overflow:hidden}
 .car-option.active{border-color:var(--accent);background:var(--accent-lt)}
 .handbook-link{display:flex;align-items:center;gap:6px;margin-top:10px;background:var(--accent-lt);color:var(--accent);text-decoration:none;font-size:.8rem;font-weight:600;padding:8px 12px;border-radius:8px}
 .handbook-link:hover{opacity:.85}
+/* ── 21. GPS warning banner ── */
+.gps-warn{display:flex;align-items:flex-start;gap:10px;background:var(--amber-lt);border:1.5px solid var(--amber);border-radius:var(--radius);padding:11px 14px;margin-bottom:12px}
+.gps-warn-icon{font-size:1.3rem;flex-shrink:0;line-height:1.2}
+.gps-warn-body{flex:1}.gps-warn-title{font-size:.82rem;font-weight:700;color:var(--amber)}
+.gps-warn-sub{font-size:.74rem;color:var(--amber);opacity:.85;margin-top:2px;line-height:1.4}
+/* ── 22. Cloud sync UI ── */
+.sync-code-box{background:var(--bg);border:2px dashed var(--border);border-radius:12px;padding:16px;text-align:center;margin-bottom:12px}
+.sync-code-val{font-size:1.8rem;font-weight:900;letter-spacing:.18em;color:var(--accent);font-family:monospace;line-height:1.3}
+.sync-status-row{display:flex;align-items:center;gap:7px;font-size:.75rem;font-weight:600;color:var(--muted);margin-top:8px;justify-content:center}
+.sync-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;background:var(--muted)}
+.sync-dot.ok{background:var(--green)}.sync-dot.busy{background:var(--amber);animation:pulse-badge 1.2s infinite}
+.sync-dot.err{background:var(--red)}.sync-dot.off{background:var(--muted)}
+/* ── 23. Quick Add modal ── */
+.qa-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.qa-chip{border:1.5px solid var(--border);background:var(--card);border-radius:99px;padding:9px 16px;font-size:.84rem;font-weight:600;cursor:pointer;color:var(--text);transition:all .15s}
+.qa-chip.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.qa-dn{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.qa-dn-btn{border:1.5px solid var(--border);background:var(--card);border-radius:10px;padding:13px 10px;text-align:center;cursor:pointer;font-weight:600;font-size:.88rem;transition:all .15s;line-height:1.4}
+.qa-dn-btn.sel-day{background:var(--amber-lt);border-color:var(--amber);color:var(--amber)}
+.qa-dn-btn.sel-night{background:var(--purple-lt);border-color:var(--purple);color:var(--purple)}
+/* ── 24. Parent read-only view ── */
+#parent-overlay{display:none;position:fixed;inset:0;z-index:5000;background:var(--bg);overflow-y:auto}
+#parent-overlay.show{display:block}
+.parent-wrap{max-width:440px;margin:0 auto;padding:20px 16px 48px}
+.parent-header{text-align:center;padding:20px 0 16px;border-bottom:1px solid var(--border);margin-bottom:16px}
+.parent-app-name{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:6px}
+.parent-driver{font-size:1.5rem;font-weight:800;margin-bottom:2px}
+.parent-state{font-size:.8rem;color:var(--muted)}
+.parent-badge{display:inline-flex;align-items:center;gap:4px;background:var(--green-lt);color:var(--green);font-size:.7rem;font-weight:700;padding:3px 10px;border-radius:99px;margin-top:6px}
+.parent-session-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)}
+.parent-session-row:last-child{border-bottom:none}
+.ps-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0}
+.ps-info{flex:1;min-width:0}.ps-title{font-size:.84rem;font-weight:600}
+.ps-meta{font-size:.7rem;color:var(--muted);margin-top:1px}.ps-dur{font-size:.82rem;font-weight:700;color:var(--accent);flex-shrink:0}
   </style>
 </head>
 <body>
@@ -406,10 +440,11 @@ body{display:flex;flex-direction:column;overflow:hidden}
       <div class="section-title">Logging Drives</div>
       <div class="card" style="font-size:.84rem;line-height:1.6">
         <b>🚗 Start Drive</b> — tap on the Home tab. ReadyToRoll records your GPS route, weather, and time automatically. Allow location access for the best results — it's optional but enables route maps and weather.<br><br>
-        <b>+ Add Manually</b> — enter a past drive by date, start/end time, and conditions. Use this for drives you forgot to log, or when GPS isn't available.<br><br>
+        <b>⚡ Quick Add</b> — fastest way to log a drive you just completed. Pick a duration chip, choose Day or Night, add optional tags, and save in seconds.<br><br>
+        <b>📝 Manual</b> — enter a past drive by date, start/end time, and conditions. Use this for drives you forgot to log, or when GPS isn't available.<br><br>
         <b>Tags</b> — tap tag chips (Highway, Rain, Parking…) before saving to categorise each drive.<br><br>
-        <b>Supervisor</b> — enter your supervisor's name and licence number in the manual entry form. This appears on your printed log.<br><br>
-        <b>Day vs Night</b> — detected automatically from your local sunrise/sunset. You can override it in the manual entry form.
+        <b>Day vs Night</b> — detected automatically. You can override it in Quick Add or Manual entry.<br><br>
+        <b>📍 Location blocked</b> — if you see a yellow Location banner, open your browser settings → Site permissions → Location and allow this site. Routes and weather require GPS access.
       </div>
 
       <div class="section-title">Progress Tab</div>
@@ -441,6 +476,13 @@ body{display:flex;flex-direction:column;overflow:hidden}
         <b>Accent colour</b> — 6 colour options for the main highlight colour.<br><br>
         <b>Text size</b> — Small / Medium / Large.<br><br>
         <b>Your Car</b> — pick a car icon and give it a nickname. It shows on the Home screen.
+      </div>
+
+      <div class="section-title">Cloud Sync & Parent View</div>
+      <div class="card" style="font-size:.84rem;line-height:1.6">
+        <b>☁️ Cloud Sync</b> — in Settings → Cloud Sync, tap <b>Create Sync Code</b> to get an 8-character code. Your drives are automatically backed up to the cloud after every change.<br><br>
+        <b>Second device</b> — tap <b>Join existing</b> and enter your code to sync across devices.<br><br>
+        <b>📤 Parent View Link</b> — once you have a sync code, tap <b>Share Parent View Link</b>. This copies a URL your parent can open to see your live progress, recent drives, and milestones — without being able to edit anything.
       </div>
 
       <div class="section-title">Data & Export</div>
@@ -540,11 +582,67 @@ body{display:flex;flex-direction:column;overflow:hidden}
   </div>
 </div>
 
+<!-- Quick Add modal -->
+<div class="modal-overlay" id="quick-modal">
+  <div class="modal-sheet">
+    <div class="sheet-handle"></div>
+    <div class="modal-header">
+      <h3>⚡ Quick Add Drive</h3>
+      <button class="close-btn" onclick="closeQuickModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group" style="margin-bottom:6px"><label>Duration</label></div>
+      <div class="qa-chips" id="qa-dur-chips">
+        <div class="qa-chip" data-min="30" onclick="selectQaDur(this)">30 min</div>
+        <div class="qa-chip" data-min="45" onclick="selectQaDur(this)">45 min</div>
+        <div class="qa-chip active" data-min="60" onclick="selectQaDur(this)">1 hr</div>
+        <div class="qa-chip" data-min="90" onclick="selectQaDur(this)">1.5 hr</div>
+        <div class="qa-chip" data-min="120" onclick="selectQaDur(this)">2 hr</div>
+        <div class="qa-chip" data-min="180" onclick="selectQaDur(this)">3 hr</div>
+        <div class="qa-chip" data-min="0" id="qa-custom-chip" onclick="selectQaDur(this)">Custom…</div>
+      </div>
+      <div id="qa-custom-row" style="display:none;margin-bottom:14px">
+        <div style="display:flex;gap:10px">
+          <input type="number" id="qa-h" min="0" max="23" placeholder="Hrs" style="flex:1;border:1.5px solid var(--border);border-radius:10px;padding:11px 14px;font-size:.9rem;outline:none;background:var(--card);color:var(--text)">
+          <input type="number" id="qa-m" min="0" max="59" placeholder="Min" style="flex:1;border:1.5px solid var(--border);border-radius:10px;padding:11px 14px;font-size:.9rem;outline:none;background:var(--card);color:var(--text)">
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:6px"><label>Time of Day</label></div>
+      <div class="qa-dn" id="qa-dn">
+        <div class="qa-dn-btn sel-day" id="qa-day" onclick="selectQaDN('day')">☀️<br>Day</div>
+        <div class="qa-dn-btn" id="qa-night" onclick="selectQaDN('night')">🌙<br>Night</div>
+      </div>
+      <div class="form-group" style="margin-bottom:6px"><label>Tags (optional)</label></div>
+      <div class="qa-chips" id="qa-tag-chips">
+        <div class="qa-chip" data-tag="highway" onclick="this.classList.toggle('active')">🛣️ Highway</div>
+        <div class="qa-chip" data-tag="city" onclick="this.classList.toggle('active')">🏙️ City</div>
+        <div class="qa-chip" data-tag="rural" onclick="this.classList.toggle('active')">🌳 Rural</div>
+        <div class="qa-chip" data-tag="rain" onclick="this.classList.toggle('active')">🌧️ Rain</div>
+        <div class="qa-chip" data-tag="snow" onclick="this.classList.toggle('active')">❄️ Snow</div>
+        <div class="qa-chip" data-tag="parking" onclick="this.classList.toggle('active')">🅿️ Parking</div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-outline" style="flex:0 0 auto;padding:11px 16px" onclick="closeQuickModal()">Cancel</button>
+      <button class="btn-save-notes" style="flex:1" onclick="saveQuickDrive()">Save Drive</button>
+    </div>
+  </div>
+</div>
+
+<!-- Parent read-only overlay -->
+<div id="parent-overlay">
+  <div class="parent-wrap" id="parent-content">
+    <div style="text-align:center;padding:40px 0;color:var(--muted)">Loading…</div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 <canvas id="confetti-canvas" style="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999;display:none"></canvas>
 
 <script>
 'use strict';
+
+const APP_VERSION = '1.4.0';
 
 // ═══════════════════════════════════════════════════
 // STATE REQUIREMENTS
@@ -748,6 +846,16 @@ let detailMap = null, replayMarker = null, replayInterval = null;
 let driveTimerInterval = null;
 let gpsWatchId = null;
 let wakeLock = null;
+// GPS permission state: 'granted' | 'denied' | 'prompt' | 'unknown'
+let gpsPermState = 'unknown';
+// Cloud sync
+const SYNC_URL = 'https://metacrystal.com/rtr-sync.php';
+let syncDebounceTimer = null;
+let syncStatus = 'off'; // 'off' | 'ok' | 'busy' | 'err'
+let syncLastAt = null;
+// Quick Add
+let qaSelectedMin = 60;
+let qaIsNight = false;
 let activeSessionId = null;
 let historyFilter = 'all';
 let historySearch = '';
@@ -764,7 +872,7 @@ function loadSettings(){
   catch{return defaultSettings();}
 }
 function defaultSettings(){
-  return{driverName:'',state:'CA',customTotal:null,customNight:null,goalDate:'',darkMode:false,accentId:'blue',fontSize:'medium',onboardingDone:false,vibeTheme:'default',carEmoji:'🚗',carNickname:''};
+  return{driverName:'',state:'CA',customTotal:null,customNight:null,goalDate:'',darkMode:false,accentId:'blue',fontSize:'medium',onboardingDone:false,vibeTheme:'default',carEmoji:'🚗',carNickname:'',syncCode:''};
 }
 function saveSettings(){localStorage.setItem('dl_settings',JSON.stringify(settings));}
 
@@ -777,6 +885,7 @@ function saveSessions(){localStorage.setItem('dl_sessions',JSON.stringify(sessio
 function onSessionsChanged(){
   saveSessions();
   checkMilestones();
+  scheduleSyncPush();
   if(currentView==='home')renderHome();
   else if(currentView==='dashboard')renderDashboard();
   else if(currentView==='history')renderHistory();
@@ -898,6 +1007,348 @@ function getStreak(){
     else break;
   }
   return streak;
+}
+
+// ═══════════════════════════════════════════════════
+// GPS PERMISSION CHECK
+// ═══════════════════════════════════════════════════
+async function checkGpsPermission(){
+  if(!('geolocation' in navigator)){gpsPermState='denied';return;}
+  if(navigator.permissions){
+    try{
+      const result=await navigator.permissions.query({name:'geolocation'});
+      gpsPermState=result.state; // 'granted' | 'denied' | 'prompt'
+      result.onchange=()=>{gpsPermState=result.state;if(currentView==='home')renderHome();if(currentView==='drive')renderDrive();};
+    }catch{gpsPermState='unknown';}
+  } else {
+    gpsPermState='unknown'; // iOS Safari — can't check without attempting
+  }
+}
+
+function gpsWarnHTML(){
+  if(gpsPermState!=='denied')return'';
+  return`<div class="gps-warn">
+    <div class="gps-warn-icon">📍</div>
+    <div class="gps-warn-body">
+      <div class="gps-warn-title">Location access is blocked</div>
+      <div class="gps-warn-sub">Routes and weather won't be recorded. To fix: open your browser settings → Site permissions → Location → Allow for this site.</div>
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════
+// CLOUD SYNC
+// ═══════════════════════════════════════════════════
+async function createSyncCode(){
+  syncStatus='busy';updateSyncUI();
+  try{
+    const r=await fetch(SYNC_URL+'?action=create');
+    const d=await r.json();
+    if(!d.ok)throw new Error(d.error||'Failed');
+    settings.syncCode=d.code;
+    saveSettings();
+    syncStatus='ok';syncLastAt=new Date().toISOString();
+    await pushSync();
+    renderSettings();
+    toast('Sync code created: '+d.code);
+  }catch(e){
+    syncStatus='err';updateSyncUI();
+    toast('Could not create sync code');
+  }
+}
+
+async function connectSyncCode(code){
+  if(!code||code.length!==8){toast('Enter an 8-character code');return;}
+  syncStatus='busy';updateSyncUI();
+  try{
+    const r=await fetch(SYNC_URL+'?action=check&code='+code.toUpperCase());
+    const d=await r.json();
+    if(!d.exists){toast('Code not found — check and try again');syncStatus='off';updateSyncUI();return;}
+    settings.syncCode=code.toUpperCase();
+    saveSettings();
+    await pullSync();
+    renderSettings();
+    toast('Connected! Syncing…');
+  }catch{
+    syncStatus='err';updateSyncUI();
+    toast('Could not connect to sync');
+  }
+}
+
+async function pushSync(){
+  if(!settings.syncCode)return;
+  syncStatus='busy';updateSyncUI();
+  try{
+    const r=await fetch(SYNC_URL+'?action=push&code='+settings.syncCode,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({sessions})
+    });
+    const d=await r.json();
+    if(!d.ok)throw new Error(d.error||'Push failed');
+    syncStatus='ok';syncLastAt=d.updatedAt||new Date().toISOString();
+  }catch{
+    syncStatus='err';
+  }
+  updateSyncUI();
+}
+
+async function pullSync(){
+  if(!settings.syncCode)return;
+  syncStatus='busy';updateSyncUI();
+  try{
+    const r=await fetch(SYNC_URL+'?action=pull&code='+settings.syncCode);
+    const d=await r.json();
+    if(!d.ok)throw new Error(d.error||'Pull failed');
+    // Merge: keep all local + any remote sessions not already present
+    const localIds=new Set(sessions.map(s=>s.id));
+    const newSessions=d.sessions.filter(s=>!localIds.has(s.id));
+    if(newSessions.length){
+      sessions=[...sessions,...newSessions].sort((a,b)=>new Date(b.startTime)-new Date(a.startTime));
+      saveSessions();checkMilestones();
+      if(currentView==='home')renderHome();
+      else if(currentView==='dashboard')renderDashboard();
+      else if(currentView==='history')renderHistory();
+      toast('Synced — '+newSessions.length+' new drive'+(newSessions.length===1?'':'s')+' added');
+    }
+    syncStatus='ok';syncLastAt=d.updatedAt||new Date().toISOString();
+  }catch{
+    syncStatus='err';
+  }
+  updateSyncUI();
+}
+
+function scheduleSyncPush(){
+  if(!settings.syncCode)return;
+  clearTimeout(syncDebounceTimer);
+  syncDebounceTimer=setTimeout(()=>pushSync(),4000);
+}
+
+function updateSyncUI(){
+  const dot=document.getElementById('sync-status-dot');
+  const txt=document.getElementById('sync-status-txt');
+  if(!dot||!txt)return;
+  dot.className='sync-dot '+syncStatus;
+  const labels={ok:'Synced'+(syncLastAt?' · '+new Date(syncLastAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):''),busy:'Syncing…',err:'Sync error — check connection',off:'Not connected'};
+  txt.textContent=labels[syncStatus]||'—';
+}
+
+async function disconnectSync(){
+  if(!confirm('Stop syncing on this device? Your sync code is preserved on the server.'))return;
+  settings.syncCode='';saveSettings();syncStatus='off';
+  renderSettings();toast('Sync disconnected');
+}
+
+function shareParentLink(){
+  if(!settings.syncCode){toast('Enable sync first');return;}
+  const url=location.href.split('?')[0]+'?parent='+settings.syncCode;
+  if(navigator.share){
+    navigator.share({title:"ReadyToRoll — "+settings.driverName+"'s progress",text:'Follow my driving progress!',url}).catch(()=>{});
+  } else if(navigator.clipboard){
+    navigator.clipboard.writeText(url).then(()=>toast('Parent link copied!'));
+  } else {
+    toast(url);
+  }
+}
+
+function syncCodeHTML(){
+  const code=settings.syncCode;
+  const dotClass=syncStatus;
+  const statusLabel={ok:'Synced'+(syncLastAt?' · '+new Date(syncLastAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):''),busy:'Syncing…',err:'Sync error',off:'Not connected'}[syncStatus]||'—';
+  if(code){
+    return`<div class="sync-code-box">
+      <div style="font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px">Your Sync Code</div>
+      <div class="sync-code-val">${code}</div>
+      <div class="sync-status-row"><span class="sync-dot ${dotClass}" id="sync-status-dot"></span><span id="sync-status-txt">${statusLabel}</span></div>
+    </div>
+    <div class="btn-row" style="margin-bottom:10px">
+      <button class="btn-outline" onclick="pullSync()">↓ Pull Updates</button>
+      <button class="btn-outline" onclick="pushSync()">↑ Push Now</button>
+    </div>
+    <button class="btn-outline" style="width:100%;margin-bottom:8px" onclick="shareParentLink()">📤 Share Parent View Link</button>
+    <button class="btn-outline" style="width:100%;color:var(--muted)" onclick="disconnectSync()">Disconnect Sync</button>`;
+  } else {
+    return`<p style="font-size:.8rem;color:var(--muted);margin-bottom:12px;line-height:1.5">Create a sync code to back up your drives to the cloud and share a read-only progress view with a parent or supervisor.</p>
+    <button class="btn-save" style="margin-bottom:10px" onclick="createSyncCode()">☁️ Create Sync Code</button>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><div style="flex:1;height:1px;background:var(--border)"></div><span style="font-size:.72rem;color:var(--muted)">or join existing</span><div style="flex:1;height:1px;background:var(--border)"></div></div>
+    <div style="display:flex;gap:8px">
+      <input id="sync-join-input" type="text" maxlength="8" placeholder="Enter 8-char code" style="flex:1;border:1.5px solid var(--border);border-radius:10px;padding:11px 14px;font-size:.9rem;outline:none;background:var(--card);color:var(--text);text-transform:uppercase;letter-spacing:.1em" oninput="this.value=this.value.toUpperCase()">
+      <button class="btn-save" style="flex:0 0 auto;padding:11px 18px;margin-top:0" onclick="connectSyncCode(document.getElementById('sync-join-input').value)">Join</button>
+    </div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// QUICK ADD
+// ═══════════════════════════════════════════════════
+function openQuickModal(){
+  qaSelectedMin=60;
+  qaIsNight=isNightByTime(new Date());
+  // Reset chips
+  document.querySelectorAll('#qa-dur-chips .qa-chip').forEach(c=>{
+    c.classList.toggle('active',parseInt(c.dataset.min||0)===60);
+  });
+  document.getElementById('qa-custom-row').style.display='none';
+  document.getElementById('qa-h').value='';
+  document.getElementById('qa-m').value='';
+  selectQaDN(qaIsNight?'night':'day');
+  document.querySelectorAll('#qa-tag-chips .qa-chip').forEach(c=>c.classList.remove('active'));
+  document.getElementById('quick-modal').classList.add('open');
+}
+
+function closeQuickModal(){document.getElementById('quick-modal').classList.remove('open');}
+document.getElementById('quick-modal').addEventListener('click',e=>{if(e.target===document.getElementById('quick-modal'))closeQuickModal();});
+
+function selectQaDur(el){
+  document.querySelectorAll('#qa-dur-chips .qa-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  const min=parseInt(el.dataset.min||0);
+  const customRow=document.getElementById('qa-custom-row');
+  if(min===0){
+    customRow.style.display='block';
+    qaSelectedMin=0;
+  } else {
+    customRow.style.display='none';
+    qaSelectedMin=min;
+  }
+}
+
+function selectQaDN(val){
+  qaIsNight=val==='night';
+  document.getElementById('qa-day').className='qa-dn-btn'+(qaIsNight?'':' sel-day');
+  document.getElementById('qa-night').className='qa-dn-btn'+(qaIsNight?' sel-night':'');
+}
+
+function saveQuickDrive(){
+  let durMin=qaSelectedMin;
+  if(durMin===0){
+    const h=parseFloat(document.getElementById('qa-h').value)||0;
+    const m=parseFloat(document.getElementById('qa-m').value)||0;
+    durMin=h*60+m;
+  }
+  if(durMin<=0){toast('Select or enter a duration');return;}
+  const tags=[...document.querySelectorAll('#qa-tag-chips .qa-chip.active')].map(c=>c.dataset.tag);
+  const now=new Date();
+  const startTime=new Date(now.getTime()-durMin*60000).toISOString();
+  const endTime=now.toISOString();
+  sessions.push({id:genId(),startTime,endTime,duration:durMin,isNight:qaIsNight,
+    supervisor:'',supervisorLicense:'',tags,
+    startLocation:null,endLocation:null,weather:null,route:[],distance:0,notes:'',manual:true,quick:true});
+  onSessionsChanged();
+  closeQuickModal();
+  toast('Drive logged ✓');
+}
+
+// ═══════════════════════════════════════════════════
+// PARENT READ-ONLY VIEW
+// ═══════════════════════════════════════════════════
+function computeEarnedMilestones(remoteSessions,reqs){
+  // Pure function — does not touch localStorage
+  let totalMin=0,nightMin=0,distMi=0,rainDrives=0,snowDrives=0,earlyDrives=0,highwayDrives=0;
+  for(const s of remoteSessions){
+    totalMin+=s.duration||0;
+    if(s.isNight)nightMin+=s.duration||0;
+    distMi+=s.distance||0;
+    const wx=s.weather?.code;
+    if((wx!=null&&((wx>=61&&wx<=65)||(wx>=80&&wx<=82)))||(s.tags&&s.tags.includes('rain')))rainDrives++;
+    if((wx!=null&&wx>=71&&wx<=77)||(s.tags&&s.tags.includes('snow')))snowDrives++;
+    if(s.startTime&&new Date(s.startTime).getHours()<7)earlyDrives++;
+    if(s.tags&&s.tags.includes('highway'))highwayDrives++;
+  }
+  const weeklyHours={};
+  for(const s of remoteSessions){
+    if(!s.startTime)continue;
+    const d=new Date(s.startTime),ws=new Date(d);
+    ws.setDate(d.getDate()-d.getDay());ws.setHours(0,0,0,0);
+    const key=ws.toISOString().slice(0,10);
+    weeklyHours[key]=(weeklyHours[key]||0)+(s.duration||0)/60;
+  }
+  const bestWeekHours=Object.values(weeklyHours).length?Math.max(0,...Object.values(weeklyHours)):0;
+  const totals={totalHours:totalMin/60,nightHours:nightMin/60,sessions:remoteSessions.length,
+    distMi,rainDrives,snowDrives,earlyDrives,highwayDrives,bestWeekHours,streak:0};
+  const earned=new Set();
+  for(const m of MILESTONES){if(m.check(totals,reqs))earned.add(m.id);}
+  return{totals,earned};
+}
+
+async function initParentView(code){
+  document.getElementById('header').style.display='none';
+  document.getElementById('main').style.display='none';
+  document.getElementById('nav').style.display='none';
+  const overlay=document.getElementById('parent-overlay');
+  overlay.classList.add('show');
+  const contentEl=document.getElementById('parent-content');
+  try{
+    const r=await fetch(SYNC_URL+'?action=pull&code='+code);
+    const d=await r.json();
+    if(!d.ok)throw new Error(d.error||'Not found');
+    const remoteSessions=d.sessions||[];
+    // Use default CA reqs — we don't have the student's settings in parent view
+    // But we can reconstruct from session metadata if available
+    const reqs={total:50,night:10,stateName:''};
+    const {totals,earned}=computeEarnedMilestones(remoteSessions,reqs);
+    const totalPct=reqs.total>0?Math.min(totals.totalHours/reqs.total,1):1;
+    const recent=[...remoteSessions].sort((a,b)=>new Date(b.startTime)-new Date(a.startTime)).slice(0,5);
+    const nightLeft=Math.max(reqs.night-totals.nightHours,0);
+    const hoursLeft=Math.max(reqs.total-totals.totalHours,0);
+    contentEl.innerHTML=`
+      <div class="parent-header">
+        <div class="parent-app-name">ReadyToRoll — Parent View</div>
+        <div class="parent-driver">🚗 Driver Progress</div>
+        <div class="parent-state">Live data · Updated ${d.updatedAt?new Date(d.updatedAt).toLocaleDateString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'recently'}</div>
+        ${totals.totalHours>=reqs.total?'<div class="parent-badge">✅ Hours complete!</div>':''}
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:16px">
+          <div class="ring-wrap">
+            ${progressRing(totalPct,'var(--accent)',96,9,true)}
+            <div class="ring-label">
+              <div class="ring-pct" style="font-size:1.15rem">${Math.round(totalPct*100)}%</div>
+            </div>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:1.5rem;font-weight:800;line-height:1">${totals.totalHours.toFixed(1)}<span style="font-size:.85rem;font-weight:500;color:var(--muted)"> / ${reqs.total} hrs</span></div>
+            <div style="font-size:.76rem;color:var(--purple);margin-top:5px">🌙 ${totals.nightHours.toFixed(1)} / ${reqs.night} night hrs</div>
+            ${hoursLeft>0||nightLeft>0?`<div style="font-size:.72rem;color:var(--muted);margin-top:4px">${hoursLeft>0?hoursLeft.toFixed(1)+' total left':''}${hoursLeft>0&&nightLeft>0?' · ':''}${nightLeft>0?nightLeft.toFixed(1)+' night left':''}</div>`:''}
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="stat-grid">
+          <div class="stat-box"><div class="val">${totals.sessions}</div><div class="lbl">Drives</div></div>
+          <div class="stat-box"><div class="val">${totals.distMi.toFixed(1)}</div><div class="lbl">Miles</div></div>
+          <div class="stat-box"><div class="val">${totals.sessions>0?fmtDur(totals.totalHours*60/totals.sessions):'—'}</div><div class="lbl">Avg Drive</div></div>
+        </div>
+      </div>
+      <div class="section-title">Milestones Earned (${earned.size} / ${MILESTONES.length})</div>
+      <div class="milestones-row" style="margin-bottom:14px">
+        ${MILESTONES.map(m=>`<div class="milestone-badge ${earned.has(m.id)?'earned':''}" title="${m.label}"><div class="m-icon">${m.icon}</div><div class="m-label">${m.label}</div></div>`).join('')}
+      </div>
+      <div class="section-title">Recent Drives</div>
+      <div class="card">
+        ${recent.length?recent.map(s=>`<div class="parent-session-row">
+          <div class="ps-icon ${s.isNight?'s-night':'s-day'}">${s.isNight?'🌙':'☀️'}</div>
+          <div class="ps-info">
+            <div class="ps-title">${fmtDate(s.startTime)}</div>
+            <div class="ps-meta">${s.isNight?'Night':'Day'}${s.tags&&s.tags.length?' · '+s.tags.map(t=>tagLabel(t)).join(', '):''}</div>
+          </div>
+          <div class="ps-dur">${fmtDur(s.duration)}</div>
+        </div>`).join(''):'<div style="color:var(--muted);font-size:.84rem">No drives recorded yet</div>'}
+      </div>
+      <div style="text-align:center;margin-top:24px;font-size:.7rem;color:var(--muted);line-height:1.7">This is a read-only view shared by the driver.<br>Powered by ReadyToRoll</div>
+    `;
+    // Animate ring
+    requestAnimationFrame(()=>{
+      const circle=document.querySelector('#parent-content .ring-circle-progress');
+      if(circle)setTimeout(()=>{circle.style.strokeDashoffset=circle.dataset.target;},80);
+    });
+  }catch(e){
+    contentEl.innerHTML=`<div style="text-align:center;padding:60px 20px;color:var(--muted)">
+      <div style="font-size:2rem;margin-bottom:12px">🔒</div>
+      <div style="font-size:1rem;font-weight:600;margin-bottom:6px">Could not load progress</div>
+      <div style="font-size:.8rem">The sync code may be invalid or the server is unreachable.</div>
+    </div>`;
+  }
 }
 
 // ═══════════════════════════════════════════════════
@@ -1174,6 +1625,7 @@ function renderHome(){
   }
 
   document.getElementById('home-content').innerHTML=`
+    ${gpsWarnHTML()}
     ${streak>=2&&!activeSession?`
       <div class="streak-banner">
         <div class="s-num">🔥${streak}</div>
@@ -1210,7 +1662,10 @@ function renderHome(){
     ${countdownHTML}
     ${!activeSession?`
       <button class="btn-big btn-start" onclick="startDrive()" style="width:100%;margin-bottom:10px;padding:18px;font-size:1.05rem">🚗 Start Drive</button>
-      <button class="btn-outline" onclick="openManualModal()" style="width:100%;padding:14px;font-size:.92rem">+ Add Drive Manually</button>
+      <div style="display:flex;gap:8px;margin-bottom:4px">
+        <button class="btn-outline" onclick="openQuickModal()" style="flex:1;padding:12px;font-size:.88rem">⚡ Quick Add</button>
+        <button class="btn-outline" onclick="openManualModal()" style="flex:1;padding:12px;font-size:.88rem">📝 Manual</button>
+      </div>
     `:`<button class="btn-big btn-stop" onclick="navigate('drive')" style="width:100%;margin-top:4px">Go to Live Drive →</button>`}
     <div class="tip-card">
       <div class="tip-icon">💡</div>
@@ -1475,6 +1930,13 @@ function renderDrive(){
     const compass=document.getElementById('compass-el');
     if(compass)compass.classList.remove('visible');
     panel.innerHTML=`<div id="drive-pre">
+      ${gpsPermState==='denied'?`<div class="gps-warn" style="text-align:left;margin-bottom:16px">
+        <div class="gps-warn-icon">📍</div>
+        <div class="gps-warn-body">
+          <div class="gps-warn-title">Location blocked</div>
+          <div class="gps-warn-sub">Route maps won't be recorded. Enable location in your browser settings to fix this.</div>
+        </div>
+      </div>`:''}
       <h2>Ready to Drive?</h2>
       <p>Your route, time, speed, and weather are recorded automatically. Location access is optional.</p>
       <button class="btn-big btn-start" onclick="startDrive()">Start Drive</button>
@@ -2046,6 +2508,10 @@ function renderSettings(){
       <div class="form-group"><label>Car Icon</label><div class="car-picker">${carPicker}</div></div>
       <div class="form-group"><label>Nickname (optional)</label><input id="s-car-nick" type="text" value="${settings.carNickname||''}" placeholder="e.g. Betty, The Beast" onchange="saveSettingsForm()" onblur="saveSettingsForm()"></div>
     </div>
+    <div class="card">
+      <div class="section-title" style="margin-top:0">☁️ Cloud Sync</div>
+      ${syncCodeHTML()}
+    </div>
     <div class="section-title">💾 Data</div>
     <div class="btn-row">
       <button class="btn-outline" onclick="exportJSON()">Export JSON</button>
@@ -2059,6 +2525,7 @@ function renderSettings(){
     <div class="btn-row"><button class="btn-danger" onclick="clearAllData()">Clear All Data</button></div>
     <div style="height:24px"></div>
     <div style="text-align:center;font-size:.68rem;color:var(--muted);line-height:1.7">Hour requirements sourced from IIHS and state DMV sites.<br>Always verify with your state's official DMV.</div>
+    <div style="text-align:center;margin-top:10px;font-size:.65rem;color:var(--muted);opacity:.6">ReadyToRoll v${APP_VERSION}</div>
   `;
 }
 
@@ -2405,12 +2872,35 @@ if('serviceWorker' in navigator){
   });
 }
 
-// ── PWA: Handle home screen shortcut (#drive) ──
-applyTheme();
-updateSkillsBadge();
-initOnboarding();
-const startView = location.hash === '#drive' ? 'drive' : 'home';
-navigate(startView);
+// ── Check for parent view ──
+(function(){
+  const params=new URLSearchParams(location.search);
+  const parentCode=params.get('parent');
+  if(parentCode&&/^[A-Z0-9]{8}$/i.test(parentCode)){
+    // Show parent view immediately; hide normal app
+    applyTheme();
+    initParentView(parentCode.toUpperCase());
+    return; // skip normal init
+  }
+
+  // ── PWA: Handle home screen shortcut (#drive) ──
+  applyTheme();
+  updateSkillsBadge();
+  initOnboarding();
+  const startView = location.hash === '#drive' ? 'drive' : 'home';
+  navigate(startView);
+
+  // ── GPS permission check (async, non-blocking) ──
+  checkGpsPermission().then(()=>{
+    if(gpsPermState==='denied'&&currentView==='home')renderHome();
+  });
+
+  // ── Pull sync on load if code exists ──
+  if(settings.syncCode){
+    syncStatus='busy';
+    setTimeout(()=>pullSync(),1500); // slight delay to let the UI settle
+  }
+})();
 
 // ── Page visibility: warn on background during active drive ──
 document.addEventListener('visibilitychange', ()=>{

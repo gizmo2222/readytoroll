@@ -19,6 +19,7 @@ jobs:
           sshpass -e sftp -o StrictHostKeyChecking=no \
             ${{ secrets.SFTP_USER }}@metacrystal.com <<'SFTP'
           put readytoroll.html /home/nstrupp/metacrystal.com/readytoroll.html
+          put rtr-sync.php /home/nstrupp/metacrystal.com/rtr-sync.php
           SFTP
 
       - name: Confirm
