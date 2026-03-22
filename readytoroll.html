@@ -1793,59 +1793,110 @@ async function shareSession(){
   const s=currentDetailSession;
   if(!s)return;
 
-  // Build share card on canvas
-  const canvas=document.createElement('canvas');
-  canvas.width=600;canvas.height=340;
-  const ctx=canvas.getContext('2d');
-  const accentHex=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#2563eb';
+  const W=600,PAD=30;
   const reqs=getReqs(),totals=getTotals();
   const pct=reqs.total>0?Math.round(totals.totalHours/reqs.total*100):null;
-  const car=settings.carEmoji||'🚗';
-  const nick=settings.carNickname?` (${settings.carNickname})`:'';
+  const accentHex=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#2563eb';
+  const nick=settings.carNickname;
+
+  // ── Helper: draw a filled rounded rect ──
+  function fillRoundRect(ctx,x,y,w,h,r,color){
+    ctx.fillStyle=color;
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);
+    ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+    ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);
+    ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);
+    ctx.closePath();ctx.fill();
+  }
+
+  // ── Build rows of content first so we know the height ──
+  const statCols=[
+    {label:'Duration', val:fmtDur(s.duration)},
+    {label:'Distance',  val:(s.distance||0).toFixed(2)+' mi'},
+    pct!==null?{label:'Goal',val:pct+'%'}:{label:'Sessions',val:String(totals.sessions)},
+  ];
+  const secRows=[
+    s.isNight?'Night drive':'Day drive',
+    s.weather?s.weather.temp+'\u00b0F  '+( WX_DESC[s.weather.code]||''):null,
+    s.maxSpeed?'Top speed: '+s.maxSpeed.toFixed(0)+' mph':null,
+    s.tags&&s.tags.length?'Tags: '+s.tags.map(t=>tagLabel(t)).join('  '):null,
+  ].filter(Boolean);
+
+  // Fixed-height zones:
+  //  0-6   accent bar
+  //  16-44 app name
+  //  50-72 driver / date
+  //  80-96 divider
+  // 100-190 three big stat cols
+  // 200-216 divider
+  // 220+  secondary rows (22px each)
+  // +20   progress bar (if pct)
+  // +32   footer
+  const secH=secRows.length*22;
+  const barH=pct!==null?28:0;
+  const H=220+secH+barH+50;
+
+  const canvas=document.createElement('canvas');
+  canvas.width=W;canvas.height=H;
+  const ctx=canvas.getContext('2d');
 
   // Background
-  ctx.fillStyle='#0f172a';ctx.fillRect(0,0,600,340);
-  // Accent top strip
-  ctx.fillStyle=accentHex;ctx.fillRect(0,0,600,6);
+  ctx.fillStyle='#0f172a';ctx.fillRect(0,0,W,H);
+
+  // Accent left bar
+  ctx.fillStyle=accentHex;ctx.fillRect(0,0,6,H);
 
   // App name
-  ctx.fillStyle=accentHex;ctx.font='bold 22px -apple-system,BlinkMacSystemFont,sans-serif';
-  ctx.fillText('ReadyToRoll',30,42);
+  ctx.fillStyle=accentHex;ctx.font='bold 20px -apple-system,BlinkMacSystemFont,sans-serif';
+  ctx.fillText('ReadyToRoll',PAD,36);
 
-  // Driver + date
-  ctx.fillStyle='#f1f5f9';ctx.font='bold 18px -apple-system,BlinkMacSystemFont,sans-serif';
-  ctx.fillText((settings.driverName||'Driver')+nick+' · '+fmtDate(s.startTime),30,80);
+  // Driver name + car nickname
+  const driverLine=(settings.driverName||'Driver')+(nick?' \u00b7 '+nick:'');
+  ctx.fillStyle='#f1f5f9';ctx.font='bold 16px -apple-system,BlinkMacSystemFont,sans-serif';
+  ctx.fillText(driverLine,PAD,60);
 
-  // Stats rows
-  ctx.fillStyle='#94a3b8';ctx.font='15px -apple-system,BlinkMacSystemFont,sans-serif';
-  const stats=[
-    [car+' Duration',fmtDur(s.duration)],
-    ['📍 Distance',(s.distance||0).toFixed(2)+' mi'],
-    [s.isNight?'🌙 Night drive':'☀️ Day drive', s.weather?s.weather.temp+'°F · '+(WX_DESC[s.weather.code]||''):''],
-    s.maxSpeed?['⚡ Top speed',s.maxSpeed.toFixed(0)+' mph']:null,
-    s.tags&&s.tags.length?['🏷️ Tags',s.tags.map(t=>tagLabel(t)).join(' · ')]:null,
-  ].filter(Boolean);
-  stats.forEach((row,i)=>{
-    const y=120+i*32;
-    ctx.fillStyle='#64748b';ctx.fillText(row[0],30,y);
-    ctx.fillStyle='#f1f5f9';ctx.textAlign='right';ctx.fillText(row[1],570,y);ctx.textAlign='left';
+  // Date
+  ctx.fillStyle='#64748b';ctx.font='13px -apple-system,BlinkMacSystemFont,sans-serif';
+  ctx.fillText(fmtDate(s.startTime),PAD,78);
+
+  // Divider
+  ctx.strokeStyle='#1e293b';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(PAD,90);ctx.lineTo(W-PAD,90);ctx.stroke();
+
+  // Three stat columns
+  const colW=(W-PAD*2)/3;
+  statCols.forEach((col,i)=>{
+    const cx=PAD+i*colW+colW/2;
+    ctx.fillStyle='#f1f5f9';ctx.font='bold 30px -apple-system,BlinkMacSystemFont,sans-serif';
+    ctx.textAlign='center';ctx.fillText(col.val,cx,148);
+    ctx.fillStyle='#475569';ctx.font='11px -apple-system,BlinkMacSystemFont,sans-serif';
+    ctx.fillText(col.label.toUpperCase(),cx,168);
+  });
+  ctx.textAlign='left';
+
+  // Divider
+  ctx.beginPath();ctx.moveTo(PAD,182);ctx.lineTo(W-PAD,182);ctx.stroke();
+
+  // Secondary rows
+  ctx.font='13px -apple-system,BlinkMacSystemFont,sans-serif';
+  secRows.forEach((row,i)=>{
+    ctx.fillStyle='#94a3b8';
+    ctx.fillText(row,PAD,206+i*22);
   });
 
-  // Progress circle area
+  // Progress bar
   if(pct!==null){
-    const cx=520,cy=200,r=54,stroke=10;
-    ctx.strokeStyle='#1e293b';ctx.lineWidth=stroke;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();
-    ctx.strokeStyle=accentHex;ctx.lineWidth=stroke;ctx.lineCap='round';
-    ctx.beginPath();ctx.arc(cx,cy,r,-Math.PI/2,(Math.PI*2)*(pct/100)-Math.PI/2);ctx.stroke();
-    ctx.fillStyle='#f1f5f9';ctx.font='bold 26px -apple-system,BlinkMacSystemFont,sans-serif';ctx.textAlign='center';
-    ctx.fillText(pct+'%',cx,cy+4);
-    ctx.fillStyle='#64748b';ctx.font='11px -apple-system,BlinkMacSystemFont,sans-serif';
-    ctx.fillText('of goal',cx,cy+20);ctx.textAlign='left';
+    const by=206+secRows.length*22+8,bw=W-PAD*2,bh=10;
+    fillRoundRect(ctx,PAD,by,bw,bh,5,'#1e293b');
+    fillRoundRect(ctx,PAD,by,Math.max(bw*pct/100,bh),bh,5,accentHex);
+    ctx.fillStyle='#475569';ctx.font='11px -apple-system,BlinkMacSystemFont,sans-serif';
+    ctx.fillText(totals.totalHours.toFixed(1)+' of '+reqs.total+' hrs  ('+pct+'%)',PAD,by+26);
   }
 
   // Footer
   ctx.fillStyle='#334155';ctx.font='11px -apple-system,BlinkMacSystemFont,sans-serif';
-  ctx.fillText('Logged with ReadyToRoll · readytoroll.app',30,325);
+  ctx.fillText('Logged with ReadyToRoll',PAD,H-14);
 
   // Convert to blob then share or download
   canvas.toBlob(async blob=>{
