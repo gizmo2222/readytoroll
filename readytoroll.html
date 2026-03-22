@@ -1162,7 +1162,11 @@ function syncCodeHTML(){
     return`<div class="sync-code-box">
       <div style="font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px">Your Sync Code</div>
       <div class="sync-code-val">${code}</div>
-      <div class="sync-status-row"><span class="sync-dot ${dotClass}" id="sync-status-dot"></span><span id="sync-status-txt">${statusLabel}</span></div>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:10px">
+        <button class="btn-outline" style="flex:0 0 auto;padding:8px 16px;font-size:.8rem" onclick="copySyncCode()">📋 Copy Code</button>
+        <button class="btn-outline" style="flex:0 0 auto;padding:8px 16px;font-size:.8rem" onclick="emailSyncCode()">✉️ Email to Myself</button>
+      </div>
+      <div class="sync-status-row" style="margin-top:10px"><span class="sync-dot ${dotClass}" id="sync-status-dot"></span><span id="sync-status-txt">${statusLabel}</span></div>
     </div>
     <div class="btn-row" style="margin-bottom:10px">
       <button class="btn-outline" onclick="pullSync()">↓ Pull Updates</button>
@@ -1179,6 +1183,23 @@ function syncCodeHTML(){
       <button class="btn-save" style="flex:0 0 auto;padding:11px 18px;margin-top:0" onclick="connectSyncCode(document.getElementById('sync-join-input').value)">Join</button>
     </div>`;
   }
+}
+
+function copySyncCode(){
+  if(!settings.syncCode)return;
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(settings.syncCode).then(()=>toast('Sync code copied: '+settings.syncCode));
+  } else {
+    toast('Your code: '+settings.syncCode);
+  }
+}
+
+function emailSyncCode(){
+  if(!settings.syncCode)return;
+  const name=settings.driverName?settings.driverName+"'s":'My';
+  const url=location.href.split('?')[0];
+  const body=`Hi!%0A%0AMy ReadyToRoll sync code is:%0A%0A  ${settings.syncCode}%0A%0ATo see my live progress, open:%0A${url}?parent=${settings.syncCode}%0A%0ATo sync on another device, go to Settings → Cloud Sync → Join existing and enter the code above.`;
+  location.href=`mailto:?subject=${encodeURIComponent(name+' ReadyToRoll Sync Code')}&body=${body}`;
 }
 
 // ═══════════════════════════════════════════════════
