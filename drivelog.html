@@ -577,6 +577,14 @@ function loadSessions(){
 }
 function saveSessions(){localStorage.setItem('dl_sessions',JSON.stringify(sessions));}
 
+function onSessionsChanged(){
+  saveSessions();
+  checkMilestones();
+  if(currentView==='home')renderHome();
+  else if(currentView==='dashboard')renderDashboard();
+  else if(currentView==='history')renderHistory();
+}
+
 function loadSkillsData(){
   try{return JSON.parse(localStorage.getItem('dl_skills'))||{};}
   catch{return{};}
@@ -1374,13 +1382,13 @@ async function stopDrive(){
     activeSession.endLocation=await reverseGeocode(last[0],last[1]);
   }
   sessions.push({...activeSession});
-  saveSessions();activeSession=null;
+  activeSession=null;
   document.getElementById('live-badge').style.display='none';
   document.querySelector('.drive-btn').classList.remove('recording');
   const compass=document.getElementById('compass-el');
   if(compass)compass.classList.remove('visible');
   if(driveMap){driveMap.remove();driveMap=null;drivePolyline=null;drivePosMarker=null;}
-  checkMilestones();
+  saveSessions();checkMilestones();
   toast('Drive saved! 🎉');
   navigate('home');
 }
@@ -1603,17 +1611,15 @@ function closeModal(){
 function saveNotes(id){
   const s=sessions.find(x=>x.id===id);if(!s)return;
   s.notes=document.getElementById('detail-notes').value;
-  saveSessions();toast('Notes saved');closeModal();
+  onSessionsChanged();toast('Notes saved');closeModal();
 }
 
 function deleteSession(id){
   const s=sessions.find(x=>x.id===id);
   if(!s)return;
   sessions=sessions.filter(x=>x.id!==id);
-  saveSessions();closeModal();
+  onSessionsChanged();closeModal();
   toastUndo('Session deleted',s);
-  if(currentView==='history')renderHistory();
-  else if(currentView==='dashboard')renderDashboard();else if(currentView==='home')renderHome();
 }
 
 document.getElementById('modal').addEventListener('click',e=>{if(e.target===document.getElementById('modal'))closeModal();});
@@ -1705,7 +1711,7 @@ function clearAllData(){
   sessions=[];settings=defaultSettings();skillsData={};
   saveSessions();saveSettings();saveSkillsData();
   localStorage.removeItem('dl_milestones');
-  applyTheme();toast('All data cleared');renderSettings();
+  applyTheme();updateSkillsBadge();onSessionsChanged();toast('All data cleared');renderSettings();
 }
 
 // ═══════════════════════════════════════════════════
@@ -1749,7 +1755,7 @@ function importData(){
         saveSkillsData();saveSettings();applyTheme();
         toast('Data replaced successfully');
       }
-      saveSessions();if(currentView==='history')renderHistory();else renderDashboard();
+      onSessionsChanged();
     }catch(err){toast('Import failed: '+err.message);}
   };
   input.click();
@@ -1900,11 +1906,8 @@ function saveManualDrive(){
       startLocation:location?{lat:null,lng:null,city:location,address:location}:null,
       endLocation:null,weather:null,route:[],distance:0,notes,manual:true});
     toast('Drive added');
-    checkMilestones();
   }
-  saveSessions();closeManualModal();
-  if(currentView==='history')renderHistory();
-  else if(currentView==='dashboard')renderDashboard();else if(currentView==='home')renderHome();
+  onSessionsChanged();closeManualModal();
 }
 
 // ═══════════════════════════════════════════════════
@@ -1958,9 +1961,9 @@ function toastUndo(msg,session){
 function undoDelete(){
   if(!undoSession)return;
   sessions.push(undoSession);sessions.sort((a,b)=>new Date(b.startTime)-new Date(a.startTime));
-  saveSessions();undoSession=null;
+  undoSession=null;
   document.getElementById('toast').classList.remove('show');
-  if(currentView==='history')renderHistory();else if(currentView==='dashboard')renderDashboard();else if(currentView==='home')renderHome();
+  onSessionsChanged();
   toast('Session restored ✓');
 }
 
