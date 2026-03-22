@@ -280,11 +280,12 @@ body{display:flex;flex-direction:column;overflow:hidden}
 <body>
 <div id="header">
   <h1>Drive<span>Log</span></h1>
-  <span id="live-badge">● REC</span>
+  <span id="live-badge" onclick="navigate('drive')" style="cursor:pointer">● REC</span>
   <div id="avatar">?</div>
 </div>
 
 <div id="main">
+  <div id="home-view" class="view padded"><div id="home-content"></div></div>
   <div id="dashboard-view" class="view padded"><div id="dash-content"></div></div>
   <div id="drive-view" class="view">
     <div id="drive-map"></div>
@@ -299,8 +300,8 @@ body{display:flex;flex-direction:column;overflow:hidden}
 </div>
 
 <nav id="nav">
-  <button class="nav-btn active" data-view="dashboard" data-idx="0"><span class="icon">📊</span>Progress</button>
-  <button class="nav-btn drive-btn" data-view="drive" data-idx="1"><span class="icon">🚗</span>Drive</button>
+  <button class="nav-btn active" data-view="home" data-idx="0"><span class="icon">🏠</span>Home</button>
+  <button class="nav-btn" data-view="dashboard" data-idx="1"><span class="icon">📊</span>Progress</button>
   <button class="nav-btn" data-view="skills" data-idx="2"><span class="icon">✅</span>Skills<span class="nav-badge" id="skills-nav-badge"></span></button>
   <button class="nav-btn" data-view="history" data-idx="3"><span class="icon">📋</span>History</button>
   <button class="nav-btn" data-view="settings" data-idx="4"><span class="icon">⚙️</span>Settings</button>
@@ -555,7 +556,7 @@ let historyFilter = 'all';
 let historySearch = '';
 let historySort = 'newest';
 let goalCollapsed = false;
-let viewOrder = ['dashboard','drive','skills','history','settings'];
+let viewOrder = ['home','dashboard','skills','history','settings'];
 let openSkillTip = null;
 
 // ═══════════════════════════════════════════════════
@@ -883,7 +884,8 @@ function navigate(view, direction){
   el.classList.add('active');
   if(direction==='right')el.classList.add('slide-in-right');
   else if(direction==='left')el.classList.add('slide-in-left');
-  if(view==='dashboard')renderDashboard();
+  if(view==='home')renderHome();
+  else if(view==='dashboard')renderDashboard();
   else if(view==='drive')renderDrive();
   else if(view==='skills')renderSkills();
   else if(view==='history')renderHistory();
@@ -904,6 +906,55 @@ mainEl.addEventListener('touchend',e=>{
     else if(dx>0&&idx>0)navigate(viewOrder[idx-1],'left');
   }
 },{passive:true});
+
+// ═══════════════════════════════════════════════════
+// HOME
+// ═══════════════════════════════════════════════════
+function renderHome(){
+  const reqs=getReqs(),totals=getTotals();
+  const totalPct=reqs.total>0?Math.min(totals.totalHours/reqs.total,1):1;
+  const last=[...sessions].sort((a,b)=>new Date(b.startTime)-new Date(a.startTime))[0]||null;
+  const hoursLeft=Math.max(reqs.total-totals.totalHours,0);
+  const nightLeft=Math.max(reqs.night-totals.nightHours,0);
+  document.getElementById('home-content').innerHTML=`
+    ${activeSession?`
+      <div class="card" style="background:var(--red-lt);border:1.5px solid var(--red);margin-bottom:4px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-weight:700;color:var(--red)">● Drive in progress</div>
+            <div style="font-size:.78rem;color:var(--muted);margin-top:2px" id="home-elapsed">${fmtElapsed(activeSession.startTime)}</div>
+          </div>
+          <button onclick="navigate('drive')" style="background:var(--red);color:#fff;border:none;border-radius:10px;padding:9px 16px;font-weight:700;cursor:pointer">View →</button>
+        </div>
+      </div>`:''}
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:16px">
+        <div class="ring-wrap">
+          ${progressRing(totalPct,'var(--accent)',96,9)}
+          <div class="ring-label">
+            <div class="ring-pct" style="font-size:1.15rem">${reqs.total>0?Math.round(totalPct*100)+'%':'—'}</div>
+          </div>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:1.5rem;font-weight:800;line-height:1">${totals.totalHours.toFixed(1)}<span style="font-size:.85rem;font-weight:500;color:var(--muted)"> / ${reqs.total||'?'} hrs</span></div>
+          <div style="font-size:.78rem;color:var(--muted);margin-top:3px">${reqs.stateName}</div>
+          ${reqs.night>0?`<div style="font-size:.76rem;color:var(--purple);margin-top:5px">🌙 ${totals.nightHours.toFixed(1)} / ${reqs.night} night hrs</div>`:''}
+          ${hoursLeft>0||nightLeft>0?`<div style="font-size:.72rem;color:var(--muted);margin-top:4px">${hoursLeft>0?hoursLeft.toFixed(1)+' total hrs left':''}${hoursLeft>0&&nightLeft>0?' · ':''}${nightLeft>0?nightLeft.toFixed(1)+' night left':''}</div>`:`<div style="font-size:.76rem;color:var(--green);margin-top:5px;font-weight:600">✅ Hours complete!</div>`}
+          ${last?`<div style="font-size:.7rem;color:var(--muted);margin-top:4px;border-top:1px solid var(--border);padding-top:6px">Last drive: ${fmtDate(last.startTime)} · ${fmtDur(last.duration)}</div>`:''}
+        </div>
+      </div>
+    </div>
+    ${!activeSession?`
+      <button class="btn-big btn-start" onclick="startDrive()" style="width:100%;margin-bottom:10px;padding:18px;font-size:1.05rem">🚗 Start Drive</button>
+      <button class="btn-outline" onclick="openManualModal()" style="width:100%;padding:14px;font-size:.92rem">+ Add Drive Manually</button>
+    `:`<button class="btn-big btn-stop" onclick="navigate('drive')" style="width:100%;margin-top:4px">Go to Live Drive →</button>`}
+  `;
+  // Keep elapsed time ticking if drive is active
+  if(activeSession){
+    const tick=()=>{const el=document.getElementById('home-elapsed');if(el)el.textContent=fmtElapsed(activeSession.startTime);};
+    clearInterval(window._homeTimer);window._homeTimer=setInterval(tick,1000);
+  } else {clearInterval(window._homeTimer);}
+}
 
 // ═══════════════════════════════════════════════════
 // DASHBOARD
@@ -970,7 +1021,6 @@ function renderDashboard(){
         </div>`:''}
       </div>
       ${goalCard(reqs,totals)}
-      ${testDateCard(reqs,totals)}
       ${personalRecordsHTML()}
       <div class="section-title">Milestones</div>
       ${milestonesHTML()}
@@ -1332,7 +1382,7 @@ async function stopDrive(){
   if(driveMap){driveMap.remove();driveMap=null;drivePolyline=null;drivePosMarker=null;}
   checkMilestones();
   toast('Drive saved! 🎉');
-  navigate('dashboard');
+  navigate('home');
 }
 
 // ═══════════════════════════════════════════════════
@@ -1563,7 +1613,7 @@ function deleteSession(id){
   saveSessions();closeModal();
   toastUndo('Session deleted',s);
   if(currentView==='history')renderHistory();
-  else if(currentView==='dashboard')renderDashboard();
+  else if(currentView==='dashboard')renderDashboard();else if(currentView==='home')renderHome();
 }
 
 document.getElementById('modal').addEventListener('click',e=>{if(e.target===document.getElementById('modal'))closeModal();});
@@ -1854,7 +1904,7 @@ function saveManualDrive(){
   }
   saveSessions();closeManualModal();
   if(currentView==='history')renderHistory();
-  else if(currentView==='dashboard')renderDashboard();
+  else if(currentView==='dashboard')renderDashboard();else if(currentView==='home')renderHome();
 }
 
 // ═══════════════════════════════════════════════════
@@ -1910,7 +1960,7 @@ function undoDelete(){
   sessions.push(undoSession);sessions.sort((a,b)=>new Date(b.startTime)-new Date(a.startTime));
   saveSessions();undoSession=null;
   document.getElementById('toast').classList.remove('show');
-  if(currentView==='history')renderHistory();else if(currentView==='dashboard')renderDashboard();
+  if(currentView==='history')renderHistory();else if(currentView==='dashboard')renderDashboard();else if(currentView==='home')renderHome();
   toast('Session restored ✓');
 }
 
@@ -1968,7 +2018,7 @@ if('serviceWorker' in navigator){
 applyTheme();
 updateSkillsBadge();
 initOnboarding();
-const startView = location.hash === '#drive' ? 'drive' : 'dashboard';
+const startView = location.hash === '#drive' ? 'drive' : 'home';
 navigate(startView);
 
 // ── Page visibility: warn on background during active drive ──
