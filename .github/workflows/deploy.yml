@@ -3,21 +3,39 @@ name: Deploy to metacrystal.com
 on:
   push:
     branches: [master]
+    paths-ignore:
+      - 'version.txt'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Stamp version
+      - name: Bump version
         run: |
-          SHORT_SHA=$(git rev-parse --short HEAD)
-          DATE=$(date +'%Y.%m.%d')
-          VERSION="${DATE}-${SHORT_SHA}"
-          sed -i "s/const APP_VERSION = '[^']*'/const APP_VERSION = '${VERSION}'/" readytoroll.html
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          VERSION=$(cat version.txt | tr -d '[:space:]')
+          MAJOR=$(echo $VERSION | cut -d. -f1)
+          MINOR=$(echo $VERSION | cut -d. -f2)
+          PATCH=$(echo $VERSION | cut -d. -f3)
+          PATCH=$((PATCH + 1))
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo $NEW_VERSION > version.txt
+          sed -i "s/const APP_VERSION = '[^']*'/const APP_VERSION = '${NEW_VERSION}'/" readytoroll.html
+          echo "VERSION=${NEW_VERSION}" >> $GITHUB_ENV
+
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add version.txt
+          git commit -m "Bump version to ${{ env.VERSION }}"
+          git push
 
       - name: Upload via SFTP
         env:
