@@ -284,6 +284,17 @@ body{display:flex;flex-direction:column;overflow:hidden}
 .home-car{display:flex;align-items:center;gap:8px;padding:6px 0 2px;border-top:1px solid var(--border);margin-top:8px}
 .home-car-emoji{font-size:1.5rem;line-height:1}
 .home-car-nick{font-size:.75rem;font-weight:700;color:var(--muted)}
+/* Pulse glow on Start Drive */
+@keyframes pulse-glow{0%,100%{box-shadow:0 0 0 0 rgba(22,163,74,.5)}60%{box-shadow:0 0 0 10px rgba(22,163,74,0)}}
+.btn-start{animation:pulse-glow 2.4s infinite}
+.btn-start:active{animation:none}
+/* Streak banner */
+.streak-banner{display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,var(--amber-lt),transparent);border:1.5px solid var(--amber);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px}
+.streak-banner .s-num{font-size:1.6rem;font-weight:900;color:var(--amber);line-height:1}
+.streak-banner .s-text{font-size:.8rem;font-weight:600;color:var(--text);line-height:1.3}
+.streak-banner .s-sub{font-size:.68rem;color:var(--muted);margin-top:2px}
+/* Stale drive nudge */
+.stale-nudge{font-size:.72rem;color:var(--amber);background:var(--amber-lt);border-radius:8px;padding:5px 10px;display:inline-block;margin-top:6px}
 .tip-card{background:var(--accent-lt);border-radius:var(--radius);padding:12px 14px;margin-top:12px;margin-bottom:12px;display:flex;align-items:flex-start;gap:10px}
 .tip-icon{font-size:1.2rem;flex-shrink:0;margin-top:2px}
 .tip-body{flex:1}
@@ -293,6 +304,20 @@ body{display:flex;flex-direction:column;overflow:hidden}
 .countdown-box{flex:1;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 8px;text-align:center}
 .countdown-val{font-size:1.8rem;font-weight:900;line-height:1;color:var(--accent)}
 .countdown-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:3px}
+/* Nav active top-bar */
+.nav-btn::after{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:0;height:3px;background:var(--accent);border-radius:0 0 3px 3px;transition:width .2s}
+.nav-btn.active::after{width:28px}
+/* Session row day/night accent */
+.session-row{border-left:3px solid transparent;padding-left:9px;margin-left:-3px}
+.session-row.s-row-day{border-left-color:var(--amber)}
+.session-row.s-row-night{border-left-color:var(--purple)}
+/* Skill category fraction */
+.cat-fraction{font-size:.65rem;font-weight:700;color:var(--green);margin-left:6px;opacity:.85}
+/* Milestone locked */
+.milestone-badge:not(.earned){cursor:pointer}
+.milestone-badge:not(.earned):active{opacity:.6}
+/* Settings section-title with icon */
+.section-title-icon{display:flex;align-items:center;gap:6px}
 /* ── 20. Settings extras ── */
 .theme-swatches{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
 .theme-swatch{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer}
@@ -629,23 +654,23 @@ const SKILLS = [
 ];
 
 const MILESTONES = [
-  {id:'first',icon:'🚗',label:'First Drive',check:(t)=>t.sessions>=1},
-  {id:'q1',icon:'⭐',label:'25% Done',check:(t,r)=>r.total>0&&t.totalHours>=r.total*0.25},
-  {id:'half',icon:'🏅',label:'Halfway There',check:(t,r)=>r.total>0&&t.totalHours>=r.total*0.5},
-  {id:'q3',icon:'🥈',label:'75% Done',check:(t,r)=>r.total>0&&t.totalHours>=r.total*0.75},
-  {id:'done',icon:'🏆',label:'Hours Complete!',check:(t,r)=>r.total>0&&t.totalHours>=r.total},
-  {id:'night_done',icon:'🌙',label:'Night Hours Done',check:(t,r)=>r.night>0&&t.nightHours>=r.night},
-  {id:'ten',icon:'📋',label:'10 Sessions',check:(t)=>t.sessions>=10},
-  {id:'miles100',icon:'📍',label:'100 Miles',check:(t)=>t.distMi>=100},
-  {id:'nightowl',icon:'🦉',label:'Night Owl',check:(t)=>t.nightHours>=5},
-  {id:'rain',icon:'🌧️',label:'Rain Dancer',check:(t)=>t.rainDrives>=1},
-  {id:'snow',icon:'❄️',label:'Snow Day',check:(t)=>t.snowDrives>=1},
-  {id:'early',icon:'🌅',label:'Early Bird',check:(t)=>t.earlyDrives>=1},
-  {id:'highway',icon:'🛣️',label:'Highway Star',check:(t)=>t.highwayDrives>=1},
-  {id:'sessions25',icon:'🎯',label:'25 Sessions',check:(t)=>t.sessions>=25},
-  {id:'miles250',icon:'🗺️',label:'250 Miles',check:(t)=>t.distMi>=250},
-  {id:'week10',icon:'💪',label:'Week Warrior',check:(t)=>t.bestWeekHours>=10},
-  {id:'streak7',icon:'🔥',label:'7-Day Streak',check:(t)=>t.streak>=7},
+  {id:'first',icon:'🚗',label:'First Drive',hint:'Log your very first drive',check:(t)=>t.sessions>=1},
+  {id:'q1',icon:'⭐',label:'25% Done',hint:'Reach 25% of your required hours',check:(t,r)=>r.total>0&&t.totalHours>=r.total*0.25},
+  {id:'half',icon:'🏅',label:'Halfway There',hint:'Reach 50% of your required hours',check:(t,r)=>r.total>0&&t.totalHours>=r.total*0.5},
+  {id:'q3',icon:'🥈',label:'75% Done',hint:'Reach 75% of your required hours',check:(t,r)=>r.total>0&&t.totalHours>=r.total*0.75},
+  {id:'done',icon:'🏆',label:'Hours Complete!',hint:'Hit 100% of your required hours',check:(t,r)=>r.total>0&&t.totalHours>=r.total},
+  {id:'night_done',icon:'🌙',label:'Night Hours Done',hint:'Complete all required night hours',check:(t,r)=>r.night>0&&t.nightHours>=r.night},
+  {id:'ten',icon:'📋',label:'10 Sessions',hint:'Log 10 separate drives',check:(t)=>t.sessions>=10},
+  {id:'miles100',icon:'📍',label:'100 Miles',hint:'Drive a total of 100 miles',check:(t)=>t.distMi>=100},
+  {id:'nightowl',icon:'🦉',label:'Night Owl',hint:'Log 5 hours of night driving',check:(t)=>t.nightHours>=5},
+  {id:'rain',icon:'🌧️',label:'Rain Dancer',hint:'Drive in rain (weather tag or detected)',check:(t)=>t.rainDrives>=1},
+  {id:'snow',icon:'❄️',label:'Snow Day',hint:'Drive in snow (weather tag or detected)',check:(t)=>t.snowDrives>=1},
+  {id:'early',icon:'🌅',label:'Early Bird',hint:'Log a drive that starts before 7 am',check:(t)=>t.earlyDrives>=1},
+  {id:'highway',icon:'🛣️',label:'Highway Star',hint:'Tag a drive with Highway',check:(t)=>t.highwayDrives>=1},
+  {id:'sessions25',icon:'🎯',label:'25 Sessions',hint:'Log 25 separate drives',check:(t)=>t.sessions>=25},
+  {id:'miles250',icon:'🗺️',label:'250 Miles',hint:'Drive a total of 250 miles',check:(t)=>t.distMi>=250},
+  {id:'week10',icon:'💪',label:'Week Warrior',hint:'Log 10+ hours in a single week',check:(t)=>t.bestWeekHours>=10},
+  {id:'streak7',icon:'🔥',label:'7-Day Streak',hint:'Drive on 7 consecutive days',check:(t)=>t.streak>=7},
 ];
 
 const ACCENT_COLORS = [
@@ -1019,11 +1044,14 @@ function checkMilestones(){
 
 function milestonesHTML(){
   const earned=checkMilestones();
-  return'<div class="milestones-row">'+MILESTONES.map(m=>`
-    <div class="milestone-badge${earned.has(m.id)?' earned':''}">
+  return'<div class="milestones-row">'+MILESTONES.map(m=>{
+    const isEarned=earned.has(m.id);
+    const onclick=isEarned?'':`onclick="toast('${m.hint}')"`;
+    return`<div class="milestone-badge${isEarned?' earned':''}" ${onclick} title="${isEarned?m.label:m.hint}">
       <div class="m-icon">${m.icon}</div>
       <div class="m-label">${m.label}</div>
-    </div>`).join('')+'</div>';
+    </div>`;
+  }).join('')+'</div>';
 }
 
 // ═══════════════════════════════════════════════════
@@ -1124,6 +1152,8 @@ function renderHome(){
   const tip=getTipOfDay();
   const car=settings.carEmoji||'🚗';
   const nick=settings.carNickname||'';
+  const streak=totals.streak;
+  const daysSinceLast=last?Math.floor((Date.now()-new Date(last.startTime))/(1000*60*60*24)):null;
 
   // Countdown boxes
   let countdownHTML='';
@@ -1144,6 +1174,11 @@ function renderHome(){
   }
 
   document.getElementById('home-content').innerHTML=`
+    ${streak>=2&&!activeSession?`
+      <div class="streak-banner">
+        <div class="s-num">🔥${streak}</div>
+        <div><div class="s-text">Day streak!</div><div class="s-sub">Keep it going — log a drive today</div></div>
+      </div>`:''}
     ${activeSession?`
       <div class="card" style="background:var(--red-lt);border:1.5px solid var(--red);margin-bottom:4px">
         <div style="display:flex;align-items:center;justify-content:space-between">
@@ -1157,7 +1192,7 @@ function renderHome(){
     <div class="card">
       <div style="display:flex;align-items:center;gap:16px">
         <div class="ring-wrap">
-          ${progressRing(totalPct,'var(--accent)',96,9)}
+          ${progressRing(totalPct,'var(--accent)',96,9,true)}
           <div class="ring-label">
             <div class="ring-pct" style="font-size:1.15rem">${reqs.total>0?Math.round(totalPct*100)+'%':'—'}</div>
           </div>
@@ -1167,7 +1202,7 @@ function renderHome(){
           <div style="font-size:.78rem;color:var(--muted);margin-top:3px">${reqs.stateName}</div>
           ${reqs.night>0?`<div style="font-size:.76rem;color:var(--purple);margin-top:5px">🌙 ${totals.nightHours.toFixed(1)} / ${reqs.night} night hrs</div>`:''}
           ${hoursLeft>0||nightLeft>0?`<div style="font-size:.72rem;color:var(--muted);margin-top:4px">${hoursLeft>0?hoursLeft.toFixed(1)+' total left':''}${hoursLeft>0&&nightLeft>0?' · ':''}${nightLeft>0?nightLeft.toFixed(1)+' night left':''}</div>`:`<div style="font-size:.76rem;color:var(--green);margin-top:5px;font-weight:600">✅ Hours complete!</div>`}
-          ${last?`<div style="font-size:.7rem;color:var(--muted);margin-top:4px;border-top:1px solid var(--border);padding-top:6px">Last drive: ${fmtDate(last.startTime)} · ${fmtDur(last.duration)}</div>`:''}
+          ${last?`<div style="font-size:.7rem;color:var(--muted);margin-top:4px;border-top:1px solid var(--border);padding-top:6px">Last drive: ${fmtDate(last.startTime)} · ${fmtDur(last.duration)}${daysSinceLast>=4?`<span class="stale-nudge" style="margin-left:8px">${daysSinceLast}d ago</span>`:''}</div>`:''}
           ${nick||car!=='🚗'?`<div class="home-car"><span class="home-car-emoji">${car}</span><span class="home-car-nick">${nick||'My Car'}</span></div>`:''}
         </div>
       </div>
@@ -1185,6 +1220,11 @@ function renderHome(){
       </div>
     </div>
   `;
+  // Animate home ring
+  requestAnimationFrame(()=>{
+    const circle=document.querySelector('#home-content .ring-circle-progress');
+    if(circle)setTimeout(()=>{circle.style.strokeDashoffset=circle.dataset.target;},50);
+  });
   // Keep elapsed time ticking if drive is active
   if(activeSession){
     const tick=()=>{const el=document.getElementById('home-elapsed');if(el)el.textContent=fmtElapsed(activeSession.startTime);};
@@ -1317,12 +1357,15 @@ function goalCard(reqs,totals){
   </div>`;
 }
 
-function progressRing(pct,color,size=106,stroke=10){
+function progressRing(pct,color,size=106,stroke=10,animated=false){
   const r=(size-stroke)/2,circ=2*Math.PI*r,offset=circ*(1-pct);
+  const startOffset=animated?circ.toFixed(2):offset.toFixed(2);
+  const animClass=animated?'class="ring-circle-progress"':'';
+  const animData=animated?`data-target="${offset.toFixed(2)}"`:'' ;
   return`<svg width="${size}" height="${size}" style="transform:rotate(-90deg)">
     <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--border)" stroke-width="${stroke}"/>
-    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}"
-      stroke-dasharray="${circ.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}" stroke-linecap="round"/>
+    <circle ${animClass} ${animData} cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}"
+      stroke-dasharray="${circ.toFixed(2)}" stroke-dashoffset="${startOffset}" stroke-linecap="round"/>
   </svg>`;
 }
 
@@ -1331,7 +1374,8 @@ function sessionRowHTML(s, showSwipeDelete=true){
   const now=new Date(),sessionDate=new Date(s.startTime);
   const daysAgo=(now-sessionDate)/(1000*60*60*24);
   const old=daysAgo>7?' old':'';
-  return`<div class="session-row${old}" data-id="${s.id}" style="touch-action:pan-y">
+  const accentClass=s.isNight?'s-row-night':'s-row-day';
+  return`<div class="session-row ${accentClass}${old}" data-id="${s.id}" style="touch-action:pan-y">
     <div class="s-icon ${s.isNight?'s-night':'s-day'}">${s.isNight?'🌙':'☀️'}</div>
     <div class="s-info">
       <div class="s-title">${addr}</div>
@@ -1367,7 +1411,10 @@ function renderSkills(){
     <button class="suggest-btn" onclick="suggestSkill()">🎯 Suggest a Skill to Practice</button>
     ${cats.map(cat=>{
       const catSkills=SKILLS.filter(s=>s.cat===cat);
-      return`<div class="skill-category-header">${cat}</div>
+      const catMastered=catSkills.filter(s=>skillsData[s.id]?.status==='mastered').length;
+      const catFraction=catMastered===catSkills.length?'✓ All done':`${catMastered}/${catSkills.length} mastered`;
+      const catColor=catMastered===catSkills.length?'var(--green)':'var(--muted)';
+      return`<div class="skill-category-header" style="display:flex;justify-content:space-between;align-items:center">${cat}<span class="cat-fraction" style="color:${catColor}">${catFraction}</span></div>
         <div class="card" style="padding:8px 16px">
           ${catSkills.map(skill=>{
             const sd=skillsData[skill.id]||{status:'not_started'};
@@ -1640,7 +1687,7 @@ function renderHistory(){
     const monthHrs=list.reduce((a,s)=>a+(s.duration||0)/60,0);
     return`<div class="month-header">
       <span class="month-header-label">${month}</span>
-      <span class="month-header-total">${monthHrs.toFixed(1)} hrs</span>
+      <span class="month-header-total">${list.length} drive${list.length!==1?'s':''} · ${monthHrs.toFixed(1)} hrs</span>
     </div>
     <div class="card">${list.map(s=>sessionRowHTML(s,true)).join('')}</div>`;
   }).join('');
@@ -1973,14 +2020,14 @@ function renderSettings(){
       <button class="btn-save" onclick="saveSettingsForm()">Save Settings</button>
     </div>
     <div class="card">
-      <div class="section-title" style="margin-top:0">Override Hours (optional)</div>
+      <div class="section-title" style="margin-top:0">⏱ Override Hours (optional)</div>
       <div style="display:flex;gap:10px">
         <div class="form-group" style="flex:1"><label>Total Hours</label><input id="s-custom-total" type="number" min="0" max="999" value="${settings.customTotal!=null?settings.customTotal:''}" placeholder="State default" onchange="saveSettingsForm()" onblur="saveSettingsForm()"></div>
         <div class="form-group" style="flex:1"><label>Night Hours</label><input id="s-custom-night" type="number" min="0" max="999" value="${settings.customNight!=null?settings.customNight:''}" placeholder="State default" onchange="saveSettingsForm()" onblur="saveSettingsForm()"></div>
       </div>
     </div>
     <div class="card">
-      <div class="section-title" style="margin-top:0">Appearance</div>
+      <div class="section-title" style="margin-top:0">🎨 Appearance</div>
       <div class="toggle-row"><span style="font-size:.88rem;font-weight:500">Dark Mode</span>
         <label class="toggle"><input type="checkbox" id="s-dark" ${settings.darkMode?'checked':''} onchange="toggleDark(this.checked)"><span class="toggle-slider"></span></label>
       </div>
@@ -1995,11 +2042,11 @@ function renderSettings(){
       </div>
     </div>
     <div class="card">
-      <div class="section-title" style="margin-top:0">Your Car</div>
+      <div class="section-title" style="margin-top:0">🚗 Your Car</div>
       <div class="form-group"><label>Car Icon</label><div class="car-picker">${carPicker}</div></div>
       <div class="form-group"><label>Nickname (optional)</label><input id="s-car-nick" type="text" value="${settings.carNickname||''}" placeholder="e.g. Betty, The Beast" onchange="saveSettingsForm()" onblur="saveSettingsForm()"></div>
     </div>
-    <div class="section-title">Data</div>
+    <div class="section-title">💾 Data</div>
     <div class="btn-row">
       <button class="btn-outline" onclick="exportJSON()">Export JSON</button>
       <button class="btn-outline" onclick="exportCSV()">Export CSV</button>
@@ -2008,7 +2055,7 @@ function renderSettings(){
       <button class="btn-outline" onclick="importData()">Import JSON</button>
       <button class="btn-outline" onclick="printLog()">Print Log</button>
     </div>
-    <div class="section-title">Danger Zone</div>
+    <div class="section-title">⚠️ Danger Zone</div>
     <div class="btn-row"><button class="btn-danger" onclick="clearAllData()">Clear All Data</button></div>
     <div style="height:24px"></div>
     <div style="text-align:center;font-size:.68rem;color:var(--muted);line-height:1.7">Hour requirements sourced from IIHS and state DMV sites.<br>Always verify with your state's official DMV.</div>
