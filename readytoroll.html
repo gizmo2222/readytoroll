@@ -593,6 +593,9 @@ body{display:flex;flex-direction:column;overflow:hidden}
     <div class="modal-body">
       <div class="form-group" style="margin-bottom:6px"><label>Duration</label></div>
       <div class="qa-chips" id="qa-dur-chips">
+        <div class="qa-chip" data-min="10" onclick="selectQaDur(this)">10 min</div>
+        <div class="qa-chip" data-min="15" onclick="selectQaDur(this)">15 min</div>
+        <div class="qa-chip" data-min="20" onclick="selectQaDur(this)">20 min</div>
         <div class="qa-chip" data-min="30" onclick="selectQaDur(this)">30 min</div>
         <div class="qa-chip" data-min="45" onclick="selectQaDur(this)">45 min</div>
         <div class="qa-chip active" data-min="60" onclick="selectQaDur(this)">1 hr</div>
