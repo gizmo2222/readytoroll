@@ -1,9 +1,9 @@
-// DriveLog Service Worker — offline cache + background support
+// ReadyToRoll Service Worker — offline cache + background support
 'use strict';
 
-const CACHE = 'drivelog-v1';
+const CACHE = 'rtr-v2';
 const STATIC = [
-  './drivelog.html',
+  './readytoroll.html',
   './manifest.json',
   './icon-192.svg',
   './icon-512.svg',
@@ -32,39 +32,44 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
-// ── Fetch: cache-first for static assets, network-first for APIs ──
+// ── Fetch: network-first for the app HTML, APIs; cache-first for everything else ──
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // Always go network-first for sync endpoint, weather, and geocoding
-  if (url.hostname === 'metacrystal.com' && url.pathname.includes('rtr-sync')) {
-    e.respondWith(fetch(e.request).catch(() => new Response('{"ok":false,"error":"offline"}', { headers: { 'Content-Type': 'application/json' } })));
+  // Always network-first for the app itself so updates are seen immediately
+  if (e.request.mode === 'navigate' || url.pathname.endsWith('readytoroll.html')) {
+    e.respondWith(
+      fetch(e.request).then(response => {
+        const clone = response.clone();
+        caches.open(CACHE).then(cache => cache.put(e.request, clone));
+        return response;
+      }).catch(() => caches.match('./readytoroll.html'))
+    );
     return;
   }
 
-  if (url.hostname === 'api.open-meteo.com' || url.hostname === 'nominatim.openstreetmap.org') {
+  // Always network-first for sync endpoint, weather, and geocoding
+  if (
+    (url.hostname === 'metacrystal.com' && url.pathname.includes('rtr-sync')) ||
+    url.hostname === 'api.open-meteo.com' ||
+    url.hostname === 'nominatim.openstreetmap.org'
+  ) {
     e.respondWith(
       fetch(e.request).catch(() => new Response('{}', { headers: { 'Content-Type': 'application/json' } }))
     );
     return;
   }
 
-  // Cache-first for everything else (app shell, Leaflet, tiles)
+  // Cache-first for everything else (Leaflet, map tiles, icons)
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
       return fetch(e.request).then(response => {
-        // Cache successful GET responses
         if (response.ok && e.request.method === 'GET') {
           const clone = response.clone();
           caches.open(CACHE).then(cache => cache.put(e.request, clone));
         }
         return response;
-      }).catch(() => {
-        // Offline fallback for navigation requests
-        if (e.request.mode === 'navigate') {
-          return caches.match('./drivelog.html');
-        }
       });
     })
   );
