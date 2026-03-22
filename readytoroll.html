@@ -870,20 +870,31 @@ let openSkillTip = null;
 // ═══════════════════════════════════════════════════
 // PERSISTENCE
 // ═══════════════════════════════════════════════════
+
+// Migrate old dl_* localStorage keys to rtr_* (one-time, preserves all data)
+(function migrateStorage(){
+  const keys=[['dl_settings','rtr_settings'],['dl_sessions','rtr_sessions'],['dl_skills','rtr_skills'],['dl_milestones','rtr_milestones']];
+  keys.forEach(([old,next])=>{
+    const val=localStorage.getItem(old);
+    if(val!==null&&localStorage.getItem(next)===null){localStorage.setItem(next,val);}
+    if(val!==null){localStorage.removeItem(old);}
+  });
+})();
+
 function loadSettings(){
-  try{return Object.assign(defaultSettings(),JSON.parse(localStorage.getItem('dl_settings'))||{});}
+  try{return Object.assign(defaultSettings(),JSON.parse(localStorage.getItem('rtr_settings'))||{});}
   catch{return defaultSettings();}
 }
 function defaultSettings(){
   return{driverName:'',state:'CA',customTotal:null,customNight:null,goalDate:'',darkMode:false,accentId:'blue',fontSize:'medium',onboardingDone:false,vibeTheme:'default',carEmoji:'🚗',carNickname:'',syncCode:''};
 }
-function saveSettings(){localStorage.setItem('dl_settings',JSON.stringify(settings));}
+function saveSettings(){localStorage.setItem('rtr_settings',JSON.stringify(settings));}
 
 function loadSessions(){
-  try{return JSON.parse(localStorage.getItem('dl_sessions'))||[];}
+  try{return JSON.parse(localStorage.getItem('rtr_sessions'))||[];}
   catch{return[];}
 }
-function saveSessions(){localStorage.setItem('dl_sessions',JSON.stringify(sessions));}
+function saveSessions(){localStorage.setItem('rtr_sessions',JSON.stringify(sessions));}
 
 function onSessionsChanged(){
   saveSessions();
@@ -895,10 +906,10 @@ function onSessionsChanged(){
 }
 
 function loadSkillsData(){
-  try{return JSON.parse(localStorage.getItem('dl_skills'))||{};}
+  try{return JSON.parse(localStorage.getItem('rtr_skills'))||{};}
   catch{return{};}
 }
-function saveSkillsData(){localStorage.setItem('dl_skills',JSON.stringify(skillsData));}
+function saveSkillsData(){localStorage.setItem('rtr_skills',JSON.stringify(skillsData));}
 
 function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2);}
 
@@ -1422,7 +1433,7 @@ function updateSkillsBadge(){
 // ═══════════════════════════════════════════════════
 function checkMilestones(){
   const totals=getTotals(),reqs=getReqs();
-  const prev=new Set(JSON.parse(localStorage.getItem('dl_milestones')||'[]'));
+  const prev=new Set(JSON.parse(localStorage.getItem('rtr_milestones')||'[]'));
   const earned=new Set();
   let anyNew=false;
   for(const m of MILESTONES){
@@ -1432,7 +1443,7 @@ function checkMilestones(){
     }
   }
   if(anyNew)launchConfetti();
-  localStorage.setItem('dl_milestones',JSON.stringify([...earned]));
+  localStorage.setItem('rtr_milestones',JSON.stringify([...earned]));
   return earned;
 }
 
@@ -2583,7 +2594,7 @@ function clearAllData(){
   if(!confirm('Delete ALL sessions, skills, and settings? This cannot be undone.'))return;
   sessions=[];settings=defaultSettings();skillsData={};
   saveSessions();saveSettings();saveSkillsData();
-  localStorage.removeItem('dl_milestones');
+  localStorage.removeItem('rtr_milestones');
   applyTheme();updateSkillsBadge();onSessionsChanged();toast('All data cleared');renderSettings();
 }
 
