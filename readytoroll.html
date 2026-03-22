@@ -1789,35 +1789,88 @@ function startReplay(){
   toast('▶ Replaying route…');
 }
 
-function shareSession(){
+async function shareSession(){
   const s=currentDetailSession;
   if(!s)return;
+
+  // Build share card on canvas
   const canvas=document.createElement('canvas');
-  canvas.width=600;canvas.height=320;
+  canvas.width=600;canvas.height=340;
   const ctx=canvas.getContext('2d');
-  ctx.fillStyle='#0f172a';ctx.fillRect(0,0,600,320);
-  ctx.fillStyle='#2563eb';ctx.font='bold 28px -apple-system,sans-serif';ctx.fillText('ReadyToRoll',30,46);
-  ctx.fillStyle='#f1f5f9';ctx.font='bold 20px -apple-system,sans-serif';
-  ctx.fillText((settings.driverName||'Driver')+' — '+fmtDate(s.startTime),30,90);
-  ctx.fillStyle='#94a3b8';ctx.font='15px -apple-system,sans-serif';
-  ctx.fillText('Duration: '+fmtDur(s.duration),30,130);
-  ctx.fillText('Distance: '+(s.distance||0).toFixed(2)+' mi',30,158);
-  ctx.fillText((s.isNight?'🌙 Night':'☀️ Day')+(s.weather?' · '+s.weather.temp+'°F':''),30,186);
-  if(s.maxSpeed)ctx.fillText('Top Speed: '+s.maxSpeed.toFixed(0)+' mph',30,214);
+  const accentHex=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#2563eb';
   const reqs=getReqs(),totals=getTotals();
-  if(reqs.total>0){
-    ctx.fillStyle='#2563eb';ctx.font='bold 40px -apple-system,sans-serif';
-    ctx.fillText(Math.round(totals.totalHours/reqs.total*100)+'%',440,180);
-    ctx.fillStyle='#94a3b8';ctx.font='13px -apple-system,sans-serif';
-    ctx.fillText('of goal',445,202);
-  }
-  ctx.fillStyle='#334155';ctx.font='12px -apple-system,sans-serif';ctx.fillText('via ReadyToRoll',30,295);
-  canvas.toBlob(blob=>{
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;a.download='drive-'+s.id+'.png';a.click();
-    URL.revokeObjectURL(url);
-    toast('Drive card saved!');
+  const pct=reqs.total>0?Math.round(totals.totalHours/reqs.total*100):null;
+  const car=settings.carEmoji||'🚗';
+  const nick=settings.carNickname?` (${settings.carNickname})`:'';
+
+  // Background
+  ctx.fillStyle='#0f172a';ctx.fillRect(0,0,600,340);
+  // Accent top strip
+  ctx.fillStyle=accentHex;ctx.fillRect(0,0,600,6);
+
+  // App name
+  ctx.fillStyle=accentHex;ctx.font='bold 22px -apple-system,BlinkMacSystemFont,sans-serif';
+  ctx.fillText('ReadyToRoll',30,42);
+
+  // Driver + date
+  ctx.fillStyle='#f1f5f9';ctx.font='bold 18px -apple-system,BlinkMacSystemFont,sans-serif';
+  ctx.fillText((settings.driverName||'Driver')+nick+' · '+fmtDate(s.startTime),30,80);
+
+  // Stats rows
+  ctx.fillStyle='#94a3b8';ctx.font='15px -apple-system,BlinkMacSystemFont,sans-serif';
+  const stats=[
+    [car+' Duration',fmtDur(s.duration)],
+    ['📍 Distance',(s.distance||0).toFixed(2)+' mi'],
+    [s.isNight?'🌙 Night drive':'☀️ Day drive', s.weather?s.weather.temp+'°F · '+(WX_DESC[s.weather.code]||''):''],
+    s.maxSpeed?['⚡ Top speed',s.maxSpeed.toFixed(0)+' mph']:null,
+    s.tags&&s.tags.length?['🏷️ Tags',s.tags.map(t=>tagLabel(t)).join(' · ')]:null,
+  ].filter(Boolean);
+  stats.forEach((row,i)=>{
+    const y=120+i*32;
+    ctx.fillStyle='#64748b';ctx.fillText(row[0],30,y);
+    ctx.fillStyle='#f1f5f9';ctx.textAlign='right';ctx.fillText(row[1],570,y);ctx.textAlign='left';
   });
+
+  // Progress circle area
+  if(pct!==null){
+    const cx=520,cy=200,r=54,stroke=10;
+    ctx.strokeStyle='#1e293b';ctx.lineWidth=stroke;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();
+    ctx.strokeStyle=accentHex;ctx.lineWidth=stroke;ctx.lineCap='round';
+    ctx.beginPath();ctx.arc(cx,cy,r,-Math.PI/2,(Math.PI*2)*(pct/100)-Math.PI/2);ctx.stroke();
+    ctx.fillStyle='#f1f5f9';ctx.font='bold 26px -apple-system,BlinkMacSystemFont,sans-serif';ctx.textAlign='center';
+    ctx.fillText(pct+'%',cx,cy+4);
+    ctx.fillStyle='#64748b';ctx.font='11px -apple-system,BlinkMacSystemFont,sans-serif';
+    ctx.fillText('of goal',cx,cy+20);ctx.textAlign='left';
+  }
+
+  // Footer
+  ctx.fillStyle='#334155';ctx.font='11px -apple-system,BlinkMacSystemFont,sans-serif';
+  ctx.fillText('Logged with ReadyToRoll · readytoroll.app',30,325);
+
+  // Convert to blob then share or download
+  canvas.toBlob(async blob=>{
+    const filename=`drive-${fmtDate(s.startTime).replace(/[^a-z0-9]/gi,'-')}.png`;
+    const file=new File([blob],filename,{type:'image/png'});
+    const shareText=`Just logged ${fmtDur(s.duration)} of supervised driving!${pct!==null?' '+pct+'% of my goal.':''} 🚗`;
+
+    // Try native share with image file (iOS/Android)
+    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+      try{
+        await navigator.share({files:[file],title:'My Drive — ReadyToRoll',text:shareText});
+        return;
+      }catch(e){if(e.name==='AbortError')return;} // user cancelled — do nothing
+    }
+    // Try native share with text only (some Android browsers)
+    if(navigator.share){
+      try{await navigator.share({title:'ReadyToRoll',text:shareText});return;}
+      catch(e){if(e.name==='AbortError')return;}
+    }
+    // Fallback: download the image
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=filename;a.click();
+    URL.revokeObjectURL(url);
+    toast('Drive card saved to downloads');
+  },'image/png');
 }
 
 function closeModal(){
