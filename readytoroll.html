@@ -1178,10 +1178,8 @@ function syncCodeHTML(){
     return`<p style="font-size:.8rem;color:var(--muted);margin-bottom:12px;line-height:1.5">Create a sync code to back up your drives to the cloud and share a read-only progress view with a parent or supervisor.</p>
     <button class="btn-save" style="margin-bottom:10px" onclick="createSyncCode()">☁️ Create Sync Code</button>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><div style="flex:1;height:1px;background:var(--border)"></div><span style="font-size:.72rem;color:var(--muted)">or join existing</span><div style="flex:1;height:1px;background:var(--border)"></div></div>
-    <div style="display:flex;gap:8px">
-      <input id="sync-join-input" type="text" maxlength="8" placeholder="Enter 8-char code" style="flex:1;border:1.5px solid var(--border);border-radius:10px;padding:11px 14px;font-size:.9rem;outline:none;background:var(--card);color:var(--text);text-transform:uppercase;letter-spacing:.1em" oninput="this.value=this.value.toUpperCase()">
-      <button class="btn-save" style="flex:0 0 auto;padding:11px 18px;margin-top:0" onclick="connectSyncCode(document.getElementById('sync-join-input').value)">Join</button>
-    </div>`;
+    <input id="sync-join-input" type="text" maxlength="8" placeholder="Enter 8-character code" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:11px 14px;font-size:.9rem;outline:none;background:var(--card);color:var(--text);text-transform:uppercase;letter-spacing:.15em;margin-bottom:8px" oninput="this.value=this.value.toUpperCase()">
+    <button class="btn-save" style="width:100%" onclick="connectSyncCode(document.getElementById('sync-join-input').value)">Join</button>`;
   }
 }
 
