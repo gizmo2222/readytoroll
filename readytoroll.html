@@ -1,14 +1,14 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>DriveLog — Permit Tracker</title>
+  <title>ReadyToRoll — Permit Tracker</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2563eb">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="DriveLog">
+  <meta name="apple-mobile-web-app-title" content="ReadyToRoll">
   <link rel="apple-touch-icon" href="icon-192.svg">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -279,7 +279,7 @@ body{display:flex;flex-direction:column;overflow:hidden}
 </head>
 <body>
 <div id="header">
-  <h1>Drive<span>Log</span></h1>
+  <h1>Ready<span>ToRoll</span></h1>
   <span id="live-badge" onclick="navigate('drive')" style="cursor:pointer">● REC</span>
   <div id="avatar" onclick="openHelp()" title="Help"></div>
 </div>
@@ -331,21 +331,21 @@ body{display:flex;flex-direction:column;overflow:hidden}
   <div class="modal-sheet" style="max-height:92vh">
     <div class="sheet-handle"></div>
     <div class="modal-header">
-      <h3>DriveLog Help</h3>
+      <h3>ReadyToRoll Help</h3>
       <button class="close-btn" onclick="closeHelp()">✕</button>
     </div>
     <div class="modal-body" style="padding-bottom:32px">
 
       <div class="section-title" style="margin-top:4px">Getting Started</div>
       <div class="card" style="font-size:.84rem;line-height:1.6">
-        <b>1. Set your state</b> — go to <b>Settings</b> and pick your state. DriveLog will show the correct total and night-hour requirements.<br><br>
-        <b>2. Enter your permit date</b> — this lets DriveLog track your hold period (most states require 6–12 months before you can test).<br><br>
-        <b>3. Enter your name</b> — your initials appear in the top-right corner.
+        <b>1. Set your state</b> — go to <b>Settings</b> and pick your state. The app will show the correct total and night-hour requirements.<br><br>
+        <b>2. Enter your name</b> — shown in Settings and on your printed log.<br><br>
+        <b>3. Set a goal date</b> — optional target date for your road test. The app will show how many hours per week you need.
       </div>
 
       <div class="section-title">Logging Drives</div>
       <div class="card" style="font-size:.84rem;line-height:1.6">
-        <b>🚗 Start Drive</b> — tap on the Home tab. DriveLog records your GPS route, weather, and time automatically. Allow location access for the best results — it's optional but enables route maps and weather.<br><br>
+        <b>🚗 Start Drive</b> — tap on the Home tab. ReadyToRoll records your GPS route, weather, and time automatically. Allow location access for the best results — it's optional but enables route maps and weather.<br><br>
         <b>+ Add Manually</b> — enter a past drive by date, start/end time, and conditions. Use this for drives you forgot to log, or when GPS isn't available.<br><br>
         <b>Tags</b> — tap tag chips (Highway, Rain, Parking…) before saving to categorise each drive.<br><br>
         <b>Supervisor</b> — enter your supervisor's name and licence number in the manual entry form. This appears on your printed log.<br><br>
@@ -355,7 +355,7 @@ body{display:flex;flex-direction:column;overflow:hidden}
       <div class="section-title">Progress Tab</div>
       <div class="card" style="font-size:.84rem;line-height:1.6">
         The ring shows your overall % complete. The bars below break out night and day hours separately.<br><br>
-        <b>Goal Date</b> — set a target test date in Settings. DriveLog will show how many hours per week you need to stay on track.<br><br>
+        <b>Goal Date</b> — set a target test date in Settings. ReadyToRoll will show how many hours per week you need to stay on track.<br><br>
         <b>Milestones</b> — badges unlock automatically as you hit thresholds (first drive, 25%, halfway, etc.). Confetti fires when a new one is earned.<br><br>
         <b>Weekly Chart</b> — shows the last 8 weeks of activity, split by day (amber) and night (purple).
       </div>
@@ -391,7 +391,7 @@ body{display:flex;flex-direction:column;overflow:hidden}
 
       <div class="section-title">Phone Lock & Background</div>
       <div class="card" style="font-size:.84rem;line-height:1.6">
-        DriveLog keeps your screen awake during a drive (wake lock). If you manually lock the phone the GPS route will pause — <b>the total drive time will still be accurate</b> because it's calculated from start/stop timestamps, not a timer. Distance and route map will have gaps. For a complete route, keep the screen on and the app in the foreground.
+        ReadyToRoll keeps your screen awake during a drive (wake lock). If you manually lock the phone the GPS route will pause — <b>the total drive time will still be accurate</b> because it's calculated from start/stop timestamps, not a timer. Distance and route map will have gaps. For a complete route, keep the screen on and the app in the foreground.
       </div>
 
     </div>
@@ -451,7 +451,7 @@ body{display:flex;flex-direction:column;overflow:hidden}
   <div id="onboard-sheet">
     <div class="onboard-step active" id="ob-1">
       <div class="onboard-icon">🚗</div>
-      <div class="onboard-title">Welcome to DriveLog</div>
+      <div class="onboard-title">Welcome to ReadyToRoll</div>
       <div class="onboard-sub">Track every supervised drive toward your license. What's the driver's name?</div>
       <div class="form-group"><input type="text" id="ob-name" placeholder="Driver's first name" style="text-align:center;font-size:1.1rem;font-weight:700"></div>
       <button class="btn-save" onclick="obNext(1)">Continue →</button>
@@ -488,57 +488,57 @@ body{display:flex;flex-direction:column;overflow:hidden}
 // STATE REQUIREMENTS
 // ═══════════════════════════════════════════════════
 const STATE_REQS = {
-  "AL":{name:"Alabama",total:50,night:10,holdMonths:6,handbookUrl:"https://www.alabamadmv.org/wp-content/uploads/Alabama-Driver-Manual.pdf"},
-  "AK":{name:"Alaska",total:40,night:10,holdMonths:6,note:"10 hrs must be at night or in inclement weather",handbookUrl:"https://doa.alaska.gov/dmv/akuse/manuals.htm"},
-  "AZ":{name:"Arizona",total:30,night:10,holdMonths:6,handbookUrl:"https://azdot.gov/sites/default/files/media/publication/Arizona_Driver_License_Manual.pdf"},
-  "AR":{name:"Arkansas",total:0,night:0,holdMonths:6,note:"No hour requirement — must hold permit 6 months with clean record",handbookUrl:"https://www.dfa.arkansas.gov/driver-services/driver-services-manuals/"},
-  "CA":{name:"California",total:50,night:10,holdMonths:6,handbookUrl:"https://www.dmv.ca.gov/portal/handbook/california-driver-handbook/"},
-  "CO":{name:"Colorado",total:50,night:10,holdMonths:12,handbookUrl:"https://dmv.colorado.gov/drivers-license-handbook"},
-  "CT":{name:"Connecticut",total:40,night:10,holdMonths:6,handbookUrl:"https://portal.ct.gov/DMV/Driver-Education/Driver-Education/Connecticut-Driver-Manual"},
-  "DE":{name:"Delaware",total:50,night:10,holdMonths:12,handbookUrl:"https://www.dmv.de.gov/DMV/pdf/manuals/DMVdrivermanual.pdf"},
-  "DC":{name:"District of Columbia",total:40,night:10,holdMonths:6,handbookUrl:"https://dmv.dc.gov/publication/dc-driving-manual"},
-  "FL":{name:"Florida",total:50,night:10,holdMonths:12,handbookUrl:"https://www.flhsmv.gov/driver-licenses-id-cards/drivers-handbook/"},
-  "GA":{name:"Georgia",total:40,night:6,holdMonths:12,handbookUrl:"https://dds.georgia.gov/georgia-drivers-manual"},
-  "HI":{name:"Hawaii",total:50,night:10,holdMonths:6,handbookUrl:"https://hidot.hawaii.gov/highways/driving-safety/hawaii-drivers-manual/"},
-  "ID":{name:"Idaho",total:50,night:10,holdMonths:6,handbookUrl:"https://itd.idaho.gov/dmv/drivinginidaho/"},
-  "IL":{name:"Illinois",total:50,night:10,holdMonths:9,handbookUrl:"https://www.ilsos.gov/publications/pdf_publications/dsd_x182.pdf"},
-  "IN":{name:"Indiana",total:50,night:10,holdMonths:6,handbookUrl:"https://www.in.gov/bmv/files/DMV_Handbook.pdf"},
-  "IA":{name:"Iowa",total:20,night:2,holdMonths:12,handbookUrl:"https://iowadot.gov/mvd/iowa-dot-forms-and-publications/drivers-manual"},
-  "KS":{name:"Kansas",total:50,night:10,holdMonths:12,note:"25 hrs for restricted license; 50 total to remove all restrictions",handbookUrl:"https://www.ksrevenue.gov/pdf/de-29.pdf"},
-  "KY":{name:"Kentucky",total:60,night:10,holdMonths:6,handbookUrl:"https://drive.ky.gov/driver-licensing/Pages/Kentucky-Driver-Manual.aspx"},
-  "LA":{name:"Louisiana",total:50,night:15,holdMonths:12,handbookUrl:"https://www.expresslane.org/Documents/pdf/LaDrivingHandbook.pdf"},
-  "ME":{name:"Maine",total:70,night:10,holdMonths:6,handbookUrl:"https://www.maine.gov/sos/bmv/motorvehicles/driving-manual.html"},
-  "MD":{name:"Maryland",total:60,night:10,holdMonths:9,handbookUrl:"https://mva.maryland.gov/drivers/Pages/md-driver-manual.aspx"},
-  "MA":{name:"Massachusetts",total:40,night:1,holdMonths:6,note:"Night requirement is 30 minutes; total may reduce to 30 hrs with approved skills program",handbookUrl:"https://www.mass.gov/drivers-manual"},
-  "MI":{name:"Michigan",total:50,night:10,holdMonths:6,handbookUrl:"https://www.michigan.gov/sos/vehicle-services/driver-manual"},
-  "MN":{name:"Minnesota",total:50,night:15,holdMonths:6,note:"Reduces to 40 hrs if parent completes state-approved awareness course",handbookUrl:"https://dps.mn.gov/divisions/dvs/forms-documents/Documents/Minnesota_Drivers_Manual.pdf"},
-  "MS":{name:"Mississippi",total:50,night:0,holdMonths:12,note:"Certified by parent affidavit; no specific night hour requirement",handbookUrl:"https://www.dps.ms.gov/driver-services/drivers-license/study-guides-forms"},
-  "MO":{name:"Missouri",total:40,night:10,holdMonths:6,handbookUrl:"https://dor.mo.gov/motorv/drmanual.php"},
-  "MT":{name:"Montana",total:50,night:10,holdMonths:6,note:"75 hrs (15 night) if using parent-taught online-only course",handbookUrl:"https://dojmt.gov/driving/manuals/"},
-  "NE":{name:"Nebraska",total:50,night:10,holdMonths:12,handbookUrl:"https://dmv.nebraska.gov/manuals"},
-  "NV":{name:"Nevada",total:50,night:10,holdMonths:6,handbookUrl:"https://dmv.nv.gov/Driver/Licensing/Driver-Manuals/"},
-  "NH":{name:"New Hampshire",total:40,night:10,holdMonths:6,handbookUrl:"https://www.nh.gov/safety/divisions/dmv/driver-licensing/manuals.htm"},
-  "NJ":{name:"New Jersey",total:50,night:10,holdMonths:6,note:"Hour requirement enacted Feb 1, 2025 (permits issued on/after that date)",handbookUrl:"https://www.nj.gov/mvc/vehicles/drmanual.htm"},
-  "NM":{name:"New Mexico",total:50,night:10,holdMonths:6,handbookUrl:"https://www.mvd.newmexico.gov/drivers-license/apply-for-a-drivers-license/new-mexico-driving-handbook/"},
-  "NY":{name:"New York",total:50,night:15,holdMonths:6,handbookUrl:"https://dmv.ny.gov/brochure/new-york-state-driver-manual"},
-  "NC":{name:"North Carolina",total:60,night:10,holdMonths:12,note:"60 hrs (10 night) for Level 1→2; additional 12 hrs (6 night) for Level 2→3",handbookUrl:"https://www.ncdot.gov/dmv/license-id/drivers-licenses/Pages/manuals.aspx"},
-  "ND":{name:"North Dakota",total:50,night:10,holdMonths:6,handbookUrl:"https://www.dot.nd.gov/divisions/driverslicense/driverslicensing.htm"},
-  "OH":{name:"Ohio",total:50,night:10,holdMonths:6,handbookUrl:"https://www.bmv.ohio.gov/dl-manuals.aspx"},
-  "OK":{name:"Oklahoma",total:50,night:10,holdMonths:6,handbookUrl:"https://oklahoma.gov/dps/driver-license/manuals.html"},
-  "OR":{name:"Oregon",total:50,night:0,holdMonths:6,note:"100 hrs required without driver ed; no separate night sub-requirement",handbookUrl:"https://www.oregon.gov/odot/DMV/pages/driverid/manuals.aspx"},
-  "PA":{name:"Pennsylvania",total:65,night:10,holdMonths:6,note:"Also requires 5 hrs in inclement/poor weather",handbookUrl:"https://www.dmv.pa.gov/VEHICLE-SERVICES/Manuals%20and%20Forms/Pages/Driving-Manuals.aspx"},
-  "RI":{name:"Rhode Island",total:50,night:10,holdMonths:6,handbookUrl:"https://dmv.ri.gov/documents/manuals"},
-  "SC":{name:"South Carolina",total:40,night:10,holdMonths:6,handbookUrl:"https://www.scdmvonline.com/DMVNew/forms/drivers_manual.pdf"},
-  "SD":{name:"South Dakota",total:50,night:10,holdMonths:6,note:"Also requires 10 hrs in inclement weather",handbookUrl:"https://dps.sd.gov/driver-licensing/licensing-information/drivers-manuals"},
-  "TN":{name:"Tennessee",total:50,night:10,holdMonths:12,handbookUrl:"https://www.tn.gov/content/dam/tn/safety/documents/TN_Driver_Handbook.pdf"},
-  "TX":{name:"Texas",total:30,night:10,holdMonths:6,handbookUrl:"https://www.dps.texas.gov/section/driver-license/texas-driver-handbook"},
-  "UT":{name:"Utah",total:40,night:10,holdMonths:6,handbookUrl:"https://dld.utah.gov/driver-education/utah-driver-handbook/"},
-  "VT":{name:"Vermont",total:40,night:10,holdMonths:12,handbookUrl:"https://dmv.vermont.gov/licenses-and-ids/driver-education/manuals"},
-  "VA":{name:"Virginia",total:45,night:15,holdMonths:9,handbookUrl:"https://www.dmv.virginia.gov/webdoc/pdf/dmv39.pdf"},
-  "WA":{name:"Washington",total:50,night:10,holdMonths:6,handbookUrl:"https://www.dol.wa.gov/forms/drives.pdf"},
-  "WV":{name:"West Virginia",total:50,night:10,holdMonths:6,handbookUrl:"https://transportation.wv.gov/DMV/DMVFormSearch/DMV-14-WV.pdf"},
-  "WI":{name:"Wisconsin",total:50,night:10,holdMonths:6,handbookUrl:"https://wisconsindot.gov/Pages/dmv/license-drvs-veh/teen-driver/teen-driver.aspx"},
-  "WY":{name:"Wyoming",total:50,night:10,holdMonths:6,handbookUrl:"https://www.dot.state.wy.us/home/driver_license_records/drivers-manuals.html"}
+  "AL":{name:"Alabama",total:50,night:10,handbookUrl:"https://www.alabamadmv.org/wp-content/uploads/Alabama-Driver-Manual.pdf"},
+  "AK":{name:"Alaska",total:40,night:10,note:"10 hrs must be at night or in inclement weather",handbookUrl:"https://doa.alaska.gov/dmv/akuse/manuals.htm"},
+  "AZ":{name:"Arizona",total:30,night:10,handbookUrl:"https://azdot.gov/sites/default/files/media/publication/Arizona_Driver_License_Manual.pdf"},
+  "AR":{name:"Arkansas",total:0,night:0,note:"No hour requirement — must hold permit 6 months with clean record",handbookUrl:"https://www.dfa.arkansas.gov/driver-services/driver-services-manuals/"},
+  "CA":{name:"California",total:50,night:10,handbookUrl:"https://www.dmv.ca.gov/portal/handbook/california-driver-handbook/"},
+  "CO":{name:"Colorado",total:50,night:10,handbookUrl:"https://dmv.colorado.gov/drivers-license-handbook"},
+  "CT":{name:"Connecticut",total:40,night:10,handbookUrl:"https://portal.ct.gov/DMV/Driver-Education/Driver-Education/Connecticut-Driver-Manual"},
+  "DE":{name:"Delaware",total:50,night:10,handbookUrl:"https://www.dmv.de.gov/DMV/pdf/manuals/DMVdrivermanual.pdf"},
+  "DC":{name:"District of Columbia",total:40,night:10,handbookUrl:"https://dmv.dc.gov/publication/dc-driving-manual"},
+  "FL":{name:"Florida",total:50,night:10,handbookUrl:"https://www.flhsmv.gov/driver-licenses-id-cards/drivers-handbook/"},
+  "GA":{name:"Georgia",total:40,night:6,handbookUrl:"https://dds.georgia.gov/georgia-drivers-manual"},
+  "HI":{name:"Hawaii",total:50,night:10,handbookUrl:"https://hidot.hawaii.gov/highways/driving-safety/hawaii-drivers-manual/"},
+  "ID":{name:"Idaho",total:50,night:10,handbookUrl:"https://itd.idaho.gov/dmv/drivinginidaho/"},
+  "IL":{name:"Illinois",total:50,night:10,handbookUrl:"https://www.ilsos.gov/publications/pdf_publications/dsd_x182.pdf"},
+  "IN":{name:"Indiana",total:50,night:10,handbookUrl:"https://www.in.gov/bmv/files/DMV_Handbook.pdf"},
+  "IA":{name:"Iowa",total:20,night:2,handbookUrl:"https://iowadot.gov/mvd/iowa-dot-forms-and-publications/drivers-manual"},
+  "KS":{name:"Kansas",total:50,night:10,note:"25 hrs for restricted license; 50 total to remove all restrictions",handbookUrl:"https://www.ksrevenue.gov/pdf/de-29.pdf"},
+  "KY":{name:"Kentucky",total:60,night:10,handbookUrl:"https://drive.ky.gov/driver-licensing/Pages/Kentucky-Driver-Manual.aspx"},
+  "LA":{name:"Louisiana",total:50,night:15,handbookUrl:"https://www.expresslane.org/Documents/pdf/LaDrivingHandbook.pdf"},
+  "ME":{name:"Maine",total:70,night:10,handbookUrl:"https://www.maine.gov/sos/bmv/motorvehicles/driving-manual.html"},
+  "MD":{name:"Maryland",total:60,night:10,handbookUrl:"https://mva.maryland.gov/drivers/Pages/md-driver-manual.aspx"},
+  "MA":{name:"Massachusetts",total:40,night:1,note:"Night requirement is 30 minutes; total may reduce to 30 hrs with approved skills program",handbookUrl:"https://www.mass.gov/drivers-manual"},
+  "MI":{name:"Michigan",total:50,night:10,handbookUrl:"https://www.michigan.gov/sos/vehicle-services/driver-manual"},
+  "MN":{name:"Minnesota",total:50,night:15,note:"Reduces to 40 hrs if parent completes state-approved awareness course",handbookUrl:"https://dps.mn.gov/divisions/dvs/forms-documents/Documents/Minnesota_Drivers_Manual.pdf"},
+  "MS":{name:"Mississippi",total:50,night:0,note:"Certified by parent affidavit; no specific night hour requirement",handbookUrl:"https://www.dps.ms.gov/driver-services/drivers-license/study-guides-forms"},
+  "MO":{name:"Missouri",total:40,night:10,handbookUrl:"https://dor.mo.gov/motorv/drmanual.php"},
+  "MT":{name:"Montana",total:50,night:10,note:"75 hrs (15 night) if using parent-taught online-only course",handbookUrl:"https://dojmt.gov/driving/manuals/"},
+  "NE":{name:"Nebraska",total:50,night:10,handbookUrl:"https://dmv.nebraska.gov/manuals"},
+  "NV":{name:"Nevada",total:50,night:10,handbookUrl:"https://dmv.nv.gov/Driver/Licensing/Driver-Manuals/"},
+  "NH":{name:"New Hampshire",total:40,night:10,handbookUrl:"https://www.nh.gov/safety/divisions/dmv/driver-licensing/manuals.htm"},
+  "NJ":{name:"New Jersey",total:50,night:10,note:"Hour requirement enacted Feb 1, 2025 (permits issued on/after that date)",handbookUrl:"https://www.nj.gov/mvc/vehicles/drmanual.htm"},
+  "NM":{name:"New Mexico",total:50,night:10,handbookUrl:"https://www.mvd.newmexico.gov/drivers-license/apply-for-a-drivers-license/new-mexico-driving-handbook/"},
+  "NY":{name:"New York",total:50,night:15,handbookUrl:"https://dmv.ny.gov/brochure/new-york-state-driver-manual"},
+  "NC":{name:"North Carolina",total:60,night:10,note:"60 hrs (10 night) for Level 1→2; additional 12 hrs (6 night) for Level 2→3",handbookUrl:"https://www.ncdot.gov/dmv/license-id/drivers-licenses/Pages/manuals.aspx"},
+  "ND":{name:"North Dakota",total:50,night:10,handbookUrl:"https://www.dot.nd.gov/divisions/driverslicense/driverslicensing.htm"},
+  "OH":{name:"Ohio",total:50,night:10,handbookUrl:"https://www.bmv.ohio.gov/dl-manuals.aspx"},
+  "OK":{name:"Oklahoma",total:50,night:10,handbookUrl:"https://oklahoma.gov/dps/driver-license/manuals.html"},
+  "OR":{name:"Oregon",total:50,night:0,note:"100 hrs required without driver ed; no separate night sub-requirement",handbookUrl:"https://www.oregon.gov/odot/DMV/pages/driverid/manuals.aspx"},
+  "PA":{name:"Pennsylvania",total:65,night:10,note:"Also requires 5 hrs in inclement/poor weather",handbookUrl:"https://www.dmv.pa.gov/VEHICLE-SERVICES/Manuals%20and%20Forms/Pages/Driving-Manuals.aspx"},
+  "RI":{name:"Rhode Island",total:50,night:10,handbookUrl:"https://dmv.ri.gov/documents/manuals"},
+  "SC":{name:"South Carolina",total:40,night:10,handbookUrl:"https://www.scdmvonline.com/DMVNew/forms/drivers_manual.pdf"},
+  "SD":{name:"South Dakota",total:50,night:10,note:"Also requires 10 hrs in inclement weather",handbookUrl:"https://dps.sd.gov/driver-licensing/licensing-information/drivers-manuals"},
+  "TN":{name:"Tennessee",total:50,night:10,handbookUrl:"https://www.tn.gov/content/dam/tn/safety/documents/TN_Driver_Handbook.pdf"},
+  "TX":{name:"Texas",total:30,night:10,handbookUrl:"https://www.dps.texas.gov/section/driver-license/texas-driver-handbook"},
+  "UT":{name:"Utah",total:40,night:10,handbookUrl:"https://dld.utah.gov/driver-education/utah-driver-handbook/"},
+  "VT":{name:"Vermont",total:40,night:10,handbookUrl:"https://dmv.vermont.gov/licenses-and-ids/driver-education/manuals"},
+  "VA":{name:"Virginia",total:45,night:15,handbookUrl:"https://www.dmv.virginia.gov/webdoc/pdf/dmv39.pdf"},
+  "WA":{name:"Washington",total:50,night:10,handbookUrl:"https://www.dol.wa.gov/forms/drives.pdf"},
+  "WV":{name:"West Virginia",total:50,night:10,handbookUrl:"https://transportation.wv.gov/DMV/DMVFormSearch/DMV-14-WV.pdf"},
+  "WI":{name:"Wisconsin",total:50,night:10,handbookUrl:"https://wisconsindot.gov/Pages/dmv/license-drvs-veh/teen-driver/teen-driver.aspx"},
+  "WY":{name:"Wyoming",total:50,night:10,handbookUrl:"https://www.dot.state.wy.us/home/driver_license_records/drivers-manuals.html"}
 };
 
 const WX_DESC = {
@@ -640,7 +640,7 @@ function loadSettings(){
   catch{return defaultSettings();}
 }
 function defaultSettings(){
-  return{driverName:'',state:'CA',customTotal:null,customNight:null,goalDate:'',permitDate:'',darkMode:false,accentId:'blue',fontSize:'medium',onboardingDone:false};
+  return{driverName:'',state:'CA',customTotal:null,customNight:null,goalDate:'',darkMode:false,accentId:'blue',fontSize:'medium',onboardingDone:false};
 }
 function saveSettings(){localStorage.setItem('dl_settings',JSON.stringify(settings));}
 
@@ -686,14 +686,8 @@ function applyTheme(){
 function updateAvatar(){
   const el = document.getElementById('avatar');
   if(!el)return;
-  if(settings.driverName){
-    const initials = settings.driverName.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-    el.textContent = initials;
-    el.style.fontSize = '.8rem';
-  } else {
-    el.textContent = '?';
-    el.style.fontSize = '1rem';
-  }
+  el.textContent = '?';
+  el.style.fontSize = '1rem';
 }
 
 // ═══════════════════════════════════════════════════
@@ -772,96 +766,6 @@ function personalRecordsHTML(){
       <div class="stat-box"><div class="val">${(pr.mostMiles.distance||0).toFixed(1)} mi</div><div class="lbl">Longest Trip</div></div>
       <div class="stat-box"><div class="val">${pr.bestWeek.toFixed(1)} hrs</div><div class="lbl">Best Week</div></div>
       <div class="stat-box"><div class="val">${pr.topSpeed>0?pr.topSpeed.toFixed(0)+' mph':'—'}</div><div class="lbl">Top Speed</div></div>
-    </div>
-  </div>`;
-}
-
-// ═══════════════════════════════════════════════════
-// TEST DATE CARD
-// ═══════════════════════════════════════════════════
-function testDateCard(reqs,totals){
-  const st=STATE_REQS[settings.state]||STATE_REQS['CA'];
-  const holdMonths=st.holdMonths||6;
-  const handbookUrl=st.handbookUrl||'#';
-  const hoursLeft=Math.max(reqs.total-totals.totalHours,0);
-  const today=new Date();today.setHours(0,0,0,0);
-
-  // ── Hours completion estimate ──
-  // Use rolling pace from most recent 8 weeks; fall back to all-time if sparse
-  let hrsCompleteDate=null;
-  if(reqs.total===0||hoursLeft===0){
-    hrsCompleteDate=new Date(today);
-  } else if(sessions.length>=2){
-    const eightWeeksAgo=new Date(Date.now()-56*24*60*60*1000);
-    let windowSessions=sessions.filter(s=>new Date(s.startTime)>=eightWeeksAgo);
-    // Fall back to all sessions if fewer than 2 in the window
-    if(windowSessions.length<2)windowSessions=sessions;
-    const spanMs=Date.now()-new Date(windowSessions[windowSessions.length-1].startTime).getTime();
-    const spanWeeks=Math.max(spanMs/(7*24*60*60*1000),1);
-    const windowHrs=windowSessions.reduce((a,s)=>a+(s.duration||0)/60,0);
-    const weeklyPace=windowHrs/spanWeeks;
-    if(weeklyPace>0){
-      hrsCompleteDate=new Date(Date.now()+(hoursLeft/weeklyPace)*7*24*60*60*1000);
-    }
-  }
-
-  // ── Hold period ──
-  let holdEndDate=null;
-  if(settings.permitDate){
-    holdEndDate=new Date(settings.permitDate+'T00:00:00');
-    holdEndDate.setMonth(holdEndDate.getMonth()+holdMonths);
-  }
-
-  // ── Earliest test = max of both constraints ──
-  let earliestTest=null;
-  if(hrsCompleteDate&&holdEndDate)earliestTest=new Date(Math.max(hrsCompleteDate,holdEndDate));
-  else if(hrsCompleteDate)earliestTest=hrsCompleteDate;
-  else if(holdEndDate)earliestTest=holdEndDate;
-
-  // Nothing to show yet — just show the handbook link
-  if(!earliestTest&&!settings.permitDate&&!sessions.length){
-    return`<div class="card" style="display:flex;align-items:center;justify-content:space-between">
-      <div style="font-size:.85rem;color:var(--muted)">🎓 Add your permit date to track test eligibility</div>
-      <a href="${handbookUrl}" target="_blank" rel="noopener" style="font-size:.72rem;color:var(--accent);font-weight:600;text-decoration:none;flex-shrink:0;margin-left:10px">📖 Handbook →</a>
-    </div>`;
-  }
-
-  const testReady=earliestTest&&earliestTest<=today;
-  const daysToTest=earliestTest?Math.max(0,Math.ceil((earliestTest-today)/86400000)):null;
-  const testFmt=earliestTest?earliestTest.toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'}):'—';
-
-  const holdStatus=holdEndDate
-    ?(holdEndDate<=today
-      ?`<span style="color:var(--green)">✅ ${holdMonths}-month hold complete</span>`
-      :`<span>📋 ${Math.ceil((holdEndDate-today)/86400000)} days left on ${holdMonths}-month hold</span>`)
-    :`<span style="color:var(--muted)">Add permit date in Settings to track hold period</span>`;
-
-  const hrsStatus=reqs.total===0
-    ?`<span style="color:var(--green)">✅ No hour requirement for ${st.name}</span>`
-    :hoursLeft===0
-      ?`<span style="color:var(--green)">✅ Hours complete</span>`
-      :hrsCompleteDate
-        ?`<span>⏱ ${hoursLeft.toFixed(1)} hrs left — est. complete ${hrsCompleteDate.toLocaleDateString([],{month:'short',day:'numeric'})}</span>`
-        :`<span>⏱ ${hoursLeft.toFixed(1)} hrs left — log more drives to estimate completion</span>`;
-
-  return`<div class="card">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div style="font-weight:700;font-size:.92rem">🎓 Test Eligibility</div>
-      <a href="${handbookUrl}" target="_blank" rel="noopener" style="font-size:.72rem;color:var(--accent);font-weight:600;text-decoration:none">📖 Handbook →</a>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-      <div class="stat-box" style="background:var(--bg);border-radius:10px;padding:10px">
-        <div class="val" style="font-size:1rem">${testReady?'Ready Now!':testFmt}</div>
-        <div class="lbl">Earliest Test Date</div>
-      </div>
-      <div class="stat-box" style="background:var(--bg);border-radius:10px;padding:10px">
-        <div class="val" style="font-size:1.1rem;color:${testReady?'var(--green)':'inherit'}">${testReady?'✅':daysToTest!=null?daysToTest+' days':'—'}</div>
-        <div class="lbl">${testReady?'Ready to Test':'Days Away'}</div>
-      </div>
-    </div>
-    <div style="font-size:.76rem;color:var(--muted);display:flex;flex-direction:column;gap:5px">
-      ${hrsStatus}
-      ${holdStatus}
     </div>
   </div>`;
 }
@@ -1723,7 +1627,7 @@ function shareSession(){
   canvas.width=600;canvas.height=320;
   const ctx=canvas.getContext('2d');
   ctx.fillStyle='#0f172a';ctx.fillRect(0,0,600,320);
-  ctx.fillStyle='#2563eb';ctx.font='bold 28px -apple-system,sans-serif';ctx.fillText('DriveLog',30,46);
+  ctx.fillStyle='#2563eb';ctx.font='bold 28px -apple-system,sans-serif';ctx.fillText('ReadyToRoll',30,46);
   ctx.fillStyle='#f1f5f9';ctx.font='bold 20px -apple-system,sans-serif';
   ctx.fillText((settings.driverName||'Driver')+' — '+fmtDate(s.startTime),30,90);
   ctx.fillStyle='#94a3b8';ctx.font='15px -apple-system,sans-serif';
@@ -1738,7 +1642,7 @@ function shareSession(){
     ctx.fillStyle='#94a3b8';ctx.font='13px -apple-system,sans-serif';
     ctx.fillText('of goal',445,202);
   }
-  ctx.fillStyle='#334155';ctx.font='12px -apple-system,sans-serif';ctx.fillText('via DriveLog',30,295);
+  ctx.fillStyle='#334155';ctx.font='12px -apple-system,sans-serif';ctx.fillText('via ReadyToRoll',30,295);
   canvas.toBlob(blob=>{
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');a.href=url;a.download='drive-'+s.id+'.png';a.click();
@@ -1781,7 +1685,6 @@ function renderSettings(){
   document.getElementById('settings-content').innerHTML=`
     <div class="card">
       <div class="form-group"><label>Driver Name</label><input id="s-name" type="text" value="${settings.driverName}" placeholder="e.g. Alex" onchange="saveSettingsForm()" onblur="saveSettingsForm()"></div>
-      <div class="form-group"><label>Permit Issue Date</label><input id="s-permit" type="date" value="${settings.permitDate||''}" style="color-scheme:light dark" onchange="saveSettingsForm()"><div style="font-size:.72rem;color:var(--muted);margin-top:4px">Used to calculate your hold period and earliest test date</div></div>
       <div class="form-group"><label>Goal Date (optional)</label><input id="s-goal" type="date" value="${settings.goalDate||''}" style="color-scheme:light dark" onchange="saveSettingsForm()"></div>
       <div class="form-group"><label>State</label>
         <select id="s-state" onchange="previewState(this.value);saveSettingsForm()">${stateOptions}</select>
@@ -1845,7 +1748,6 @@ function saveSettingsForm(){
   settings.customTotal=ct!==''?+ct:null;
   settings.customNight=cn!==''?+cn:null;
   settings.goalDate=document.getElementById('s-goal').value||'';
-  settings.permitDate=document.getElementById('s-permit').value||'';
   saveSettings();applyTheme();toast('Settings saved ✓');
 }
 
@@ -1865,7 +1767,7 @@ function clearAllData(){
 // EXPORT / IMPORT / PRINT
 // ═══════════════════════════════════════════════════
 function exportJSON(){
-  download('drivelog.json',JSON.stringify({settings,sessions,skills:skillsData,exported:new Date().toISOString()},null,2),'application/json');
+  download('ReadyToRoll.json',JSON.stringify({settings,sessions,skills:skillsData,exported:new Date().toISOString()},null,2),'application/json');
 }
 
 function exportCSV(){
@@ -1878,7 +1780,7 @@ function exportCSV(){
       s.supervisor||'',s.startLocation?.address||'',s.endLocation?.address||'',
       (s.notes||'').replace(/,/g,'；').replace(/\n/g,' ')]);
   }
-  download('drivelog.csv',rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n'),'text/csv');
+  download('ReadyToRoll.csv',rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n'),'text/csv');
 }
 
 function importData(){
@@ -1929,10 +1831,10 @@ function printLog(){
   </tr>`).join('');
   const skillRows=SKILLS.map(sk=>{const sd=skillsData[sk.id];return`<tr><td>${sk.label}</td><td>${sk.cat}</td><td>${sd?sd.status.replace('_',' '):'not started'}</td><td>${sd?.lastPracticed?fmtDate(sd.lastPracticed):''}</td></tr>`;}).join('');
   const w=window.open('','_blank');
-  w.document.write(`<!DOCTYPE html><html><head><title>DriveLog — ${settings.driverName||'Driver'}</title>
+  w.document.write(`<!DOCTYPE html><html><head><title>ReadyToRoll — ${settings.driverName||'Driver'}</title>
   <style>body{font-family:Arial,sans-serif;font-size:11px;margin:24px}h1{font-size:18px;margin-bottom:4px}h2{font-size:13px;margin:20px 0 8px;border-bottom:1px solid #ccc;padding-bottom:4px}table{width:100%;border-collapse:collapse;margin-bottom:16px}th{background:#f1f5f9;text-align:left;padding:5px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.5px}td{padding:5px 8px;border-bottom:1px solid #e2e8f0;font-size:11px}.sig{margin-top:32px;display:flex;gap:40px}.sig-line{flex:1;border-top:1px solid #000;padding-top:4px;font-size:10px}@media print{button{display:none}}</style>
   </head><body>
-  <h1>DriveLog — Supervised Driving Record</h1>
+  <h1>ReadyToRoll — Supervised Driving Record</h1>
   <p><strong>Driver:</strong> ${settings.driverName||'_____________________'} &nbsp;&nbsp; <strong>State:</strong> ${reqs.stateName} &nbsp;&nbsp; <strong>Printed:</strong> ${new Date().toLocaleDateString()}</p>
   <p><strong>Total Hours:</strong> ${totals.totalHours.toFixed(1)} / ${reqs.total} required &nbsp;&nbsp; <strong>Night Hours:</strong> ${totals.nightHours.toFixed(1)} / ${reqs.night} required</p>
   <h2>Session Log</h2>

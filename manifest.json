@@ -1,8 +1,8 @@
 {
-  "name": "DriveLog — Permit Tracker",
-  "short_name": "DriveLog",
+  "name": "ReadyToRoll — Permit Tracker",
+  "short_name": "ReadyToRoll",
   "description": "Track supervised driving hours toward your license",
-  "start_url": "./drivelog.html",
+  "start_url": "./readytoroll.html",
   "display": "standalone",
   "background_color": "#f1f5f9",
   "theme_color": "#2563eb",
@@ -16,7 +16,7 @@
       "name": "Start a Drive",
       "short_name": "Drive",
       "description": "Jump straight to the drive recorder",
-      "url": "./drivelog.html#drive",
+      "url": "./readytoroll.html#drive",
       "icons": [{ "src": "icon-192.svg", "sizes": "192x192" }]
     }
   ],

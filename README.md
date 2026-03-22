@@ -1,4 +1,4 @@
-# DriveLog — Permit Tracker
+# ReadyToRoll — Permit Tracker
 
 A single-file HTML app for logging supervised driving hours toward a learner's permit. Tracks GPS routes, weather, and day/night conditions — no account, no server, no install required.
 
@@ -14,13 +14,13 @@ A single-file HTML app for logging supervised driving hours toward a learner's p
 
 ## Usage
 
-Open `drivelog.html` in a browser. Because the app uses the browser Geolocation API, it must be served over **HTTPS or localhost** — opening the file directly as `file://` will block GPS in most browsers.
+Open `readytoroll.html` in a browser. Because the app uses the browser Geolocation API, it must be served over **HTTPS or localhost** — opening the file directly as `file://` will block GPS in most browsers.
 
 A simple way to run it locally:
 
 ```bash
 python -m http.server 3000
-# then open http://localhost:3000/drivelog.html
+# then open http://localhost:3000/readytoroll.html
 ```
 
 Or use any static file server (VS Code Live Server, nginx, etc.).
