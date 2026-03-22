@@ -281,7 +281,7 @@ body{display:flex;flex-direction:column;overflow:hidden}
 <div id="header">
   <h1>Drive<span>Log</span></h1>
   <span id="live-badge" onclick="navigate('drive')" style="cursor:pointer">● REC</span>
-  <div id="avatar">?</div>
+  <div id="avatar" onclick="openHelp()" title="Help"></div>
 </div>
 
 <div id="main">
@@ -322,6 +322,78 @@ body{display:flex;flex-direction:column;overflow:hidden}
       <button class="btn-del" id="modal-del-btn">Delete</button>
       <button class="btn-outline" id="modal-edit-btn" style="flex:1">Edit</button>
       <button class="btn-save-notes" id="modal-save-btn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Help modal -->
+<div class="modal-overlay" id="help-modal">
+  <div class="modal-sheet" style="max-height:92vh">
+    <div class="sheet-handle"></div>
+    <div class="modal-header">
+      <h3>DriveLog Help</h3>
+      <button class="close-btn" onclick="closeHelp()">✕</button>
+    </div>
+    <div class="modal-body" style="padding-bottom:32px">
+
+      <div class="section-title" style="margin-top:4px">Getting Started</div>
+      <div class="card" style="font-size:.84rem;line-height:1.6">
+        <b>1. Set your state</b> — go to <b>Settings</b> and pick your state. DriveLog will show the correct total and night-hour requirements.<br><br>
+        <b>2. Enter your permit date</b> — this lets DriveLog track your hold period (most states require 6–12 months before you can test).<br><br>
+        <b>3. Enter your name</b> — your initials appear in the top-right corner.
+      </div>
+
+      <div class="section-title">Logging Drives</div>
+      <div class="card" style="font-size:.84rem;line-height:1.6">
+        <b>🚗 Start Drive</b> — tap on the Home tab. DriveLog records your GPS route, weather, and time automatically. Allow location access for the best results — it's optional but enables route maps and weather.<br><br>
+        <b>+ Add Manually</b> — enter a past drive by date, start/end time, and conditions. Use this for drives you forgot to log, or when GPS isn't available.<br><br>
+        <b>Tags</b> — tap tag chips (Highway, Rain, Parking…) before saving to categorise each drive.<br><br>
+        <b>Supervisor</b> — enter your supervisor's name and licence number in the manual entry form. This appears on your printed log.<br><br>
+        <b>Day vs Night</b> — detected automatically from your local sunrise/sunset. You can override it in the manual entry form.
+      </div>
+
+      <div class="section-title">Progress Tab</div>
+      <div class="card" style="font-size:.84rem;line-height:1.6">
+        The ring shows your overall % complete. The bars below break out night and day hours separately.<br><br>
+        <b>Goal Date</b> — set a target test date in Settings. DriveLog will show how many hours per week you need to stay on track.<br><br>
+        <b>Milestones</b> — badges unlock automatically as you hit thresholds (first drive, 25%, halfway, etc.). Confetti fires when a new one is earned.<br><br>
+        <b>Weekly Chart</b> — shows the last 8 weeks of activity, split by day (amber) and night (purple).
+      </div>
+
+      <div class="section-title">Skills Checklist</div>
+      <div class="card" style="font-size:.84rem;line-height:1.6">
+        26 skills across 6 categories mirror a standard DMV road test. Tap a skill name to expand tips. Mark skills <b>Learning</b> or <b>Mastered</b> — tap the active button again to deselect it.<br><br>
+        The number badge on the Skills tab shows how many skills haven't been started yet.
+      </div>
+
+      <div class="section-title">History</div>
+      <div class="card" style="font-size:.84rem;line-height:1.6">
+        All drives listed by month. Use the filter chips to show only day or night drives. Search by location, supervisor, or tag. Tap any drive to see the full detail, route map, and notes.<br><br>
+        <b>Edit</b> — tap a drive → Edit to correct time, conditions, or supervisor.<br><br>
+        <b>Delete</b> — tap a drive → Delete. A 5-second Undo option appears in the notification bar.
+      </div>
+
+      <div class="section-title">Settings</div>
+      <div class="card" style="font-size:.84rem;line-height:1.6">
+        <b>State</b> — changes the hour requirement. You can override the total and night hours if your instructor or parent has different targets.<br><br>
+        <b>Dark mode</b> — toggle under Appearance.<br><br>
+        <b>Accent colour</b> — 6 colour options.<br><br>
+        <b>Text size</b> — Small / Medium / Large.
+      </div>
+
+      <div class="section-title">Data & Export</div>
+      <div class="card" style="font-size:.84rem;line-height:1.6">
+        <b>Export JSON</b> — full backup of all drives and settings. Use Import JSON to restore.<br><br>
+        <b>Export CSV</b> — open in Excel or Google Sheets for custom reporting.<br><br>
+        <b>Print Log</b> — generates a formatted log with session table, supervisor column, skills checklist, and signature lines — ready to hand to a DMV officer.<br><br>
+        <b>Tip:</b> export a JSON backup before clearing data or switching devices.
+      </div>
+
+      <div class="section-title">Phone Lock & Background</div>
+      <div class="card" style="font-size:.84rem;line-height:1.6">
+        DriveLog keeps your screen awake during a drive (wake lock). If you manually lock the phone the GPS route will pause — <b>the total drive time will still be accurate</b> because it's calculated from start/stop timestamps, not a timer. Distance and route map will have gaps. For a complete route, keep the screen on and the app in the foreground.
+      </div>
+
     </div>
   </div>
 </div>
@@ -614,11 +686,14 @@ function applyTheme(){
 function updateAvatar(){
   const el = document.getElementById('avatar');
   if(!el)return;
-  const name = settings.driverName||'?';
-  const initials = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-  el.textContent = initials||'?';
-  el.onclick = () => navigate('settings');
-  el.title = 'Settings';
+  if(settings.driverName){
+    const initials = settings.driverName.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    el.textContent = initials;
+    el.style.fontSize = '.8rem';
+  } else {
+    el.textContent = '?';
+    el.style.fontSize = '1rem';
+  }
 }
 
 // ═══════════════════════════════════════════════════
@@ -873,7 +948,7 @@ function checkMilestones(){
   function loop(canvas,ctx){
     const elapsed=Date.now()-startTime;
     draw(canvas,ctx,elapsed);
-    if(elapsed<DURATION&&particles.length>0){
+    if(elapsed<DURATION){
       raf=requestAnimationFrame(()=>loop(canvas,ctx));
     } else {
       canvas.style.display='none';
@@ -1113,11 +1188,6 @@ function renderDashboard(){
       <div class="card">${weeklyChartHTML()}</div>
       ${recentlyPracticed.length?`<div class="section-title">Recently Practiced Skills</div>
         <div class="card"><div class="recent-skills">${recentlyPracticed.map(s=>`<span class="skill-chip">✅ ${s.label}</span>`).join('')}</div></div>`:''}
-      ${!activeSession?`<div class="section-title">Log a Drive</div>
-        <div style="display:flex;gap:10px;margin-bottom:12px">
-          <button class="start-fab" style="flex:2;margin-bottom:0" onclick="navigate('drive')">🚗 Start Drive</button>
-          <button class="start-fab" style="flex:1;margin-bottom:0;background:var(--card);color:var(--accent);border:1.5px solid var(--accent)" onclick="openManualModal()">+ Manual</button>
-        </div>`:''}
       <div class="section-title">Recent Sessions</div>
       ${recent.length?`<div class="card">${recent.map(s=>sessionRowHTML(s,false)).join('')}</div>`:emptyStateHTML('car','No sessions yet','Tap Drive to log your first drive')}
     `;
@@ -1942,6 +2012,10 @@ function openManualModal(editId=null){
 
 function closeManualModal(){editingSessionId=null;document.getElementById('manual-modal').classList.remove('open');}
 document.getElementById('manual-modal').addEventListener('click',e=>{if(e.target===document.getElementById('manual-modal'))closeManualModal();});
+
+function openHelp(){document.getElementById('help-modal').classList.add('open');}
+function closeHelp(){document.getElementById('help-modal').classList.remove('open');}
+document.getElementById('help-modal').addEventListener('click',e=>{if(e.target===document.getElementById('help-modal'))closeHelp();});
 
 function saveManualDrive(){
   const dateVal=document.getElementById('m-date').value;
