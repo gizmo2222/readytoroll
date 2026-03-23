@@ -1099,7 +1099,7 @@ async function connectSyncCode(code){
   if(!code||code.length!==8){toast('Enter an 8-character code');return;}
   syncStatus='busy';updateSyncUI();
   try{
-    const r=await fetch(SYNC_URL+'?action=check&code='+code.toUpperCase());
+    const r=await fetch(SYNC_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'check',code:code.toUpperCase()})});
     const d=await r.json();
     if(!d.exists){toast('Code not found — check and try again');syncStatus='off';updateSyncUI();return;}
     settings.syncCode=code.toUpperCase();
@@ -1117,10 +1117,10 @@ async function pushSync(){
   if(!settings.syncCode||!navigator.onLine)return;
   syncStatus='busy';updateSyncUI();
   try{
-    const r=await fetch(SYNC_URL+'?action=push&code='+settings.syncCode,{
+    const r=await fetch(SYNC_URL,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({sessions})
+      body:JSON.stringify({action:'push',code:settings.syncCode,sessions})
     });
     const d=await r.json();
     if(!d.ok)throw new Error(d.error||'Push failed');
@@ -1135,7 +1135,7 @@ async function pullSync(){
   if(!settings.syncCode||!navigator.onLine)return;
   syncStatus='busy';updateSyncUI();
   try{
-    const r=await fetch(SYNC_URL+'?action=pull&code='+settings.syncCode);
+    const r=await fetch(SYNC_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'pull',code:settings.syncCode})});
     const d=await r.json();
     if(!d.ok)throw new Error(d.error||'Pull failed');
     // Merge: keep all local + any remote sessions not already present and not deleted
@@ -1337,7 +1337,7 @@ async function initParentView(code){
   overlay.classList.add('show');
   const contentEl=document.getElementById('parent-content');
   try{
-    const r=await fetch(SYNC_URL+'?action=pull&code='+code);
+    const r=await fetch(SYNC_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'pull',code})});
     const d=await r.json();
     if(!d.ok)throw new Error(d.error||'Not found');
     const remoteSessions=d.sessions||[];
@@ -1898,8 +1898,8 @@ function sessionRowHTML(s, showSwipeDelete=true){
   return`<div class="session-row ${accentClass}${old}" data-id="${s.id}" style="touch-action:pan-y">
     <div class="s-icon ${s.isNight?'s-night':'s-day'}">${s.isNight?'🌙':'☀️'}</div>
     <div class="s-info">
-      <div class="s-title">${addr}</div>
-      <div class="s-meta">${fmtDate(s.startTime)} · ${fmtTime(s.startTime)}${s.supervisor?' · 👤 '+s.supervisor:''}${s.weather?' · '+wxEmoji(s.weather.code)+' '+s.weather.temp+'°F':''}</div>
+      <div class="s-title">${esc(addr)}</div>
+      <div class="s-meta">${fmtDate(s.startTime)} · ${fmtTime(s.startTime)}${s.supervisor?' · 👤 '+esc(s.supervisor):''}${s.weather?' · '+wxEmoji(s.weather.code)+' '+s.weather.temp+'°F':''}</div>
       ${s.tags&&s.tags.length?`<div class="session-tags">${s.tags.map(t=>`<span class="session-tag">${tagLabel(t)}</span>`).join('')}</div>`:''}
     </div>
     <div class="s-dur">${fmtDur(s.duration)}</div>
@@ -2059,7 +2059,7 @@ function renderDrivePanel(){
     <div class="drive-meta">
       <span class="badge ${s.isNight?'night':'day'}">${s.isNight?'🌙 Night':'☀️ Day'}</span>
       ${s.weather?`<span>${wxEmoji(s.weather.code)} ${s.weather.temp}°F</span>`:''}
-      <span style="overflow:hidden;text-overflow:ellipsis">${s.startLocation?.city||s.startLocation?.address||'📍 Locating…'}</span>
+      <span style="overflow:hidden;text-overflow:ellipsis">${esc(s.startLocation?.city||s.startLocation?.address||'📍 Locating…')}</span>
     </div>
     <div id="stop-notice"></div>
     <button class="btn-big btn-stop" onclick="stopDrive()">Stop Drive</button>`;
@@ -2324,16 +2324,16 @@ function showSessionDetail(id){
       <div class="detail-item"><div class="di-label">Weather</div><div class="di-val">${s.weather?wxEmoji(s.weather.code)+' '+s.weather.temp+'°F':'—'}</div></div>
       ${s.maxSpeed?`<div class="detail-item"><div class="di-label">Top Speed</div><div class="di-val">${s.maxSpeed.toFixed(0)} mph</div></div>`:''}
       ${s.avgSpeed?`<div class="detail-item"><div class="di-label">Avg Speed</div><div class="di-val">${s.avgSpeed.toFixed(0)} mph</div></div>`:''}
-      <div class="detail-item" style="grid-column:1/-1"><div class="di-label">From</div><div class="di-val">${s.startLocation?.address||'—'}</div></div>
-      <div class="detail-item" style="grid-column:1/-1"><div class="di-label">To</div><div class="di-val">${s.endLocation?.address||'—'}</div></div>
-      ${s.supervisor?`<div class="detail-item" style="grid-column:1/-1"><div class="di-label">Supervisor</div><div class="di-val">👤 ${s.supervisor}${s.supervisorLicense?' ('+s.supervisorLicense+')':''}</div></div>`:''}
+      <div class="detail-item" style="grid-column:1/-1"><div class="di-label">From</div><div class="di-val">${esc(s.startLocation?.address||'—')}</div></div>
+      <div class="detail-item" style="grid-column:1/-1"><div class="di-label">To</div><div class="di-val">${esc(s.endLocation?.address||'—')}</div></div>
+      ${s.supervisor?`<div class="detail-item" style="grid-column:1/-1"><div class="di-label">Supervisor</div><div class="di-val">👤 ${esc(s.supervisor)}${s.supervisorLicense?' ('+esc(s.supervisorLicense)+')':''}</div></div>`:''}
       ${s.weather?`<div class="detail-item" style="grid-column:1/-1"><div class="di-label">Wind</div><div class="di-val">${s.weather.windSpeed} mph · ${WX_DESC[s.weather.code]||'—'}</div></div>`:''}
       ${s.tags&&s.tags.length?`<div class="detail-item" style="grid-column:1/-1"><div class="di-label">Tags</div><div class="di-val"><div class="session-tags" style="margin-top:4px">${s.tags.map(t=>`<span class="session-tag">${tagLabel(t)}</span>`).join('')}</div></div></div>`:''}
     </div>
     ${speedHTML}
     ${elevHTML}
     <div class="notes-label">Notes</div>
-    <textarea id="detail-notes" placeholder="Add notes…">${s.notes||''}</textarea>
+    <textarea id="detail-notes" placeholder="Add notes…">${esc(s.notes||'')}</textarea>
   `;
   const replayBtn=document.getElementById('replay-btn');
   if(replayBtn)replayBtn.style.display=s.route&&s.route.length>2?'block':'none';
@@ -2697,7 +2697,7 @@ function exportCSV(){
       s.supervisor||'',s.startLocation?.address||'',s.endLocation?.address||'',
       (s.notes||'').replace(/\n/g,' ')]);
   }
-  const csvEscape=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const csvEscape=v=>{const s=String(v==null?'':v);return'"'+((/^[=+\-@|]/.test(s)?'\t':'')+s).replace(/"/g,'""')+'"';};
   download('ReadyToRoll.csv',rows.map(r=>r.map(csvEscape).join(',')).join('\n'),'text/csv');
 }
 
@@ -2743,9 +2743,9 @@ function printLog(){
     <td>${fmtDur(s.duration)}</td>
     <td>${(s.distance||0).toFixed(1)} mi</td>
     <td>${s.isNight?'Night':'Day'}</td>
-    <td>${s.supervisor||''}</td>
+    <td>${esc(s.supervisor||'')}</td>
     <td>${s.weather?s.weather.temp+'°F '+wxEmoji(s.weather.code):''}</td>
-    <td>${(s.notes||'').substring(0,40)}</td>
+    <td>${esc((s.notes||'').substring(0,40))}</td>
   </tr>`).join('');
   const skillRows=SKILLS.map(sk=>{const sd=skillsData[sk.id];return`<tr><td>${sk.label}</td><td>${sk.cat}</td><td>${sd?sd.status.replace('_',' '):'not started'}</td><td>${sd?.lastPracticed?fmtDate(sd.lastPracticed):''}</td></tr>`;}).join('');
   const w=window.open('','_blank');
@@ -2884,6 +2884,9 @@ function saveManualDrive(){
 // ═══════════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════════
+// Escape user-supplied strings before inserting into innerHTML
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
 function haversineMeters(lat1,lng1,lat2,lng2){
   const R=6371000,toRad=x=>x*Math.PI/180;
   const dLat=toRad(lat2-lat1),dLng=toRad(lng2-lng1);
