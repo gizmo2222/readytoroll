@@ -136,10 +136,9 @@ body{display:flex;flex-direction:column;overflow:hidden}
 #compass-el{position:absolute;top:12px;right:12px;z-index:500;width:44px;height:44px;background:var(--card);border-radius:50%;box-shadow:var(--shadow);display:none;align-items:center;justify-content:center;transition:transform .3s}
 #compass-el.visible{display:flex}
 #compass-el svg{width:28px;height:28px}
-/* Pulse marker */
-.pulse-marker-container{position:relative}
-.pulse-dot{width:14px;height:14px;background:var(--accent);border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 0 rgba(37,99,235,.5);animation:pulse-map 1.6s infinite}
-@keyframes pulse-map{0%{box-shadow:0 0 0 0 rgba(37,99,235,.5)}70%{box-shadow:0 0 0 10px rgba(37,99,235,0)}100%{box-shadow:0 0 0 0 rgba(37,99,235,0)}}
+/* Car map marker */
+.car-map-marker{font-size:26px;line-height:1;filter:drop-shadow(0 1px 4px rgba(0,0,0,.45));animation:car-bob .9s ease-in-out infinite alternate}
+@keyframes car-bob{from{transform:translateY(0)}to{transform:translateY(-2px)}}
 
 /* ── 8. Skills view ── */
 .skill-category-header{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:14px 0 6px;border-bottom:1px solid var(--border);margin-bottom:4px}
@@ -2035,10 +2034,13 @@ function initDriveMap(){
   requestAnimationFrame(()=>requestAnimationFrame(()=>{ if(driveMap) driveMap.invalidateSize(); }));
 }
 
+function carMarkerIcon(){
+  const car=settings.carEmoji||'🚗';
+  return L.divIcon({className:'',html:`<div class="car-map-marker">${car}</div>`,iconSize:[30,30],iconAnchor:[15,15]});
+}
 function setPulseMarker(lat,lng){
-  const icon=L.divIcon({className:'',html:'<div class="pulse-dot"></div>',iconSize:[14,14],iconAnchor:[7,7]});
-  if(drivePosMarker)drivePosMarker.setLatLng([lat,lng]);
-  else drivePosMarker=L.marker([lat,lng],{icon,zIndexOffset:1000}).addTo(driveMap);
+  if(drivePosMarker){drivePosMarker.setLatLng([lat,lng]);}
+  else{drivePosMarker=L.marker([lat,lng],{icon:carMarkerIcon(),zIndexOffset:1000}).addTo(driveMap);}
 }
 
 function renderDrivePanel(){
@@ -2367,8 +2369,7 @@ function startReplay(){
   if(replayMarker){replayMarker.remove();replayMarker=null;}
   const route=currentDetailSession.route;
   if(!detailMap||route.length<2)return;
-  const icon=L.divIcon({className:'',html:'<div class="pulse-dot"></div>',iconSize:[14,14],iconAnchor:[7,7]});
-  replayMarker=L.marker([route[0][0],route[0][1]],{icon}).addTo(detailMap);
+  replayMarker=L.marker([route[0][0],route[0][1]],{icon:carMarkerIcon()}).addTo(detailMap);
   let i=1;
   const step=Math.max(1,Math.floor(route.length/60));
   replayInterval=setInterval(()=>{
