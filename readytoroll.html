@@ -2104,9 +2104,10 @@ async function handleFirstFix(pos){
   if(!activeSession)return;
   if(gpsWatchId!=null)navigator.geolocation.clearWatch(gpsWatchId);
   const{latitude:lat,longitude:lng,speed,heading,altitude}=pos.coords;
-  activeSession.route.push([lat,lng,altitude]);
+  const mph0=speed!=null?speed*2.23694:null;
+  activeSession.route.push([lat,lng,altitude,mph0]);
   activeSession.lastSpeed=speed;
-  if(speed!=null){const mph=speed*2.23694;activeSession.maxSpeed=mph;activeSession.speedSamples=[mph];}
+  if(mph0!=null){activeSession.maxSpeed=mph0;activeSession.speedSamples=[mph0];}
   const[wx,loc]=await Promise.all([fetchWeather(lat,lng),reverseGeocode(lat,lng)]);
   if(!activeSession)return;
   activeSession.weather=wx;activeSession.startLocation=loc;
@@ -2141,7 +2142,8 @@ function onPosition(pos){
     const d=haversineMeters(last[0],last[1],lat,lng);
     if(d<5)return;
   }
-  route.push([lat,lng,altitude]);
+  const routeSpeedMph=speed!=null?speed*2.23694:null;
+  route.push([lat,lng,altitude,routeSpeedMph]);
   activeSession.lastMovedAt=Date.now();
   const milesEl=document.getElementById('drive-miles');
   if(milesEl)milesEl.textContent=routeDistMiles(route).toFixed(2);
@@ -2308,6 +2310,7 @@ function showSessionDetail(id){
   document.getElementById('modal-title').textContent=fmtDate(s.startTime);
   const alts=s.route?s.route.filter(p=>p[2]!=null).map(p=>p[2]):[];
   const elevHTML=alts.length>=4?buildElevationSVG(alts):'';
+  const speedHTML=s.route&&s.route.some(p=>p[3]!=null)?buildSpeedSVG(s.route):'';
   document.getElementById('modal-body').innerHTML=`
     <div class="detail-grid">
       <div class="detail-item"><div class="di-label">Start</div><div class="di-val">${fmtTime(s.startTime)}</div></div>
@@ -2324,6 +2327,7 @@ function showSessionDetail(id){
       ${s.weather?`<div class="detail-item" style="grid-column:1/-1"><div class="di-label">Wind</div><div class="di-val">${s.weather.windSpeed} mph · ${WX_DESC[s.weather.code]||'—'}</div></div>`:''}
       ${s.tags&&s.tags.length?`<div class="detail-item" style="grid-column:1/-1"><div class="di-label">Tags</div><div class="di-val"><div class="session-tags" style="margin-top:4px">${s.tags.map(t=>`<span class="session-tag">${tagLabel(t)}</span>`).join('')}</div></div></div>`:''}
     </div>
+    ${speedHTML}
     ${elevHTML}
     <div class="notes-label">Notes</div>
     <textarea id="detail-notes" placeholder="Add notes…">${s.notes||''}</textarea>
@@ -2348,6 +2352,25 @@ function buildElevationSVG(alts){
     </svg>
     <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted);margin-top:2px">
       <span>Low: ${(min*3.28084).toFixed(0)}ft</span><span>High: ${(max*3.28084).toFixed(0)}ft</span>
+    </div>
+  </div>`;
+}
+
+function buildSpeedSVG(route){
+  const speeds=route.map(p=>p[3]).filter(v=>v!=null);
+  if(speeds.length<4)return'';
+  const maxSpd=Math.max(...speeds)||1;
+  const w=280,h=50;
+  const line=speeds.map((v,i)=>`${(i/(speeds.length-1)*w).toFixed(1)},${(h-v/maxSpd*h).toFixed(1)}`).join(' ');
+  const fill=`${line} ${w},${h} 0,${h}`;
+  return`<div class="elevation-wrap">
+    <div class="di-label">Speed Profile</div>
+    <svg width="100%" viewBox="0 0 ${w} ${h+4}" style="display:block;border-radius:6px">
+      <polygon points="${fill}" fill="#22c55e22"/>
+      <polyline points="${line}" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted);margin-top:2px">
+      <span>0 mph</span><span>Top: ${maxSpd.toFixed(0)} mph</span>
     </div>
   </div>`;
 }
