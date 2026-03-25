@@ -289,8 +289,8 @@ body{display:flex;flex-direction:column;overflow:hidden}
 /* ── 17. Misc ── */
 .chip{display:inline-flex;align-items:center;gap:4px;background:var(--accent-lt);color:var(--accent);font-size:.62rem;font-weight:700;padding:2px 8px;border-radius:99px}
 .chip.night{background:var(--purple-lt);color:var(--purple)}
-.toast{position:fixed;bottom:calc(var(--nav-h) + 14px);left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 18px;border-radius:99px;font-size:.8rem;font-weight:500;z-index:999;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
-.toast.show{opacity:1}
+.toast{position:fixed;bottom:calc(var(--nav-h) + 14px);left:50%;transform:translateX(-50%) translateY(10px);background:#0f172a;color:#fff;padding:10px 18px;border-radius:99px;font-size:.8rem;font-weight:500;z-index:999;opacity:0;transition:opacity .3s,transform .3s cubic-bezier(.34,1.56,.64,1);pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .leaflet-control-attribution{font-size:9px!important}
 [data-theme="dark"] .leaflet-container,[data-theme="midnight"] .leaflet-container,[data-theme="neon"] .leaflet-container,[data-theme="contrast"] .leaflet-container{background:#1e293b}
 @media(max-width:380px){.drive-stats{grid-template-columns:1fr 1fr}.stat-grid{grid-template-columns:1fr 1fr 1fr}}
@@ -302,7 +302,7 @@ body{display:flex;flex-direction:column;overflow:hidden}
 [data-theme="midnight"]{--bg:#060d1b;--card:#0d1929;--text:#cde8ff;--muted:#6496b8;--border:#1a3150;--shadow:0 1px 4px rgba(0,0,0,.7),0 4px 16px rgba(0,100,200,.1);--blue-lt:rgba(56,189,248,.14);--accent-lt:rgba(56,189,248,.14);--purple-lt:rgba(167,139,250,.14);--amber-lt:rgba(251,191,36,.14);--red-lt:rgba(239,68,68,.18);}
 /* ── 19. Home extras ── */
 .home-car{display:flex;align-items:center;gap:8px;padding:6px 0 2px;border-top:1px solid var(--border);margin-top:8px}
-.home-car-emoji{font-size:1.5rem;line-height:1}
+.home-car-emoji{font-size:1.5rem;line-height:1;display:inline-block;animation:car-bob 2.8s ease-in-out infinite}
 .home-car-nick{font-size:.75rem;font-weight:700;color:var(--muted)}
 /* Pulse glow on Start Drive */
 @keyframes pulse-glow{0%,100%{box-shadow:0 0 0 0 rgba(22,163,74,.5)}60%{box-shadow:0 0 0 10px rgba(22,163,74,0)}}
@@ -384,7 +384,33 @@ body{display:flex;flex-direction:column;overflow:hidden}
 .ps-info{flex:1;min-width:0}.ps-title{font-size:.84rem;font-weight:600}
 .ps-meta{font-size:.7rem;color:var(--muted);margin-top:1px}.ps-dur{font-size:.82rem;font-weight:700;color:var(--accent);flex-shrink:0}
 
-/* ── 25. Hover & active interaction states ── */
+/* ── 25. Delight & micro-interactions ── */
+/* Button spring-press: fast compress, spring back on release */
+.btn-big,.btn-save,.btn-save-notes,.btn-del,.btn-danger,.start-fab,.suggest-btn{
+  transition:transform .22s cubic-bezier(.34,1.56,.64,1),opacity .15s,filter .15s;
+}
+.btn-big:active,.btn-save:active,.btn-save-notes:active,.btn-del:active,.btn-danger:active,.start-fab:active,.suggest-btn:active{
+  transform:scale(0.95);transition:transform .08s ease;
+}
+/* Nav tab icon pop on activation */
+@keyframes nav-icon-pop{0%{transform:scale(1)}40%{transform:scale(1.45)}70%{transform:scale(.92)}100%{transform:scale(1)}}
+.nav-icon-pop{animation:nav-icon-pop .32s cubic-bezier(.34,1.56,.64,1)}
+/* Home car idle bob */
+@keyframes car-bob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-5px) rotate(2deg)}}
+/* Streak fire pulse */
+@keyframes fire-pulse{0%,100%{transform:scale(1) rotate(0deg)}50%{transform:scale(1.28) rotate(10deg)}}
+.fire-emoji{display:inline-block;animation:fire-pulse 1.7s ease-in-out infinite}
+/* Empty state float */
+@keyframes float-idle{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.empty-state svg{animation:float-idle 3.4s ease-in-out infinite}
+/* Skill mastered flash */
+@keyframes skill-pop{0%{transform:scale(1)}35%{transform:scale(1.22);background:var(--green);color:#fff;border-color:var(--green)}80%{transform:scale(.97)}100%{transform:scale(1)}}
+.skill-btn.just-mastered{animation:skill-pop .48s cubic-bezier(.34,1.56,.64,1) forwards}
+/* Progress ring heartbeat on drive save */
+@keyframes ring-heartbeat{0%,100%{transform:scale(1)}30%{transform:scale(1.08)}65%{transform:scale(.97)}}
+.ring-pulse{animation:ring-heartbeat .55s cubic-bezier(.4,0,.2,1)}
+
+/* ── 26. Hover & active interaction states ── */
 @media(hover:hover){
   .btn-big:hover{opacity:.9}
   .btn-save:hover,.btn-save-notes:hover{filter:brightness(1.1)}
@@ -1730,6 +1756,9 @@ function navigate(view, direction){
   currentView = view;
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active','slide-in-right','slide-in-left'));
   document.querySelectorAll('.nav-btn').forEach(b=>{b.classList.toggle('active',b.dataset.view===view);b.dataset.view===view?b.setAttribute('aria-current','page'):b.removeAttribute('aria-current');});
+  // Icon pop on newly active tab
+  const activeBtn=document.querySelector(`.nav-btn[data-view="${view}"]`);
+  if(activeBtn){const icon=activeBtn.querySelector('.icon');if(icon){icon.classList.remove('nav-icon-pop');void icon.offsetWidth;icon.classList.add('nav-icon-pop');}}
   const el = document.getElementById(view+'-view');
   el.classList.add('active');
   if(direction==='right')el.classList.add('slide-in-right');
@@ -1794,7 +1823,7 @@ function renderHome(){
     ${gpsWarnHTML()}
     ${streak>=2&&!activeSession?`
       <div class="streak-banner">
-        <div class="s-num">🔥${streak}</div>
+        <div class="s-num"><span class="fire-emoji">🔥</span>${streak}</div>
         <div><div class="s-text">Day streak!</div><div class="s-sub">Keep it going — log a drive today</div></div>
       </div>`:''}
     ${activeSession?`
@@ -2077,11 +2106,17 @@ function setSkill(id,status){
   saveSkillsData();
   updateSkillsBadge();
   renderSkills();
+  if(newStatus==='mastered'&&current!=='mastered'){
+    setTimeout(()=>{
+      const btn=document.querySelector(`.skill-row[data-id="${id}"] .skill-btn.mastered`);
+      if(btn){btn.classList.add('just-mastered');}
+    },30);
+  }
 }
 
 function suggestSkill(){
   const unmastered=SKILLS.filter(s=>!skillsData[s.id]||skillsData[s.id].status!=='mastered');
-  if(!unmastered.length){toast('🏆 All skills mastered!');return;}
+  if(!unmastered.length){toast('🏆 All skills mastered!');launchConfetti();return;}
   const pick=unmastered[Math.floor(Math.random()*unmastered.length)];
   toast('🎯 Practice: '+pick.label);
   openSkillTip=pick.id;
@@ -2323,6 +2358,8 @@ async function stopDrive(){
   saveSessions();checkMilestones();
   toast('Drive saved! 🎉');
   navigate('home');
+  // Progress ring heartbeat — celebrates the new drive being added
+  setTimeout(()=>{const ring=document.querySelector('.ring-wrap');if(ring){ring.classList.add('ring-pulse');setTimeout(()=>ring.classList.remove('ring-pulse'),600);}},380);
 }
 
 // ═══════════════════════════════════════════════════
