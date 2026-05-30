@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="ReadyToRoll">
   <link rel="apple-touch-icon" href="icon-192.svg">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
 /* ── 1. CSS Custom Properties ── */
 :root {
@@ -194,8 +194,8 @@ body{display:flex;flex-direction:column;overflow:hidden}
 /* ── 10. Settings ── */
 .form-group{margin-bottom:16px}
 .form-group label{display:block;font-size:.75rem;font-weight:600;margin-bottom:6px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
-.form-group input,.form-group select,.form-group textarea{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:11px 14px;font-size:.9rem;background:var(--card);color:var(--text);font-family:inherit}
-.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--accent)}
+.form-group input:not([type=range]),.form-group select,.form-group textarea{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:11px 14px;font-size:.9rem;background:var(--card);color:var(--text);font-family:inherit}
+.form-group input:not([type=range]):focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--accent)}
 .req-display{display:flex;gap:10px;margin-top:8px}
 .req-box{flex:1;background:var(--accent-lt);border-radius:10px;padding:10px;text-align:center}
 .req-box .rv{font-size:1.3rem;font-weight:800;color:var(--accent)}
@@ -866,7 +866,7 @@ const VIBE_THEMES = [
   {id:'midnight', label:'Midnight',   emoji:'🌙', bg:'#060d1b'},
 ];
 
-const CAR_EMOJIS = ['🚗','🚙','🛻','🚕','🏎️','🚐','🚓','🚌'];
+const CAR_EMOJIS = ['🚗','🚙','🚘','🚕','🏎️','🚐','🚓','🚌'];
 
 const DRIVING_TIPS = [
   "Keep your eyes moving — scan mirrors every 5–8 seconds.",
@@ -1728,7 +1728,7 @@ function weeklyChartHTML(){
     bars+=`<rect x="${x}" y="${barH-nightH-dayH}" width="${barW}" height="${dayH}" fill="var(--amber)" rx="3"/>`;
     bars+=`<rect x="${x}" y="${barH-nightH}" width="${barW}" height="${nightH}" fill="var(--purple)" rx="3"/>`;
     const isLast=i===7;
-    labels+=`<text x="${x+barW/2}" y="78" text-anchor="middle" font-size="8" fill="var(--muted)">${isLast?'This wk':i===6?'Last wk':''}</text>`;
+    labels+=`<text x="${x+barW/2}" y="78" text-anchor="middle" font-size="${isLast?8:7}" fill="var(--muted)" ${isLast?'font-weight="700"':''}>${isLast?'This wk':w.label}</text>`;
   });
   return`<div class="chart-wrap"><svg width="100%" viewBox="0 0 ${svgW} 84" style="display:block;min-width:${svgW}px" aria-hidden="true">
     <rect x="0" y="0" width="${svgW}" height="${barH}" fill="var(--border)" rx="4" opacity=".2"/>
@@ -2027,7 +2027,7 @@ function progressRing(pct,color,size=106,stroke=10,animated=false){
 }
 
 function sessionRowHTML(s, showSwipeDelete=true){
-  const addr=s.startLocation?.city||s.startLocation?.address||'Unknown location';
+  const addr=s.startLocation?.city||s.startLocation?.address||(s.supervisor?'Drive with '+s.supervisor:(s.isNight?'Night drive':'Day drive'));
   const now=new Date(),sessionDate=new Date(s.startTime);
   const daysAgo=(now-sessionDate)/(1000*60*60*24);
   const old=daysAgo>7?' old':'';
@@ -2135,6 +2135,7 @@ function renderDrive(){
   const mapDiv=document.getElementById('drive-map');
   if(!activeSession){
     mapDiv.style.display='none';
+    panel.style.flex='1';
     const compass=document.getElementById('compass-el');
     if(compass)compass.classList.remove('visible');
     panel.innerHTML=`<div id="drive-pre">
@@ -2148,11 +2149,12 @@ function renderDrive(){
       <h2>Ready to Drive?</h2>
       <p>Your route, time, speed, and weather are recorded automatically. Location access is optional.</p>
       <button class="btn-big btn-start" onclick="startDrive()">Start Drive</button>
-      <button class="btn-outline" style="width:100%;margin-top:10px" onclick="openManualModal()">Add Drive Manually</button>
+      <button class="btn-outline" style="width:100%;margin-top:10px;flex:none" onclick="openManualModal()">Add Drive Manually</button>
     </div>`;
     if(driveMap){driveMap.remove();driveMap=null;}
   } else {
     mapDiv.style.display='';
+    panel.style.flex='';
     if(!driveMap)initDriveMap();
     else driveMap.invalidateSize();
     renderDrivePanel();
@@ -2474,7 +2476,7 @@ function showSessionDetail(id){
       <div class="detail-item" style="grid-column:1/-1"><div class="di-label">From</div><div class="di-val">${esc(s.startLocation?.address||'—')}</div></div>
       <div class="detail-item" style="grid-column:1/-1"><div class="di-label">To</div><div class="di-val">${esc(s.endLocation?.address||'—')}</div></div>
       ${s.supervisor?`<div class="detail-item" style="grid-column:1/-1"><div class="di-label">Supervisor</div><div class="di-val">👤 ${esc(s.supervisor)}${s.supervisorLicense?' ('+esc(s.supervisorLicense)+')':''}</div></div>`:''}
-      ${s.weather?`<div class="detail-item" style="grid-column:1/-1"><div class="di-label">Wind</div><div class="di-val">${s.weather.windSpeed} mph · ${WX_DESC[s.weather.code]||'—'}</div></div>`:''}
+      ${(s.weather&&s.weather.windSpeed!=null)?`<div class="detail-item" style="grid-column:1/-1"><div class="di-label">Wind</div><div class="di-val">${s.weather.windSpeed} mph · ${WX_DESC[s.weather.code]||'—'}</div></div>`:''}
       ${s.tags&&s.tags.length?`<div class="detail-item" style="grid-column:1/-1"><div class="di-label">Tags</div><div class="di-val"><div class="session-tags" style="margin-top:4px">${s.tags.map(t=>`<span class="session-tag">${tagLabel(t)}</span>`).join('')}</div></div></div>`:''}
     </div>
     ${speedHTML}
