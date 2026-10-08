@@ -45,15 +45,16 @@ A single-file progressive web app for logging supervised driving hours toward a 
 - **Print Log** — formatted log with session table, supervisor column, skills checklist, and signature lines — ready for a DMV officer
 
 ### Appearance
-- **Vibe Themes** — Classic, Pastel 🌸, Neon ⚡, Retro ☀️, or Midnight 🌙
-- **Accent colour** — 6 colour options
-- **Dark mode** — system-aware or manual toggle
+- **Vibe Themes** — Classic 🎨, Dark 🌑, Hi-Contrast ◑, Pastel 🌸, Neon ⚡, Retro ☀️, or Midnight 🌙
+- **Accent colour** — any hue, picked with a rainbow slider
 - **Text size** — Small / Medium / Large
 - **Your Car** — custom car icon and nickname shown on the home screen
 
 ### PWA / Offline
 - Installable as a home-screen app on iOS and Android
 - Offline-capable via service worker — resume tracking without a connection
+- The service worker (`rtr-service-worker.js`) is scoped to `readytoroll.html` only, so it never affects other pages on metacrystal.com. Its files are prefixed `rtr-` so they can't clash with other apps at the site root.
+- Works at both `metacrystal.com` and `www.metacrystal.com`; sync uses a relative URL, so it always talks to the host the app was loaded from
 - Wake lock keeps the screen on during active drives
 
 ## Usage
@@ -115,4 +116,6 @@ Pushes to `master` trigger `.github/workflows/deploy.yml` which:
 1. Increments the patch version in `version.txt` (e.g. `1.4.7` → `1.4.8`)
 2. Stamps the new version into `readytoroll.html` (`const APP_VERSION`)
 3. Commits `version.txt` back to the repo (ignored by the workflow trigger via `paths-ignore`)
-4. Uploads `readytoroll.html` and `rtr-sync.php` to the server via SFTP
+4. Uploads `readytoroll.html`, `rtr-sync.php` and the offline-app files (`rtr-service-worker.js`, `rtr-manifest.json`, `rtr-icon-*.svg`) to the server via SFTP. The server's SSH host keys are pinned in `.github/known_hosts` (refresh with `ssh-keyscan metacrystal.com` if the host changes them).
+
+Pull with rebase before pushing (`git pull --rebase origin master`), since every deploy pushes a version-bump commit.

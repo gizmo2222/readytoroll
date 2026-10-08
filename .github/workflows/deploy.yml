@@ -13,7 +13,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -37,15 +37,20 @@ jobs:
           git commit -m "Bump version to ${{ env.VERSION }}"
           git push
 
+      # The server's host keys are pinned in .github/known_hosts
       - name: Upload via SFTP
         env:
           SSHPASS: ${{ secrets.SFTP_PASSWORD }}
         run: |
           sudo apt-get install -y sshpass > /dev/null 2>&1
-          sshpass -e sftp -o StrictHostKeyChecking=no \
+          sshpass -e sftp -o UserKnownHostsFile=.github/known_hosts -o StrictHostKeyChecking=yes \
             ${{ secrets.SFTP_USER }}@metacrystal.com <<'SFTP'
           put readytoroll.html /home/nstrupp/metacrystal.com/readytoroll.html
           put rtr-sync.php /home/nstrupp/metacrystal.com/rtr-sync.php
+          put rtr-service-worker.js /home/nstrupp/metacrystal.com/rtr-service-worker.js
+          put rtr-manifest.json /home/nstrupp/metacrystal.com/rtr-manifest.json
+          put rtr-icon-192.svg /home/nstrupp/metacrystal.com/rtr-icon-192.svg
+          put rtr-icon-512.svg /home/nstrupp/metacrystal.com/rtr-icon-512.svg
           SFTP
 
       - name: Confirm

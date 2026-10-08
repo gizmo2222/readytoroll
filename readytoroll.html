@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ReadyToRoll — Permit Tracker</title>
-  <link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="rtr-manifest.json">
   <meta name="theme-color" content="#2563eb">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="ReadyToRoll">
-  <link rel="apple-touch-icon" href="icon-192.svg">
+  <link rel="apple-touch-icon" href="rtr-icon-192.svg">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
@@ -927,7 +927,8 @@ let wakeLock = null;
 // GPS permission state: 'granted' | 'denied' | 'prompt' | 'unknown'
 let gpsPermState = 'unknown';
 // Cloud sync
-const SYNC_URL = 'https://metacrystal.com/rtr-sync.php';
+// Relative, so the app always syncs with the host it was loaded from (metacrystal.com or www.)
+const SYNC_URL = 'rtr-sync.php';
 let syncDebounceTimer = null;
 let syncStatus = 'off'; // 'off' | 'ok' | 'busy' | 'err'
 let syncLastAt = null;
@@ -1360,7 +1361,9 @@ function emailSyncCode(){
   if(!settings.syncCode)return;
   const name=settings.driverName?settings.driverName+"'s":'My';
   const url=location.href.split('?')[0];
-  const body=`Hi!%0A%0AMy ReadyToRoll sync code is:%0A%0A  ${settings.syncCode}%0A%0ATo see my live progress, open:%0A${url}?parent=${settings.syncCode}%0A%0ATo sync on another device, go to Settings → Cloud Sync → Join existing and enter the code above.`;
+  // The sync code gives full edit access, so this email is only for your own devices.
+  // Parents get a separate read-only link from "Share parent link".
+  const body=`Hi!%0A%0AMy ReadyToRoll sync code is:%0A%0A  ${settings.syncCode}%0A%0ATo sync on another device, open ${url}, go to Settings → Cloud Sync → Join existing and enter the code above.%0A%0AKeep this code private — anyone with it can change your drives.`;
   location.href=`mailto:?subject=${encodeURIComponent(name+' ReadyToRoll Sync Code')}&body=${body}`;
 }
 
@@ -3177,7 +3180,8 @@ function obFinish(){
 // ═══════════════════════════════════════════════════
 // ── PWA: Register Service Worker ──
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+  // Scope limited to this page, so the worker never touches the rest of metacrystal.com
+  navigator.serviceWorker.register('./rtr-service-worker.js',{scope:'./readytoroll.html'}).catch(()=>{});
   navigator.serviceWorker.addEventListener('message', e => {
     if(e.data?.type==='BACK_ONLINE') toast('Back online ✓');
   });

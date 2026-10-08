@@ -4,7 +4,7 @@
 // Parent tokens stored as {token}.parent files mapping token → sync code
 
 // ── CORS: restrict to the app's own origin ───────────────────────────────────
-$allowed_origins = ['https://metacrystal.com'];
+$allowed_origins = ['https://metacrystal.com', 'https://www.metacrystal.com'];
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 if (in_array($origin, $allowed_origins, true)) {
     header('Access-Control-Allow-Origin: ' . $origin);
