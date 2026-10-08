@@ -988,7 +988,7 @@ function loadSettings(){
   }catch{return defaultSettings();}
 }
 function defaultSettings(){
-  return{driverName:'',state:'CA',customTotal:null,customNight:null,goalDate:'',accentHue:217,fontSize:'medium',onboardingDone:false,vibeTheme:'default',carEmoji:'🚗',carNickname:'',carHue:0,syncCode:'',parentToken:''};
+  return{driverName:'',state:'CA',customTotal:null,customNight:null,goalDate:'',accentHue:217,fontSize:'medium',onboardingDone:false,vibeTheme:'default',carEmoji:'🚗',carNickname:'',carHue:0,syncCode:'',parentToken:'',parent:null};
 }
 function saveSettings(){localStorage.setItem('rtr_settings',JSON.stringify(settings));}
 
@@ -1176,82 +1176,212 @@ function gpsWarnHTML(){
 // ═══════════════════════════════════════════════════
 // CLOUD SYNC
 // ═══════════════════════════════════════════════════
-async function createSyncCode(){
-  syncStatus='busy';updateSyncUI();
-  try{
-    const r=await fetch(SYNC_URL+'?action=create');
-    const d=await r.json();
-    if(!d.ok)throw new Error(d.error||'Failed');
-    settings.syncCode=d.code;
+// Everything uploaded is encrypted on this device first (AES-GCM). The server
+// only ever sees storage IDs and sealed blobs:
+//   • Sync code (12 chars, made on this device) → slow hash (PBKDF2) → a
+//     storage ID for the server and, separately, the encryption key. The
+//     code and key never leave the teen's devices.
+//   • Parent link → random token (storage ID) + random key. The key sits after
+//     "#" in the link, which browsers never send to a server. The parent copy
+//     is a summary only: no routes, addresses, supervisor details or notes.
+// Old 8-character codes (plaintext on the server) are upgraded once, then the
+// old file is deleted.
+const SYNC_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const SYNC_CODE_LEN = 12;
+const SYNC_KDF_ITER = 310000;
+let syncKeys = null;   // { code, id, key } cached for the current sync code
+
+const b64u = {
+  enc: buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''),
+  dec: str => Uint8Array.from(atob(str.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)),
+};
+const toHex = buf => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+function randomBytes(n) { return crypto.getRandomValues(new Uint8Array(n)); }
+
+function normSyncCode(s) { return String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+function fmtSyncCode(c) { return c.length === SYNC_CODE_LEN ? c.match(/.{4}/g).join('-') : c; }
+function isLegacyCode(c) { return !!c && c.length === 8; }
+function genSyncCode() {
+  // Rejection sampling keeps every character equally likely
+  let out = '';
+  while (out.length < SYNC_CODE_LEN) {
+    for (const b of randomBytes(16)) {
+      if (b < 256 - (256 % SYNC_ALPHABET.length) && out.length < SYNC_CODE_LEN) out += SYNC_ALPHABET[b % SYNC_ALPHABET.length];
+    }
+  }
+  return out;
+}
+
+// One slow derivation per code: first half → storage ID, second half → AES key
+async function deriveSyncKeys(code) {
+  if (syncKeys && syncKeys.code === code) return syncKeys;
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(code), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', hash: 'SHA-256', salt: new TextEncoder().encode('readytoroll/sync/v2'), iterations: SYNC_KDF_ITER },
+    base, 512);
+  const id  = toHex(bits.slice(0, 32));
+  const key = await crypto.subtle.importKey('raw', bits.slice(32, 64), 'AES-GCM', false, ['encrypt', 'decrypt']);
+  syncKeys = { code, id, key };
+  return syncKeys;
+}
+
+async function importParentKey(b64) {
+  return crypto.subtle.importKey('raw', b64u.dec(b64), 'AES-GCM', false, ['encrypt', 'decrypt']);
+}
+
+async function seal(key, obj) {
+  const iv = randomBytes(12);
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(obj)));
+  return JSON.stringify({ v: 2, iv: b64u.enc(iv), ct: b64u.enc(ct) });
+}
+
+async function unseal(key, blob) {
+  const { iv, ct } = JSON.parse(blob);
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64u.dec(iv) }, key, b64u.dec(ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+
+async function syncCall(action, payload) {
+  const r = await fetch(SYNC_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, ...payload }) });
+  const d = await r.json().catch(() => ({ ok: false, error: 'Bad response' }));
+  d.status = r.status;
+  return d;
+}
+
+// What a parent sees: progress numbers only, nothing that reveals where the driver goes
+function parentSummary() {
+  return {
+    driverName: settings.driverName || '',
+    reqs: getReqs(),
+    sessions: sessions.map(s => ({
+      id: s.id, startTime: s.startTime, duration: s.duration, isNight: !!s.isNight,
+      distance: s.distance || 0, tags: s.tags || [],
+      ...(s.weather && s.weather.code != null ? { weather: { code: s.weather.code } } : {}),
+    })),
+  };
+}
+
+function mergeRemoteSessions(remote) {
+  const localIds = new Set(sessions.map(s => s.id));
+  const deletedIds = loadDeletedIds();
+  const newSessions = (remote || []).filter(s => !localIds.has(s.id) && !deletedIds.has(s.id));
+  if (newSessions.length) {
+    sessions = [...sessions, ...newSessions].sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
+    saveSessions(); checkMilestones();
+    if (currentView === 'home') renderHome();
+    else if (currentView === 'dashboard') renderDashboard();
+    else if (currentView === 'history') renderHistory();
+    toast('Synced — ' + newSessions.length + ' new drive' + (newSessions.length === 1 ? '' : 's') + ' added');
+  }
+}
+
+async function createSyncCode() {
+  syncStatus = 'busy'; updateSyncUI();
+  try {
+    settings.syncCode = genSyncCode();
     saveSettings();
-    syncStatus='ok';syncLastAt=new Date().toISOString();
     await pushSync();
+    if (syncStatus !== 'ok') throw new Error('push failed');
     renderSettings();
-    toast('Sync code created: '+d.code);
-  }catch(e){
-    syncStatus='err';updateSyncUI();
+    toast('Sync code created: ' + fmtSyncCode(settings.syncCode));
+  } catch {
+    settings.syncCode = ''; saveSettings();
+    syncStatus = 'err'; updateSyncUI();
     toast('Could not create sync code');
   }
 }
 
-async function connectSyncCode(code){
-  if(!code||code.length!==8){toast('Enter an 8-character code');return;}
-  syncStatus='busy';updateSyncUI();
-  try{
-    const r=await fetch(SYNC_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'check',code:code.toUpperCase()})});
-    const d=await r.json();
-    if(!d.exists){toast('Code not found — check and try again');syncStatus='off';updateSyncUI();return;}
-    settings.syncCode=code.toUpperCase();
-    saveSettings();
+async function connectSyncCode(input) {
+  const code = normSyncCode(input);
+  if (isLegacyCode(code)) {
+    // An old code typed in on a new device: upgrade it from here
+    settings.syncCode = code; saveSettings();
+    await pullSync();
+    renderSettings();
+    return;
+  }
+  if (code.length !== SYNC_CODE_LEN) { toast('Enter the 12-character code, like ABCD-EFGH-JKMN'); return; }
+  syncStatus = 'busy'; updateSyncUI();
+  try {
+    const { id } = await deriveSyncKeys(code);
+    const d = await syncCall('get', { id });
+    if (d.status === 404) { toast('Code not found — check and try again'); syncStatus = 'off'; updateSyncUI(); return; }
+    if (!d.ok) throw new Error(d.error);
+    settings.syncCode = code; saveSettings();
     await pullSync();
     renderSettings();
     toast('Connected! Syncing…');
-  }catch{
-    syncStatus='err';updateSyncUI();
+  } catch {
+    syncStatus = 'err'; updateSyncUI();
     toast('Could not connect to sync');
   }
 }
 
-async function pushSync(){
-  if(!settings.syncCode||!navigator.onLine)return;
-  syncStatus='busy';updateSyncUI();
-  try{
-    const r=await fetch(SYNC_URL,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'push',code:settings.syncCode,sessions})
-    });
-    const d=await r.json();
-    if(!d.ok)throw new Error(d.error||'Push failed');
-    syncStatus='ok';syncLastAt=d.updatedAt||new Date().toISOString();
-  }catch{
-    syncStatus='err';
+// One-time upgrade of an old plaintext code: fetch its drives, re-upload them
+// encrypted under a new code, then delete the old file (and its parent link).
+async function upgradeLegacySync() {
+  const oldCode = settings.syncCode;
+  const d = await syncCall('legacy_pull', { code: oldCode });
+  if (d.status === 404) {
+    // Another device already upgraded it, so this code is gone
+    settings.syncCode = ''; settings.parentToken = ''; saveSettings();
+    syncStatus = 'off'; updateSyncUI();
+    if (currentView === 'settings') renderSettings();
+    toast('Sync was upgraded on another device — enter the new 12-character code from there', 6000);
+    return false;
+  }
+  if (!d.ok) throw new Error(d.error);
+  mergeRemoteSessions(d.sessions);
+  settings.syncCode = genSyncCode();
+  settings.parentToken = '';   // old parent links stop working; share a new one
+  saveSettings();
+  await pushSync();
+  if (syncStatus !== 'ok') { settings.syncCode = oldCode; saveSettings(); throw new Error('upgrade push failed'); }
+  await syncCall('legacy_delete', { code: oldCode });
+  if (currentView === 'settings') renderSettings();
+  toast('Sync upgraded and encrypted. New code: ' + fmtSyncCode(settings.syncCode) + ' — enter it on your other devices', 8000);
+  return true;
+}
+
+async function pushSync() {
+  if (!settings.syncCode || !navigator.onLine) return;
+  if (isLegacyCode(settings.syncCode)) { await pullSync(); return; }   // upgrade first
+  syncStatus = 'busy'; updateSyncUI();
+  try {
+    const { id, key } = await deriveSyncKeys(settings.syncCode);
+    const blob = await seal(key, { v: 2, sessions, parent: settings.parent || null });
+    const d = await syncCall('put', { id, blob });
+    if (!d.ok) throw new Error(d.error || 'Push failed');
+    if (settings.parent) {
+      const pkey = await importParentKey(settings.parent.key);
+      const p = await syncCall('put', { id: settings.parent.token, blob: await seal(pkey, { v: 2, ...parentSummary() }) });
+      if (!p.ok) throw new Error(p.error || 'Parent update failed');
+    }
+    syncStatus = 'ok'; syncLastAt = d.updatedAt || new Date().toISOString();
+  } catch {
+    syncStatus = 'err';
   }
   updateSyncUI();
 }
 
-async function pullSync(){
-  if(!settings.syncCode||!navigator.onLine)return;
-  syncStatus='busy';updateSyncUI();
-  try{
-    const r=await fetch(SYNC_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'pull',code:settings.syncCode})});
-    const d=await r.json();
-    if(!d.ok)throw new Error(d.error||'Pull failed');
-    // Merge: keep all local + any remote sessions not already present and not deleted
-    const localIds=new Set(sessions.map(s=>s.id));
-    const deletedIds=loadDeletedIds();
-    const newSessions=d.sessions.filter(s=>!localIds.has(s.id)&&!deletedIds.has(s.id));
-    if(newSessions.length){
-      sessions=[...sessions,...newSessions].sort((a,b)=>new Date(b.startTime)-new Date(a.startTime));
-      saveSessions();checkMilestones();
-      if(currentView==='home')renderHome();
-      else if(currentView==='dashboard')renderDashboard();
-      else if(currentView==='history')renderHistory();
-      toast('Synced — '+newSessions.length+' new drive'+(newSessions.length===1?'':'s')+' added');
+async function pullSync() {
+  if (!settings.syncCode || !navigator.onLine) return;
+  syncStatus = 'busy'; updateSyncUI();
+  try {
+    if (isLegacyCode(settings.syncCode)) { await upgradeLegacySync(); return; }
+    const { id, key } = await deriveSyncKeys(settings.syncCode);
+    const d = await syncCall('get', { id });
+    if (!d.ok) throw new Error(d.error || 'Pull failed');
+    const data = await unseal(key, d.blob);
+    mergeRemoteSessions(data.sessions);
+    // Pick up a parent link made (or revoked) on another device
+    if (data.parent && data.parent.token !== settings.parent?.token) {
+      settings.parent = data.parent; saveSettings();
+      if (currentView === 'settings') renderSettings();
     }
-    syncStatus='ok';syncLastAt=d.updatedAt||new Date().toISOString();
-  }catch{
-    syncStatus='err';
+    syncStatus = 'ok'; syncLastAt = d.updatedAt || new Date().toISOString();
+  } catch {
+    syncStatus = 'err';
   }
   updateSyncUI();
 }
@@ -1272,19 +1402,19 @@ function updateSyncUI(){
 }
 
 async function disconnectSync(){
-  if(!confirm('Stop syncing on this device? Your sync code is preserved on the server.'))return;
-  settings.syncCode='';settings.parentToken='';saveSettings();syncStatus='off';
+  if(!confirm('Stop syncing on this device? Your encrypted backup stays on the server for your other devices.'))return;
+  settings.syncCode='';settings.parentToken='';settings.parent=null;saveSettings();syncStatus='off';syncKeys=null;
   renderSettings();toast('Sync disconnected');
+}
+
+function parentLinkURL() {
+  return location.href.split(/[?#]/)[0] + '?parent=' + settings.parent.token + '#k=' + settings.parent.key;
 }
 
 async function shareParentLink(){
   if(!settings.syncCode){toast('Enable sync first');return;}
-  // Ensure a parent token exists; create one if not
-  if(!settings.parentToken){
-    const ok=await createParentToken();
-    if(!ok)return;
-  }
-  const url=location.href.split('?')[0]+'?parent='+settings.parentToken;
+  if(!settings.parent && !(await createParentLink()))return;
+  const url=parentLinkURL();
   if(navigator.share){
     navigator.share({title:"ReadyToRoll — "+settings.driverName+"'s progress",text:'Follow my driving progress!',url}).catch(()=>{});
   } else if(navigator.clipboard){
@@ -1294,22 +1424,27 @@ async function shareParentLink(){
   }
 }
 
-async function createParentToken(){
-  try{
-    const r=await fetch(SYNC_URL,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'create_parent_token',code:settings.syncCode})});
-    const d=await r.json();
-    if(!d.ok)throw new Error(d.error||'Failed');
-    settings.parentToken=d.parentToken;
-    saveSettings();
-    return true;
-  }catch(e){toast('Could not create parent link: '+e.message);return false;}
+// A new random storage token and key; publishing the summary makes the link live
+async function createParentLink(){
+  const previous = settings.parent;
+  settings.parent = { token: toHex(randomBytes(16)), key: b64u.enc(randomBytes(32)) };
+  saveSettings();
+  await pushSync();
+  if (syncStatus !== 'ok') {
+    settings.parent = previous; saveSettings();
+    toast('Could not create parent link — check your connection');
+    return false;
+  }
+  return true;
 }
 
 async function revokeParentToken(){
   if(!confirm('Revoke current parent link? Anyone using the old link will lose access.'))return;
-  const ok=await createParentToken(); // replaces token on server, saves new one
-  if(ok){renderSettings();toast('Parent link revoked and regenerated');}
+  const old = settings.parent;
+  if (await createParentLink()) {
+    if (old) await syncCall('delete', { id: old.token }).catch(()=>{});
+    renderSettings(); toast('Parent link revoked and regenerated');
+  }
 }
 
 function syncCodeHTML(){
@@ -1319,12 +1454,13 @@ function syncCodeHTML(){
   if(code){
     return`<div class="sync-code-box">
       <div style="font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px">Your Sync Code</div>
-      <div class="sync-code-val">${code}</div>
+      <div class="sync-code-val">${fmtSyncCode(code)}</div>
       <div style="display:flex;gap:8px;justify-content:center;margin-top:10px">
         <button class="btn-outline" style="flex:0 0 auto;padding:8px 16px;font-size:.8rem" onclick="copySyncCode()">📋 Copy Code</button>
         <button class="btn-outline" style="flex:0 0 auto;padding:8px 16px;font-size:.8rem" onclick="emailSyncCode()">✉️ Email to Myself</button>
       </div>
       <div class="sync-status-row" style="margin-top:10px"><span class="sync-dot ${dotClass}" id="sync-status-dot"></span><span id="sync-status-txt">${statusLabel}</span></div>
+      <div style="font-size:.72rem;color:var(--muted);margin-top:8px;line-height:1.4">🔒 Encrypted on this device before upload — the server can't read your drives.</div>
     </div>
     <div class="btn-row" style="margin-bottom:10px">
       <button class="btn-outline" onclick="pullSync()">↓ Pull Updates</button>
@@ -1332,18 +1468,18 @@ function syncCodeHTML(){
     </div>
     <div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px">
       <div style="font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px">Parent View Link</div>
-      <div style="font-size:.78rem;color:var(--muted);margin-bottom:8px;line-height:1.4">${settings.parentToken?'Share this link with a parent or supervisor. It gives read-only access and is separate from your sync code.':'No parent link created yet.'}</div>
+      <div style="font-size:.78rem;color:var(--muted);margin-bottom:8px;line-height:1.4">${settings.parent?'Share this link with a parent or supervisor. It shows your progress (hours, miles, milestones), never your routes or addresses, and is separate from your sync code.':'No parent link created yet.'}</div>
       <div style="display:flex;gap:8px">
-        <button class="btn-outline" style="flex:1;font-size:.8rem" onclick="shareParentLink()">📤 ${settings.parentToken?'Share Link':'Create & Share'}</button>
-        ${settings.parentToken?`<button class="btn-outline" style="flex:0 0 auto;font-size:.8rem;color:var(--muted)" onclick="revokeParentToken()">🔄 Revoke</button>`:''}
+        <button class="btn-outline" style="flex:1;font-size:.8rem" onclick="shareParentLink()">📤 ${settings.parent?'Share Link':'Create & Share'}</button>
+        ${settings.parent?`<button class="btn-outline" style="flex:0 0 auto;font-size:.8rem;color:var(--muted)" onclick="revokeParentToken()">🔄 Revoke</button>`:''}
       </div>
     </div>
     <button class="btn-outline" style="width:100%;color:var(--muted)" onclick="disconnectSync()">Disconnect Sync</button>`;
   } else {
-    return`<p style="font-size:.8rem;color:var(--muted);margin-bottom:12px;line-height:1.5">Create a sync code to back up your drives to the cloud and share a read-only progress view with a parent or supervisor.</p>
+    return`<p style="font-size:.8rem;color:var(--muted);margin-bottom:12px;line-height:1.5">Create a sync code to back up your drives to the cloud and share a read-only progress view with a parent or supervisor. Everything is encrypted on your device first.</p>
     <button class="btn-save" style="margin-bottom:10px" onclick="createSyncCode()">☁️ Create Sync Code</button>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><div style="flex:1;height:1px;background:var(--border)"></div><span style="font-size:.72rem;color:var(--muted)">or join existing</span><div style="flex:1;height:1px;background:var(--border)"></div></div>
-    <input id="sync-join-input" type="text" maxlength="8" placeholder="Enter 8-character code" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:11px 14px;font-size:.9rem;background:var(--card);color:var(--text);text-transform:uppercase;letter-spacing:.15em;margin-bottom:8px" oninput="this.value=this.value.toUpperCase()">
+    <input id="sync-join-input" type="text" maxlength="14" placeholder="ABCD-EFGH-JKMN" autocomplete="off" aria-label="Sync code" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:11px 14px;font-size:.9rem;background:var(--card);color:var(--text);text-transform:uppercase;letter-spacing:.15em;margin-bottom:8px" oninput="this.value=this.value.toUpperCase()">
     <button class="btn-save" style="width:100%" onclick="connectSyncCode(document.getElementById('sync-join-input').value)">Join</button>`;
   }
 }
@@ -1351,9 +1487,9 @@ function syncCodeHTML(){
 function copySyncCode(){
   if(!settings.syncCode)return;
   if(navigator.clipboard){
-    navigator.clipboard.writeText(settings.syncCode).then(()=>toast('Sync code copied: '+settings.syncCode));
+    navigator.clipboard.writeText(fmtSyncCode(settings.syncCode)).then(()=>toast('Sync code copied: '+fmtSyncCode(settings.syncCode)));
   } else {
-    toast('Your code: '+settings.syncCode);
+    toast('Your code: '+fmtSyncCode(settings.syncCode));
   }
 }
 
@@ -1363,7 +1499,7 @@ function emailSyncCode(){
   const url=location.href.split('?')[0];
   // The sync code gives full edit access, so this email is only for your own devices.
   // Parents get a separate read-only link from "Share parent link".
-  const body=`Hi!%0A%0AMy ReadyToRoll sync code is:%0A%0A  ${settings.syncCode}%0A%0ATo sync on another device, open ${url}, go to Settings → Cloud Sync → Join existing and enter the code above.%0A%0AKeep this code private — anyone with it can change your drives.`;
+  const body=`Hi!%0A%0AMy ReadyToRoll sync code is:%0A%0A  ${fmtSyncCode(settings.syncCode)}%0A%0ATo sync on another device, open ${url}, go to Settings → Cloud Sync → Join existing and enter the code above.%0A%0AKeep this code private — anyone with it can change your drives.`;
   location.href=`mailto:?subject=${encodeURIComponent(name+' ReadyToRoll Sync Code')}&body=${body}`;
 }
 
@@ -1466,7 +1602,7 @@ function computeEarnedMilestones(remoteSessions,reqs){
   return{totals,earned};
 }
 
-async function initParentView(code){
+async function initParentView(token){
   document.getElementById('header').style.display='none';
   document.getElementById('main').style.display='none';
   document.getElementById('nav').style.display='none';
@@ -1474,13 +1610,14 @@ async function initParentView(code){
   overlay.classList.add('show');
   const contentEl=document.getElementById('parent-content');
   try{
-    const r=await fetch(SYNC_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'parent_pull',parentToken:code})});
-    const d=await r.json();
+    // The decryption key is after "#k=" in the link; browsers never send it to the server
+    const keyB64=new URLSearchParams(location.hash.slice(1)).get('k');
+    if(!keyB64)throw new Error('old-link');
+    const d=await syncCall('get',{id:token});
     if(!d.ok)throw new Error(d.error||'Not found');
-    const remoteSessions=d.sessions||[];
-    // Use default CA reqs — we don't have the student's settings in parent view
-    // But we can reconstruct from session metadata if available
-    const reqs={total:50,night:10,stateName:''};
+    const data=await unseal(await importParentKey(keyB64),d.blob);
+    const remoteSessions=data.sessions||[];
+    const reqs=data.reqs&&data.reqs.total?data.reqs:{total:50,night:10,stateName:''};
     const {totals,earned}=computeEarnedMilestones(remoteSessions,reqs);
     const totalPct=reqs.total>0?Math.min(totals.totalHours/reqs.total,1):1;
     const recent=[...remoteSessions].sort((a,b)=>new Date(b.startTime)-new Date(a.startTime)).slice(0,5);
@@ -1489,8 +1626,8 @@ async function initParentView(code){
     contentEl.innerHTML=`
       <div class="parent-header">
         <div class="parent-app-name">ReadyToRoll — Parent View</div>
-        <div class="parent-driver">🚗 Driver Progress</div>
-        <div class="parent-state">Live data · Updated ${d.updatedAt?new Date(d.updatedAt).toLocaleDateString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'recently'}</div>
+        <div class="parent-driver">🚗 ${data.driverName?esc(data.driverName)+"'s Progress":'Driver Progress'}</div>
+        <div class="parent-state">${reqs.stateName?esc(reqs.stateName)+' · ':''}Live data · Updated ${d.updatedAt?new Date(d.updatedAt).toLocaleDateString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'recently'}</div>
         ${totals.totalHours>=reqs.total?'<div class="parent-badge">✅ Hours complete!</div>':''}
       </div>
       <div class="card" style="margin-bottom:12px">
@@ -1541,7 +1678,7 @@ async function initParentView(code){
     contentEl.innerHTML=`<div style="text-align:center;padding:60px 20px;color:var(--muted)">
       <div style="font-size:2rem;margin-bottom:12px">🔒</div>
       <div style="font-size:1rem;font-weight:600;margin-bottom:6px">Could not load progress</div>
-      <div style="font-size:.8rem">The sync code may be invalid or the server is unreachable.</div>
+      <div style="font-size:.8rem">${e.message==='old-link'?'This link is from an older version of ReadyToRoll. Ask the driver to share a new parent link.':'The link may have been revoked, or the server is unreachable.'}</div>
     </div>`;
   }
 }
@@ -3109,9 +3246,9 @@ const TAG_LABELS={highway:'🛣️ Highway',city:'🏙️ City',rural:'🌳 Rura
 function tagLabel(t){return TAG_LABELS[t]||t;}
 
 let toastTimer=null;
-function toast(msg){
+function toast(msg,ms=2800){
   const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');
-  clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2800);
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),ms);
   const sr=document.getElementById('sr-announce');if(sr)sr.textContent=msg;
 }
 

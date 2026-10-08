@@ -5,7 +5,7 @@ Single-file PWA: `readytoroll.html` (~3200 lines). Vanilla HTML/CSS/JS — no fr
 - Maps: Leaflet.js (CDN)
 - Weather: Open-Meteo (free, no key)
 - Geocoding: Nominatim/OpenStreetMap
-- Sync backend: `rtr-sync.php` (flat-file PHP, SFTP-deployed via GitHub Actions)
+- Sync backend: `rtr-sync.php` (flat-file PHP, SFTP-deployed via GitHub Actions). **End-to-end encrypted**: the app seals everything with WebCrypto before upload; the server only stores blobs by ID and can't read them. Never send drive data, the sync code, or keys to the server in the clear. The parent summary (`parentSummary()`) must not include routes, locations/addresses, supervisor details or notes. See README → Cloud Sync Backend.
 - Service worker: `rtr-service-worker.js` (cache name `rtr-v4`, network-first for HTML), registered with scope `./readytoroll.html` so it never controls other metacrystal.com pages. PWA files are all `rtr-`-prefixed. Bump the cache name when cached assets change.
 
 ## Storage

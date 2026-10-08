@@ -35,9 +35,9 @@ A single-file progressive web app for logging supervised driving hours toward a 
 - **📖 Driver's Handbook** — one-tap link to your state's official manual (Settings)
 
 ### Cloud Sync & Parent View
-- **☁️ Cloud Sync** — creates an 8-character sync code; drives automatically back up to the cloud after every change (4-second debounce)
-- **Multi-device** — enter your sync code on a second device to stay in sync
-- **📤 Parent View Link** — share a read-only URL so a parent can see live progress, recent drives, and milestones without editing anything
+- **☁️ Cloud Sync** — creates a 12-character sync code (like `ABCD-EFGH-JKMN`); drives automatically back up after every change (4-second debounce). Everything is **encrypted on the device** before upload — the server can't read it.
+- **Multi-device** — enter your sync code on a second device to stay in sync (full drives, routes included)
+- **📤 Parent View Link** — share a read-only link so a parent can see live progress, recent drives, and milestones. The parent copy is a separate, encrypted **summary**: hours, miles, day/night, tags and weather type — never routes, addresses, supervisor details or notes. Revoking a link deletes it.
 
 ### Export & Backup
 - **Export JSON** — full backup of all drives and settings; importable on any device
@@ -94,13 +94,28 @@ All data is stored locally in your browser's `localStorage`. Nothing is sent to 
 - **Open-Meteo** (weather) — `api.open-meteo.com`
 - **Nominatim / OpenStreetMap** (reverse geocoding) — `nominatim.openstreetmap.org`
 - **OpenStreetMap tiles** (map display) — `tile.openstreetmap.org`
-- **metacrystal.com/rtr-sync.php** (cloud sync, only when you create or join a sync code)
+- **metacrystal.com/rtr-sync.php** (cloud sync, only when you create or join a sync code) — receives only encrypted data it can't read; see [Cloud Sync Backend](#cloud-sync-backend)
 
 Use **Export → JSON** to back up your data or move it to another device.
 
 ## Cloud Sync Backend
 
-`rtr-sync.php` is a flat-file PHP backend deployed alongside the app. It stores one JSON file per sync code under `rtr-sync-data/`. Actions: `create`, `check`, `push`, `pull`. Max 2 MB per code. The data directory is protected with `.htaccess` (no directory listing, deny direct access).
+`rtr-sync.php` is a small PHP backend that stores **sealed blobs it cannot read**. Actions: `get`, `put`, `delete` (plus `legacy_pull` / `legacy_delete` for the one-time upgrade below). Max 3 MB per blob. The data directory (`rtr-sync-data/`) is denied to the web with `.htaccess` and is git-ignored.
+
+How the encryption works (all in the browser, with WebCrypto):
+
+| | Storage ID sent to the server | Encryption key (AES-256-GCM) |
+|---|---|---|
+| **Sync** (teen's devices) | First half of PBKDF2-SHA256(sync code, 310,000 rounds) | Second half of the same derivation — never sent anywhere |
+| **Parent link** | Random 128-bit token (`?parent=…`) | Random 256-bit key after `#k=` in the link — browsers never send the `#` part to a server |
+
+The sync code is generated on the device, so the server never sees it, and the file names on the server reveal nothing about it. Each sync blob holds the full drives and the parent link details (so every device can keep the parent summary up to date); each parent blob holds only the summary.
+
+**If the sync code is lost, the cloud copy can't be recovered** — there's no reset, by design. Each device keeps its own full copy, and **Export → JSON** is the backup.
+
+### Upgrade from the old 8-character codes
+
+Codes created before October 2026 were 8 characters and stored the drives in plain text, named after the code. The first device to open the new version upgrades automatically: it downloads the drives, re-uploads them encrypted under a new 12-character code, deletes the old file and its parent link, and shows the new code. Other devices still on the old code are told to enter the new one, and old parent links stop working — share a new one.
 
 ## Tech Stack
 
