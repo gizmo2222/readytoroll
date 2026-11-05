@@ -1,1 +1,4 @@
 rtr-sync-data/
+
+# Local Claude Code files (settings, hooks, preview config)
+.claude/
