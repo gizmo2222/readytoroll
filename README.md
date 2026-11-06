@@ -7,7 +7,7 @@ A single-file progressive web app for logging supervised driving hours toward a 
 ### Core Tracking
 - **GPS route tracking** — records your route in real time and displays it on an interactive map
 - **Weather** — fetches temperature, conditions, and wind speed at the start of each drive
-- **Day/Night detection** — determined automatically from GPS location and live weather data; overridable
+- **Day/Night split** — night minutes worked out from the sun's position at the drive's location, so a drive across sunset counts partly as each; overridable
 - **Inclement weather hours** — rain, snow, fog, and thunderstorm drives tracked separately for states that require them (PA: 5h, SD: 10h)
 - **All 50 states + DC** — pre-loaded supervised hour requirements including night and inclement minimums; configurable overrides in Settings
 
@@ -65,10 +65,11 @@ Live at: **https://metacrystal.com/readytoroll.html**
 
 To run locally:
 
-```bash
+```powershell
 python -m http.server 3000
-# then open http://localhost:3000/readytoroll.html
 ```
+
+Then open http://localhost:3000/readytoroll.html.
 
 Or use any static file server (VS Code Live Server, nginx, etc.).
 
@@ -84,7 +85,9 @@ Or use any static file server (VS Code Live Server, nginx, etc.).
 
 ## State Hour Requirements
 
-Requirements for all 50 states and DC are built in, sourced from the IIHS and individual state DMV sites. You can override the totals in **Settings** if your situation differs. Always verify with your state's official DMV — requirements change.
+Requirements for all 50 states and DC are built in. They were last checked against each state's official DMV/DOT page or statute on 2026-11-05; the sources, mismatches and caveats are in [docs/state-requirements.md](docs/state-requirements.md). You can override the totals in **Settings** if your situation differs. Always verify with your state's official DMV — requirements change.
+
+**Night hours** are worked out from the sun, not the clock. A drive is night time while the sun is below the horizon (altitude under −0.833°) at the drive's position, so a 4–6 pm drive in November is split into its day and night minutes. Manual entries default to **Auto (split at sunset)**; pick **All day** or **All night** to override. Drives saved by older versions keep their single day/night label.
 
 States with inclement-weather minimums (PA: 5h, SD: 10h) show a separate 🌧️ progress bar. Inclement drives are detected from weather codes (rain, snow, fog, thunder) or manual Rain/Snow tags.
 
@@ -96,7 +99,7 @@ All data is stored locally in your browser's `localStorage`. Nothing is sent to 
 - **OpenStreetMap tiles** (map display) — `tile.openstreetmap.org`
 - **metacrystal.com/rtr-sync.php** (cloud sync, only when you create or join a sync code) — receives only encrypted data it can't read; see [Cloud Sync Backend](#cloud-sync-backend)
 
-Use **Export → JSON** to back up your data or move it to another device.
+Use **Export → JSON** to back up your data or move it to another device. The export leaves out the sync code and the parent link key, and an import never replaces this device's sync settings.
 
 ## Cloud Sync Backend
 
@@ -124,6 +127,50 @@ Codes created before October 2026 were 8 characters and stored the drives in pla
 - [Open-Meteo](https://open-meteo.com/) — free weather API (no key required)
 - [Nominatim](https://nominatim.openstreetmap.org/) — free reverse geocoding
 - GitHub Actions — auto version-bump and SFTP deploy on every push to `master`
+
+## Running the Tests
+
+The tests are dev-only: they use [Playwright](https://playwright.dev/) to load `readytoroll.html` in Chromium and call its functions directly. Nothing in `tests/`, `package.json` or `node_modules/` ships to the site, and the app itself still has no build step. You need Node.js 18 or later.
+
+Every network call is stubbed: Leaflet, map tiles, Open-Meteo and Nominatim get canned answers, and `rtr-sync.php` is replaced by an in-memory fake server. Any other external request is blocked, and any uncaught page error fails the test. The tests run in the `America/Los_Angeles` time zone unless a test sets its own.
+
+Run these in PowerShell from the repo folder. The first two are needed only once:
+
+```powershell
+npm install
+```
+
+```powershell
+npx playwright install chromium
+```
+
+```powershell
+npm test
+```
+
+`npm test` starts a local server on port 4173 by itself. For one dot per test instead of a line each:
+
+```powershell
+npm run test:quiet
+```
+
+To run one file, or to watch the browser:
+
+```powershell
+npx playwright test tests/sync.spec.js
+```
+
+```powershell
+npx playwright test --headed
+```
+
+| File | Covers |
+|---|---|
+| `tests/totals.spec.js` | Hour totals; the day/night split across sunset, midnight, DST and time zones; manual and quick-add entries |
+| `tests/sessions.spec.js` | Live drives (start, stop, auto-stop), edits and deletes, `rtr_deleted` tombstones |
+| `tests/milestones.spec.js` | Streaks across local days and DST, milestones, inclement weather, the parent view |
+| `tests/importexport.spec.js` | JSON export/import round trips, import validation, CSV night minutes, secrets kept out of exports |
+| `tests/sync.spec.js` | No plaintext in any request, the parent summary allow-list, two-device merges, deletes and undo |
 
 ## Deployment
 
