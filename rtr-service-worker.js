@@ -6,7 +6,7 @@
 // else goes straight to the network untouched.
 'use strict';
 
-const CACHE = 'rtr-v4';
+const CACHE = 'rtr-v5';
 const STATIC = [
   './readytoroll.html',
   './rtr-manifest.json',
