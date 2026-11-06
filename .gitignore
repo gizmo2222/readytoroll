@@ -2,3 +2,8 @@ rtr-sync-data/
 
 # Local Claude Code files (settings, hooks, preview config)
 .claude/
+
+# Test harness (dev only)
+node_modules/
+test-results/
+playwright-report/

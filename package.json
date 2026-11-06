@@ -1,0 +1,13 @@
+{
+  "name": "readytoroll-tests",
+  "private": true,
+  "description": "Dev-only test harness. Nothing here ships: the app is still the single file readytoroll.html.",
+  "scripts": {
+    "test": "playwright test",
+    "test:quiet": "playwright test --reporter=dot",
+    "serve": "node tests/serve.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}
