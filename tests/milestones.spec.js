@@ -76,3 +76,22 @@ test('parent view shows a 0-hour state (Arkansas) as 0, not 50', async ({ page }
   await expect(page.locator('#parent-content')).toContainText('1.5');
   await expect(page.locator('#parent-content')).toContainText('/ 0 hrs');
 });
+
+test('parent view shows "Hours complete" only when night hours are met and the state has a requirement', async ({ page }) => {
+  const openParent = async (state, sessions) => {
+    await openApp(page, { settings: { state, syncCode: 'ABCDEFGHJKLM' }, sessions });
+    const link = await page.evaluate(async () => {
+      settings.parent = { token: toHex(randomBytes(16)), key: b64u.enc(randomBytes(32)) };
+      saveSettings(); await pushSync();
+      return `/readytoroll.html?parent=${settings.parent.token}#k=${settings.parent.key}`;
+    });
+    await page.goto(link);
+    await expect(page.locator('#parent-content')).toContainText('Parent View');
+  };
+  // 60 daytime hours in California (50 total / 10 night): total met, night not
+  await openParent('CA', Array.from({ length: 60 }, (_, i) => sess({ startTime: `2026-09-${String(1 + (i % 28)).padStart(2, '0')}T21:00:00.000Z` })));
+  await expect(page.locator('.parent-badge', { hasText: 'Hours complete' })).toHaveCount(0);
+  // Arkansas requires 0 hours, so there is nothing to complete
+  await openParent('AR', [sess({ duration: 90 })]);
+  await expect(page.locator('.parent-badge', { hasText: 'Hours complete' })).toHaveCount(0);
+});

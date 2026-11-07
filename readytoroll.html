@@ -780,8 +780,8 @@ const STATE_REQS = {
 const WX_DESC = {
   0:"Clear sky",1:"Mainly clear",2:"Partly cloudy",3:"Overcast",
   45:"Foggy",48:"Icy fog",
-  51:"Light drizzle",53:"Drizzle",55:"Heavy drizzle",
-  61:"Light rain",63:"Rain",65:"Heavy rain",
+  51:"Light drizzle",53:"Drizzle",55:"Heavy drizzle",56:"Freezing drizzle",57:"Heavy freezing drizzle",
+  61:"Light rain",63:"Rain",65:"Heavy rain",66:"Freezing rain",67:"Heavy freezing rain",
   71:"Light snow",73:"Snow",75:"Heavy snow",77:"Snow grains",
   80:"Light showers",81:"Showers",82:"Heavy showers",
   85:"Light snow showers",86:"Heavy snow showers",
@@ -790,7 +790,7 @@ const WX_DESC = {
 
 function wxEmoji(code){
   if(code===0)return'☀️';if(code<=2)return'🌤️';if(code===3)return'☁️';
-  if(code<=48)return'🌫️';if(code<=55)return'🌦️';if(code<=65)return'🌧️';
+  if(code<=48)return'🌫️';if(code<=55)return'🌦️';if(code<=67)return'🌧️';
   if(code<=77)return'🌨️';if(code<=82)return'🌧️';if(code<=86)return'🌨️';
   return'⛈️';
 }
@@ -1182,7 +1182,7 @@ function computeTotals(list,now=new Date()){
     if(s.avgSpeed){totalSpeed+=s.avgSpeed;speedCount++;}
     if(wf.rain)rainDrives++;
     if(wf.snow)snowDrives++;
-    if(s.startTime&&new Date(s.startTime).getHours()<7)earlyDrives++;
+    if(s.startTime&&!s.timeUnknown&&new Date(s.startTime).getHours()<7)earlyDrives++;
     if(s.tags&&s.tags.includes('highway'))highwayDrives++;
   }
   const weeklyHours={};
@@ -1657,11 +1657,13 @@ function selectQaDN(val){
 function saveQuickDrive(){
   let durMin=qaSelectedMin;
   if(durMin===0){
-    const h=parseFloat(document.getElementById('qa-h').value)||0;
-    const m=parseFloat(document.getElementById('qa-m').value)||0;
+    const h=Math.floor(Number(document.getElementById('qa-h').value||0));
+    const m=Math.floor(Number(document.getElementById('qa-m').value||0));
+    if(!(h>=0&&m>=0&&m<60)){toast('Enter hours 0-23 and minutes 0-59');return;}
     durMin=h*60+m;
   }
   if(durMin<=0){toast('Select or enter a duration');return;}
+  if(durMin>24*60){toast('A drive can be at most 24 hours');return;}
   const tags=[...document.querySelectorAll('#qa-tag-chips .qa-chip.active')].map(c=>c.dataset.tag);
   const now=new Date();
   const startTime=new Date(now.getTime()-durMin*60000).toISOString();
@@ -1713,7 +1715,7 @@ async function initParentView(token){
         <div class="parent-app-name">ReadyToRoll — Parent View</div>
         <div class="parent-driver">🚗 ${data.driverName?esc(data.driverName)+"'s Progress":'Driver Progress'}</div>
         <div class="parent-state">${reqs.stateName?esc(reqs.stateName)+' · ':''}Live data · Updated ${d.updatedAt?new Date(d.updatedAt).toLocaleDateString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'recently'}</div>
-        ${totals.totalHours>=reqs.total?'<div class="parent-badge">✅ Hours complete!</div>':''}
+        ${hoursLeft===0&&nightLeft===0&&Math.max((reqs.inclement||0)-(totals.inclementHours||0),0)===0&&(reqs.total>0||reqs.night>0)?'<div class="parent-badge">✅ Hours complete!</div>':''}
       </div>
       <div class="card" style="margin-bottom:12px">
         <div style="display:flex;align-items:center;gap:16px">
@@ -1817,8 +1819,9 @@ function updateSkillsBadge(){
 // ═══════════════════════════════════════════════════
 function checkMilestones(){
   const totals=getTotals(),reqs=getReqs();
-  const prev=new Set(JSON.parse(localStorage.getItem('rtr_milestones')||'[]'));
-  const earned=new Set();
+  let prev;
+  try{const v=JSON.parse(localStorage.getItem('rtr_milestones')||'[]');prev=new Set(Array.isArray(v)?v:[]);}catch(e){prev=new Set();}
+  const earned=new Set(prev);   // achievements are sticky: never un-earn
   let anyNew=false;
   for(const m of MILESTONES){
     if(m.check(totals,reqs)){
@@ -2020,6 +2023,7 @@ function renderHome(){
   const last=[...sessions].sort((a,b)=>new Date(b.startTime)-new Date(a.startTime))[0]||null;
   const hoursLeft=Math.max(reqs.total-totals.totalHours,0);
   const nightLeft=Math.max(reqs.night-totals.nightHours,0);
+  const inclementLeft=Math.max((reqs.inclement||0)-totals.inclementHours,0);
   const tip=getTipOfDay();
   const car=settings.carEmoji||'🚗';
   const nick=settings.carNickname||'';
@@ -2076,7 +2080,7 @@ function renderHome(){
           <div style="font-size:.78rem;color:var(--muted);margin-top:3px">${reqs.stateName}</div>
           ${reqs.night>0?`<div style="font-size:.76rem;color:var(--purple);margin-top:5px">🌙 ${totals.nightHours.toFixed(1)} / ${reqs.night} night hrs</div>`:''}
           ${reqs.inclement>0?`<div style="font-size:.76rem;color:var(--blue);margin-top:3px">🌧️ ${totals.inclementHours.toFixed(1)} / ${reqs.inclement} inclement hrs</div>`:''}
-          ${hoursLeft>0||nightLeft>0?`<div style="font-size:.72rem;color:var(--muted);margin-top:4px">${hoursLeft>0?hoursLeft.toFixed(1)+' total left':''}${hoursLeft>0&&nightLeft>0?' · ':''}${nightLeft>0?nightLeft.toFixed(1)+' night left':''}</div>`:`<div style="font-size:.76rem;color:var(--green);margin-top:5px;font-weight:600">✅ Hours complete!</div>`}
+          ${hoursLeft>0||nightLeft>0?`<div style="font-size:.72rem;color:var(--muted);margin-top:4px">${hoursLeft>0?hoursLeft.toFixed(1)+' total left':''}${hoursLeft>0&&nightLeft>0?' · ':''}${nightLeft>0?nightLeft.toFixed(1)+' night left':''}</div>`:inclementLeft>0?`<div style="font-size:.72rem;color:var(--muted);margin-top:4px">${inclementLeft.toFixed(1)} inclement left</div>`:(reqs.total>0||reqs.night>0)?`<div style="font-size:.76rem;color:var(--green);margin-top:5px;font-weight:600">✅ Hours complete!</div>`:`<div style="font-size:.72rem;color:var(--muted);margin-top:4px">No hour requirement for this state</div>`}
           ${last?`<div style="font-size:.7rem;color:var(--muted);margin-top:4px;border-top:1px solid var(--border);padding-top:6px">Last drive: ${fmtDate(last.startTime)} · ${fmtDur(last.duration)}${daysSinceLast>=4?`<span class="stale-nudge" style="margin-left:8px">${daysSinceLast}d ago</span>`:''}</div>`:''}
           ${nick||car!=='🚗'||carHue?`<div class="home-car"><span class="home-car-emoji" style="${carHue?'filter:hue-rotate('+carHue+'deg)':''}">${esc(car)}</span><span class="home-car-nick">${esc(nick||'My Car')}</span></div>`:''}
         </div>
@@ -2214,18 +2218,24 @@ function goalCard(reqs,totals){
   if(isNaN(goal))return'';
   const daysLeft=Math.ceil((goal-today)/86400000);
   const hoursLeft=Math.max(reqs.total-totals.totalHours,0);
+  const nightLeft=Math.max((reqs.night||0)-totals.nightHours,0);
+  const inclementLeft=Math.max((reqs.inclement||0)-totals.inclementHours,0);
+  const allMet=hoursLeft===0&&nightLeft===0&&inclementLeft===0&&(reqs.total>0||reqs.night>0);
+  const paceLeft=Math.max(hoursLeft,nightLeft);
   if(daysLeft<=0){
-    if(hoursLeft===0)return`<div class="card" style="background:var(--green-lt);border:1.5px solid var(--green)"><div style="font-weight:700;color:var(--green)">🎉 Goal date reached — requirements met!</div></div>`;
-    return`<div class="card" style="background:var(--red-lt);border:1.5px solid var(--red)"><div style="font-weight:700;color:var(--red)">⚠️ Goal date passed — ${hoursLeft.toFixed(1)} hrs still needed</div></div>`;
+    if(allMet)return`<div class="card" style="background:var(--green-lt);border:1.5px solid var(--green)"><div style="font-weight:700;color:var(--green)">🎉 Goal date reached — requirements met!</div></div>`;
+    if(!(reqs.total>0||reqs.night>0))return'';
+    const need=[hoursLeft>0?hoursLeft.toFixed(1)+' hrs':'',nightLeft>0?nightLeft.toFixed(1)+' night hrs':'',inclementLeft>0?inclementLeft.toFixed(1)+' inclement hrs':''].filter(Boolean).join(' + ');
+    return`<div class="card" style="background:var(--red-lt);border:1.5px solid var(--red)"><div style="font-weight:700;color:var(--red)">⚠️ Goal date passed — ${need} still needed</div></div>`;
   }
   const weeksLeft=daysLeft/7;
-  const hrsPerWeek=hoursLeft/weeksLeft;
+  const hrsPerWeek=paceLeft/weeksLeft;
   const onTrack=reqs.total===0||hrsPerWeek<=5;
   const accent=onTrack?'var(--green)':'var(--amber)';
   const accentLt=onTrack?'var(--green-lt)':'var(--amber-lt)';
   const goalFmt=goal.toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'});
   const daysLabel=daysLeft<14?`${daysLeft} days`:`${Math.round(weeksLeft)} weeks`;
-  if(hoursLeft===0)return`<div class="card" style="background:var(--green-lt);border:1.5px solid var(--green)"><div style="font-weight:700;color:var(--green)">✅ All hours complete! ${daysLabel} until ${goalFmt}.</div></div>`;
+  if(allMet)return`<div class="card" style="background:var(--green-lt);border:1.5px solid var(--green)"><div style="font-weight:700;color:var(--green)">✅ All hours complete! ${daysLabel} until ${goalFmt}.</div></div>`;
   return`<div class="card" style="background:${accentLt};border:1.5px solid ${accent}">
     <div class="goal-card-header" onclick="goalCollapsed=!goalCollapsed;document.getElementById('goal-body').style.display=goalCollapsed?'none':'block';document.getElementById('goal-chevron').textContent=goalCollapsed?'▼':'▲'">
       <div>
@@ -2239,7 +2249,7 @@ function goalCard(reqs,totals){
     </div>
     <div class="goal-card-body" id="goal-body" style="display:${goalCollapsed?'none':'block'}">
       <div style="display:flex;gap:12px;font-size:.76rem;margin-top:10px;padding-top:10px;border-top:1px solid rgba(0,0,0,.08)">
-        <span>⏱ ${hoursLeft.toFixed(1)} total hrs left</span>
+        <span>⏱ ${hoursLeft.toFixed(1)} total hrs left</span>${nightLeft>0?`<span>🌙 ${nightLeft.toFixed(1)} night hrs left</span>`:''}${inclementLeft>0?`<span>🌧️ ${inclementLeft.toFixed(1)} inclement hrs left</span>`:''}
       </div>
     </div>
   </div>`;
@@ -3373,9 +3383,9 @@ function openManualModal(editId=null){
     const s=sessions.find(x=>x.id===editId);if(!s)return;
     const start=new Date(s.startTime);const end=s.endTime?new Date(s.endTime):null;
     document.getElementById('m-date').value=`${start.getFullYear()}-${pad(start.getMonth()+1)}-${pad(start.getDate())}`;
-    document.getElementById('m-start').value=`${pad(start.getHours())}:${pad(start.getMinutes())}`;
-    document.getElementById('m-end').value=end?`${pad(end.getHours())}:${pad(end.getMinutes())}` :'';
-    document.getElementById('m-dur-h').value='';document.getElementById('m-dur-m').value='';
+    document.getElementById('m-start').value=s.timeUnknown?'':`${pad(start.getHours())}:${pad(start.getMinutes())}`;
+    document.getElementById('m-end').value=end&&!s.timeUnknown?`${pad(end.getHours())}:${pad(end.getMinutes())}` :'';
+    document.getElementById('m-dur-h').value=s.timeUnknown?Math.floor((s.duration||0)/60):'';document.getElementById('m-dur-m').value=s.timeUnknown?Math.round((s.duration||0)%60):'';
     document.getElementById('m-daynight').value=s.nightSrc==='sun'?'auto':(s.isNight?'night':'day');
     document.getElementById('m-supervisor').value=s.supervisor||'';
     document.getElementById('m-license').value=s.supervisorLicense||'';
@@ -3414,8 +3424,8 @@ function saveManualDrive(){
   const dateVal=document.getElementById('m-date').value;
   const startVal=document.getElementById('m-start').value;
   const endVal=document.getElementById('m-end').value;
-  const durH=parseFloat(document.getElementById('m-dur-h').value)||0;
-  const durM=parseFloat(document.getElementById('m-dur-m').value)||0;
+  const durH=Math.floor(Number(document.getElementById('m-dur-h').value||0));
+  const durM=Math.floor(Number(document.getElementById('m-dur-m').value||0));
   let dnMode=document.getElementById('m-daynight').value;
   if(!['auto','day','night'].includes(dnMode))dnMode='auto';
   if(dnMode==='auto'&&!startVal)dnMode='day';   // no clock time: can't place the drive against sunset
@@ -3425,32 +3435,43 @@ function saveManualDrive(){
   const notes=document.getElementById('m-notes').value.trim();
   const tags=[...document.querySelectorAll('#m-tags .tag-chip.active')].map(c=>c.dataset.tag);
   if(!dateVal){toast('Please enter a date');return;}
+  if(!(durH>=0&&durM>=0&&durM<60)){toast('Enter hours 0-23 and minutes 0-59');return;}
   if(!startVal&&durH===0&&durM===0){toast('Enter a start time or duration');return;}
   let startTime,duration,endTime;
   if(startVal){
     startTime=new Date(`${dateVal}T${startVal}`).toISOString();
     if(endVal){
       let start=new Date(`${dateVal}T${startVal}`),end=new Date(`${dateVal}T${endVal}`);
-      if(end<=start)end.setDate(end.getDate()+1);
+      if(end.getTime()===start.getTime()){toast('End time must differ from start time');return;}
+      if(end<start)end.setDate(end.getDate()+1);
       duration=(end-start)/60000;
     } else if(durH>0||durM>0){duration=durH*60+durM;}
     else{toast('Enter an end time or duration');return;}
-  } else {startTime=new Date(`${dateVal}T00:00`).toISOString();duration=durH*60+durM;}
-  if(duration<=0){toast('Duration must be greater than zero');return;}
+  } else {
+    // No clock time: anchor at local noon so a time-zone shift keeps the date; flagged so it is not an 'early' drive
+    startTime=new Date(`${dateVal}T12:00`).toISOString();duration=durH*60+durM;
+    if(dateVal>localDateStr(new Date())){toast("Drive can't be in the future");return;}
+  }
+  if(!(duration>0)){toast('Duration must be greater than zero');return;}
+  if(duration>24*60){toast('A drive can be at most 24 hours');return;}
+  if(startVal&&new Date(startTime).getTime()>Date.now()+60000){toast("Drive can't be in the future");return;}
   endTime=new Date(new Date(startTime).getTime()+duration*60000).toISOString();
   if(editingSessionId){
     const idx=sessions.findIndex(x=>x.id===editingSessionId);
-    if(idx!==-1){
-      const existing=sessions[idx];
-      sessions[idx]=applyNightSplit({...existing,startTime,endTime,duration,supervisor,supervisorLicense,tags,
-        startLocation:location?{lat:existing.startLocation?.lat??null,lng:existing.startLocation?.lng??null,city:location,address:location}:existing.startLocation,
-        notes,updatedAt:new Date().toISOString()},dnMode);
-    }
+    if(idx===-1){toast('This drive was removed on another device');closeManualModal();return;}
+    const existing=sessions[idx];
+    const sl=existing.startLocation;
+    const hadLocation=!!(sl&&(sl.city||sl.address));   // the field was prefilled, so empty now means clear
+    const startLocation=location?{lat:sl?.lat??null,lng:sl?.lng??null,city:location,address:location}
+      :hadLocation?(sl.lat!=null&&sl.lng!=null?{...sl,city:'',address:''}:null):sl;
+    sessions[idx]=applyNightSplit({...existing,startTime,endTime,duration,supervisor,supervisorLicense,tags,
+      startLocation,timeUnknown:!startVal,
+      notes,updatedAt:new Date().toISOString()},dnMode);
     toast('Drive updated');
   } else {
     sessions.push(applyNightSplit({id:genId(),startTime,endTime,duration,supervisor,supervisorLicense,tags,
       startLocation:location?{lat:null,lng:null,city:location,address:location}:null,
-      endLocation:null,weather:null,route:[],distance:0,notes,manual:true},dnMode));
+      endLocation:null,weather:null,route:[],distance:0,notes,manual:true,...(startVal?{}:{timeUnknown:true})},dnMode));
     toast('Drive added');
   }
   onSessionsChanged();closeManualModal();
@@ -3481,7 +3502,7 @@ function fmtElapsed(startTime){
 }
 function fmtDur(minutes){
   if(!minutes)return'0m';
-  const h=Math.floor(minutes/60),m=Math.round(minutes%60);
+  const total=Math.round(minutes),h=Math.floor(total/60),m=total%60;
   if(h===0)return`${m}m`;if(m===0)return`${h}h`;return`${h}h ${m}m`;
 }
 function fmtTime(iso){if(!iso)return'—';return new Date(iso).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});}
