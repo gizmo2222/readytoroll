@@ -1079,11 +1079,13 @@ function handbookLinkHTML(code){
 // ═══════════════════════════════════════════════════
 // REQUIREMENTS & STATS
 // ═══════════════════════════════════════════════════
+// A custom hour count only counts when it is a real non-negative number; anything else means "use the state's"
+function customHours(v,fallback){const n=v==null||v===''?NaN:Number(v);return Number.isFinite(n)&&n>=0?n:fallback;}
 function getReqs(){
   const st = STATE_REQS[settings.state]||STATE_REQS['CA'];
   return{
-    total:settings.customTotal!=null?+settings.customTotal:st.total,
-    night:settings.customNight!=null?+settings.customNight:st.night,
+    total:customHours(settings.customTotal,st.total),
+    night:customHours(settings.customNight,st.night),
     inclement:st.inclement||0,
     note:st.note||null,
     stateName:st.name
@@ -1131,7 +1133,8 @@ const STATE_CENTER={AL:[32.8,-86.8],AK:[61.4,-150.0],AZ:[34.3,-111.7],AR:[34.9,-
   SD:[44.4,-100.2],TN:[35.9,-86.4],TX:[31.5,-99.3],UT:[39.3,-111.7],VT:[44.1,-72.7],VA:[37.5,-78.9],WA:[47.4,-120.5],
   WV:[38.6,-80.6],WI:[44.6,-89.9],WY:[43.0,-107.6]};
 function sessionLatLng(s){
-  if(s?.route?.length&&s.route[0][0]!=null)return[s.route[0][0],s.route[0][1]];
+  const p0=Array.isArray(s?.route)?s.route[0]:null;
+  if(Array.isArray(p0)&&Number.isFinite(p0[0])&&Number.isFinite(p0[1]))return[p0[0],p0[1]];
   if(s?.startLocation?.lat!=null&&s.startLocation.lng!=null)return[s.startLocation.lat,s.startLocation.lng];
   return null;
 }
@@ -1323,7 +1326,7 @@ function parentSummary() {
     reqs: getReqs(),
     sessions: sessions.map(s => ({
       id: s.id, startTime: s.startTime, duration: s.duration, isNight: !!s.isNight,
-      nightMin: sessionNightMin(s), distance: s.distance || 0, tags: s.tags || [],
+      nightMin: sessionNightMin(s), distance: s.distance || 0, tags: knownTags(s.tags),
       ...(s.weather && s.weather.code != null ? { weather: { code: s.weather.code } } : {}),
     })),
   };
@@ -1335,8 +1338,9 @@ function mergeSyncData(data) {
   const tomb = addTombstones(loadTombstones(), data && data.deleted);
   const byId = new Map(sessions.map(s => [s.id, s]));
   let added = 0, changed = 0, removed = 0;
-  for (const r of (data && data.sessions) || []) {
-    if (!r || !r.id) continue;
+  for (const raw of (data && data.sessions) || []) {
+    const r = cleanImportedSession(raw);   // another device's copy gets the same checks as a backup file
+    if (!r) continue;
     const mine = byId.get(r.id);
     if (!mine) { byId.set(r.id, r); added++; }
     else if ((r.updatedAt || '') > (mine.updatedAt || '')) { byId.set(r.id, r); changed++; }
@@ -1734,7 +1738,7 @@ async function initParentView(token){
           <div class="ps-icon ${s.isNight?'s-night':'s-day'}">${s.isNight?'🌙':'☀️'}</div>
           <div class="ps-info">
             <div class="ps-title">${fmtDate(s.startTime)}</div>
-            <div class="ps-meta">${s.isNight?'Night':'Day'}${s.tags&&s.tags.length?' · '+s.tags.map(t=>tagLabel(t)).join(', '):''}</div>
+            <div class="ps-meta">${s.isNight?'Night':'Day'}${s.tags&&s.tags.length?' · '+s.tags.map(t=>esc(tagLabel(t))).join(', '):''}</div>
           </div>
           <div class="ps-dur">${fmtDur(s.duration)}</div>
         </div>`).join(''):'<div style="color:var(--muted);font-size:.84rem">No drives recorded yet</div>'}
@@ -2010,6 +2014,7 @@ function renderHome(){
   const tip=getTipOfDay();
   const car=settings.carEmoji||'🚗';
   const nick=settings.carNickname||'';
+  const carHue=Number(settings.carHue)||0;
   const streak=totals.streak;
   const daysSinceLast=last?Math.floor((Date.now()-new Date(last.startTime))/(1000*60*60*24)):null;
 
@@ -2017,7 +2022,8 @@ function renderHome(){
   let countdownHTML='';
   if(reqs.total>0||settings.goalDate){
     const today=new Date();today.setHours(0,0,0,0);
-    const goalDays=settings.goalDate?Math.max(0,Math.ceil((new Date(settings.goalDate+'T00:00:00')-today)/86400000)):null;
+    const goalMs=settings.goalDate?new Date(settings.goalDate+'T00:00:00').getTime():NaN;
+    const goalDays=Number.isFinite(goalMs)?Math.max(0,Math.ceil((goalMs-today)/86400000)):null;
     const boxes=[];
     if(reqs.total>0&&hoursLeft>0){
       boxes.push(`<div class="countdown-box"><div class="countdown-val">${hoursLeft.toFixed(1)}</div><div class="countdown-lbl">Total hrs left</div></div>`);
@@ -2063,7 +2069,7 @@ function renderHome(){
           ${reqs.inclement>0?`<div style="font-size:.76rem;color:var(--blue);margin-top:3px">🌧️ ${totals.inclementHours.toFixed(1)} / ${reqs.inclement} inclement hrs</div>`:''}
           ${hoursLeft>0||nightLeft>0?`<div style="font-size:.72rem;color:var(--muted);margin-top:4px">${hoursLeft>0?hoursLeft.toFixed(1)+' total left':''}${hoursLeft>0&&nightLeft>0?' · ':''}${nightLeft>0?nightLeft.toFixed(1)+' night left':''}</div>`:`<div style="font-size:.76rem;color:var(--green);margin-top:5px;font-weight:600">✅ Hours complete!</div>`}
           ${last?`<div style="font-size:.7rem;color:var(--muted);margin-top:4px;border-top:1px solid var(--border);padding-top:6px">Last drive: ${fmtDate(last.startTime)} · ${fmtDur(last.duration)}${daysSinceLast>=4?`<span class="stale-nudge" style="margin-left:8px">${daysSinceLast}d ago</span>`:''}</div>`:''}
-          ${nick||car!=='🚗'||settings.carHue?`<div class="home-car"><span class="home-car-emoji" style="${settings.carHue?'filter:hue-rotate('+settings.carHue+'deg)':''}">${car}</span><span class="home-car-nick">${nick||'My Car'}</span></div>`:''}
+          ${nick||car!=='🚗'||carHue?`<div class="home-car"><span class="home-car-emoji" style="${carHue?'filter:hue-rotate('+carHue+'deg)':''}">${esc(car)}</span><span class="home-car-nick">${esc(nick||'My Car')}</span></div>`:''}
         </div>
       </div>
     </div>
@@ -2105,7 +2111,7 @@ function renderDashboard(){
     const totalPct=reqs.total>0?Math.min(totals.totalHours/reqs.total,1):1;
     const nightPct=reqs.night>0?Math.min(totals.nightHours/reqs.night,1):1;
     const inclPct=reqs.inclement>0?Math.min(totals.inclementHours/reqs.inclement,1):0;
-    const driverLabel=settings.driverName?settings.driverName+"'s Log":'My Driving Log';
+    const driverLabel=settings.driverName?esc(settings.driverName)+"'s Log":'My Driving Log';
     const streak=getStreak();
     const recent=[...sessions].sort((a,b)=>new Date(b.startTime)-new Date(a.startTime)).slice(0,3);
     const recentlyPracticed=getRecentSkills();
@@ -2193,6 +2199,7 @@ function goalCard(reqs,totals){
   if(!settings.goalDate)return'';
   const today=new Date();today.setHours(0,0,0,0);
   const goal=new Date(settings.goalDate+'T00:00:00');
+  if(isNaN(goal))return'';
   const daysLeft=Math.ceil((goal-today)/86400000);
   const hoursLeft=Math.max(reqs.total-totals.totalHours,0);
   if(daysLeft<=0){
@@ -2244,12 +2251,12 @@ function sessionRowHTML(s, showSwipeDelete=true){
   const daysAgo=(now-sessionDate)/(1000*60*60*24);
   const old=daysAgo>7?' old':'';
   const accentClass=s.isNight?'s-row-night':'s-row-day';
-  return`<div class="session-row ${accentClass}${old}" data-id="${s.id}" style="touch-action:pan-y">
+  return`<div class="session-row ${accentClass}${old}" data-id="${esc(s.id)}" style="touch-action:pan-y">
     <div class="s-icon ${s.isNight?'s-night':'s-day'}">${s.isNight?'🌙':'☀️'}</div>
     <div class="s-info">
       <div class="s-title">${esc(addr)}</div>
-      <div class="s-meta">${fmtDate(s.startTime)} · ${fmtTime(s.startTime)}${s.supervisor?' · 👤 '+esc(s.supervisor):''}${s.weather?' · '+wxEmoji(s.weather.code)+' '+s.weather.temp+'°F':''}</div>
-      ${s.tags&&s.tags.length?`<div class="session-tags">${s.tags.map(t=>`<span class="session-tag">${tagLabel(t)}</span>`).join('')}</div>`:''}
+      <div class="s-meta">${fmtDate(s.startTime)} · ${fmtTime(s.startTime)}${s.supervisor?' · 👤 '+esc(s.supervisor):''}${s.weather?' · '+wxEmoji(s.weather.code)+' '+esc(s.weather.temp)+'°F':''}</div>
+      ${s.tags&&s.tags.length?`<div class="session-tags">${s.tags.map(t=>`<span class="session-tag">${esc(tagLabel(t))}</span>`).join('')}</div>`:''}
     </div>
     <div class="s-dur">${fmtDur(s.duration)}</div>
     ${showSwipeDelete?`<div class="swipe-delete-bg">🗑 Delete</div>`:''}
@@ -2417,7 +2424,7 @@ function renderDrivePanel(){
     </div>
     <div class="drive-meta">
       <span class="badge ${s.isNight?'night':'day'}">${s.isNight?'🌙 Night':'☀️ Day'}</span>
-      ${s.weather?`<span>${wxEmoji(s.weather.code)} ${s.weather.temp}°F</span>`:''}
+      ${s.weather?`<span>${wxEmoji(s.weather.code)} ${esc(s.weather.temp)}°F</span>`:''}
       <span style="overflow:hidden;text-overflow:ellipsis">${esc(s.startLocation?.city||s.startLocation?.address||'📍 Locating…')}</span>
     </div>
     <div id="stop-notice"></div>
@@ -2684,9 +2691,10 @@ function showSessionDetail(id){
   if(!s)return;
   activeSessionId=id;currentDetailSession=s;
   document.getElementById('modal-title').textContent=fmtDate(s.startTime);
-  const alts=s.route?s.route.filter(p=>p[2]!=null).map(p=>p[2]):[];
+  const route=routePoints(s);
+  const alts=route.filter(p=>p[2]!=null).map(p=>p[2]);
   const elevHTML=alts.length>=4?buildElevationSVG(alts):'';
-  const speedHTML=s.route&&s.route.some(p=>p[3]!=null)?buildSpeedSVG(s.route):'';
+  const speedHTML=route.some(p=>p[3]!=null)?buildSpeedSVG(route):'';
   document.getElementById('modal-body').innerHTML=`
     <div class="detail-grid">
       <div class="detail-item"><div class="di-label">Start</div><div class="di-val">${fmtTime(s.startTime)}</div></div>
@@ -2694,14 +2702,14 @@ function showSessionDetail(id){
       <div class="detail-item"><div class="di-label">Duration</div><div class="di-val">${fmtDur(s.duration)}</div></div>
       <div class="detail-item"><div class="di-label">Distance</div><div class="di-val">${(s.distance||0).toFixed(2)} mi</div></div>
       <div class="detail-item"><div class="di-label">Conditions</div><div class="di-val">${(()=>{const n=sessionNightMin(s);return n>0&&n<(s.duration||0)?`☀️ ${fmtDur(s.duration-n)} · 🌙 ${fmtDur(n)}`:(s.isNight?'🌙 Night':'☀️ Day');})()}</div></div>
-      <div class="detail-item"><div class="di-label">Weather</div><div class="di-val">${s.weather?wxEmoji(s.weather.code)+' '+s.weather.temp+'°F':'—'}</div></div>
-      ${s.maxSpeed?`<div class="detail-item"><div class="di-label">Top Speed</div><div class="di-val">${s.maxSpeed.toFixed(0)} mph</div></div>`:''}
-      ${s.avgSpeed?`<div class="detail-item"><div class="di-label">Avg Speed</div><div class="di-val">${s.avgSpeed.toFixed(0)} mph</div></div>`:''}
+      <div class="detail-item"><div class="di-label">Weather</div><div class="di-val">${s.weather?wxEmoji(s.weather.code)+' '+esc(s.weather.temp)+'°F':'—'}</div></div>
+      ${Number.isFinite(s.maxSpeed)&&s.maxSpeed>0?`<div class="detail-item"><div class="di-label">Top Speed</div><div class="di-val">${s.maxSpeed.toFixed(0)} mph</div></div>`:''}
+      ${Number.isFinite(s.avgSpeed)&&s.avgSpeed>0?`<div class="detail-item"><div class="di-label">Avg Speed</div><div class="di-val">${s.avgSpeed.toFixed(0)} mph</div></div>`:''}
       <div class="detail-item" style="grid-column:1/-1"><div class="di-label">From</div><div class="di-val">${esc(s.startLocation?.address||'—')}</div></div>
       <div class="detail-item" style="grid-column:1/-1"><div class="di-label">To</div><div class="di-val">${esc(s.endLocation?.address||'—')}</div></div>
       ${s.supervisor?`<div class="detail-item" style="grid-column:1/-1"><div class="di-label">Supervisor</div><div class="di-val">👤 ${esc(s.supervisor)}${s.supervisorLicense?' ('+esc(s.supervisorLicense)+')':''}</div></div>`:''}
-      ${(s.weather&&s.weather.windSpeed!=null)?`<div class="detail-item" style="grid-column:1/-1"><div class="di-label">Wind</div><div class="di-val">${s.weather.windSpeed} mph · ${WX_DESC[s.weather.code]||'—'}</div></div>`:''}
-      ${s.tags&&s.tags.length?`<div class="detail-item" style="grid-column:1/-1"><div class="di-label">Tags</div><div class="di-val"><div class="session-tags" style="margin-top:4px">${s.tags.map(t=>`<span class="session-tag">${tagLabel(t)}</span>`).join('')}</div></div></div>`:''}
+      ${(s.weather&&s.weather.windSpeed!=null)?`<div class="detail-item" style="grid-column:1/-1"><div class="di-label">Wind</div><div class="di-val">${esc(s.weather.windSpeed)} mph · ${WX_DESC[s.weather.code]||'—'}</div></div>`:''}
+      ${s.tags&&s.tags.length?`<div class="detail-item" style="grid-column:1/-1"><div class="di-label">Tags</div><div class="di-val"><div class="session-tags" style="margin-top:4px">${s.tags.map(t=>`<span class="session-tag">${esc(tagLabel(t))}</span>`).join('')}</div></div></div>`:''}
     </div>
     ${speedHTML}
     ${elevHTML}
@@ -2709,7 +2717,7 @@ function showSessionDetail(id){
     <textarea id="detail-notes" placeholder="Add notes…">${esc(s.notes||'')}</textarea>
   `;
   const replayBtn=document.getElementById('replay-btn');
-  if(replayBtn)replayBtn.style.display=s.route&&s.route.length>2?'block':'none';
+  if(replayBtn)replayBtn.style.display=route.length>2?'block':'none';
   document.getElementById('modal-del-btn').onclick=()=>deleteSession(id);
   document.getElementById('modal-edit-btn').onclick=()=>{closeModal();openManualModal(id);};
   document.getElementById('modal-save-btn').onclick=()=>saveNotes(id);
@@ -2752,15 +2760,20 @@ function buildSpeedSVG(route){
   </div>`;
 }
 
+// Only the [lat,lng,...] points of a route that are real coordinates (imports may hold anything)
+function routePoints(s){
+  return Array.isArray(s?.route)?s.route.filter(p=>Array.isArray(p)&&Number.isFinite(p[0])&&Number.isFinite(p[1])):[];
+}
 function initDetailMap(s){
   if(detailMap){detailMap.remove();detailMap=null;}
-  if(!s.route||s.route.length<2){
+  const pts=routePoints(s);
+  if(pts.length<2){
     document.getElementById('detail-map').innerHTML='<div style="height:200px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.85rem;background:var(--bg)">No route recorded</div>';
     return;
   }
   detailMap=L.map('detail-map',{zoomControl:false,attributionControl:false});
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(detailMap);
-  const latlngs=s.route.map(p=>[p[0],p[1]]);
+  const latlngs=pts.map(p=>[p[0],p[1]]);
   const line=L.polyline(latlngs,{color:'var(--accent)',weight:4,opacity:.85}).addTo(detailMap);
   L.circleMarker(latlngs[0],{radius:8,color:'#fff',weight:2,fillColor:'#16a34a',fillOpacity:1}).addTo(detailMap);
   L.circleMarker(latlngs[latlngs.length-1],{radius:8,color:'#fff',weight:2,fillColor:'#dc2626',fillOpacity:1}).addTo(detailMap);
@@ -2771,7 +2784,7 @@ function startReplay(){
   if(!currentDetailSession||!currentDetailSession.route)return;
   if(replayInterval)clearInterval(replayInterval);
   if(replayMarker){replayMarker.remove();replayMarker=null;}
-  const route=currentDetailSession.route;
+  const route=routePoints(currentDetailSession);
   if(!detailMap||route.length<2)return;
   replayMarker=L.marker([route[0][0],route[0][1]],{icon:carMarkerIcon()}).addTo(detailMap);
   let i=1;
@@ -2952,13 +2965,14 @@ document.getElementById('modal').addEventListener('click',e=>{if(e.target===docu
 // ═══════════════════════════════════════════════════
 function renderSettings(){
   const reqs=getReqs();
+  const carHue=Number(settings.carHue)||0;
   const stateOptions=Object.entries(STATE_REQS).map(([k,v])=>`<option value="${k}" ${k===settings.state?'selected':''}>${v.name}</option>`).join('');
   const themeSwatches=VIBE_THEMES.map(t=>`<div class="theme-swatch ${t.id===(settings.vibeTheme||'default')?'active':''}" onclick="setVibeTheme('${t.id}')" tabindex="0" role="radio" aria-checked="${t.id===(settings.vibeTheme||'default')}" aria-label="${t.label} theme" onkeydown="if(event.key===' '||event.key==='Enter'){event.preventDefault();setVibeTheme('${t.id}')}"><div class="theme-swatch-circle" style="background:${t.bg}">${t.emoji}</div><div class="theme-swatch-label">${t.label}</div></div>`).join('');
   const carPicker=CAR_EMOJIS.map(e=>`<div class="car-option ${e===settings.carEmoji?'active':''}" data-e="${e}" onclick="setCarEmoji(this.dataset.e)" tabindex="0" role="radio" aria-checked="${e===settings.carEmoji}" aria-label="${e} car" onkeydown="if(event.key===' '||event.key==='Enter'){event.preventDefault();setCarEmoji(this.dataset.e)}">${e}</div>`).join('');
   document.getElementById('settings-content').innerHTML=`
     <div class="card">
-      <div class="form-group"><label for="s-name">Driver Name</label><input id="s-name" type="text" value="${settings.driverName}" placeholder="e.g. Alex" onchange="saveSettingsForm()" onblur="saveSettingsForm()"></div>
-      <div class="form-group"><label for="s-goal">Goal Date (optional)</label><input id="s-goal" type="date" value="${settings.goalDate||''}" style="color-scheme:light dark" onchange="saveSettingsForm()"></div>
+      <div class="form-group"><label for="s-name">Driver Name</label><input id="s-name" type="text" value="${esc(settings.driverName)}" placeholder="e.g. Alex" onchange="saveSettingsForm()" onblur="saveSettingsForm()"></div>
+      <div class="form-group"><label for="s-goal">Goal Date (optional)</label><input id="s-goal" type="date" value="${esc(settings.goalDate||'')}" style="color-scheme:light dark" onchange="saveSettingsForm()"></div>
       <div class="form-group"><label for="s-state">State</label>
         <select id="s-state" onchange="previewState(this.value);saveSettingsForm()">${stateOptions}</select>
         <div class="req-display">
@@ -3001,13 +3015,13 @@ function renderSettings(){
       <div class="form-group"><label>Car Icon</label><div class="car-picker">${carPicker}</div></div>
       <div class="form-group"><label>Car Color</label>
         <div style="display:flex;align-items:center;gap:16px;margin:10px 0 12px">
-          <span id="car-hue-preview" style="font-size:2.8rem;line-height:1;${settings.carHue?'filter:hue-rotate('+settings.carHue+'deg)':''}">${settings.carEmoji||'🚗'}</span>
+          <span id="car-hue-preview" style="font-size:2.8rem;line-height:1;${carHue?'filter:hue-rotate('+carHue+'deg)':''}">${esc(settings.carEmoji||'🚗')}</span>
           <span style="font-size:.78rem;color:var(--muted);line-height:1.4">Drag the slider<br>to shift the color</span>
         </div>
-        <input type="range" class="hue-slider" min="0" max="359" value="${settings.carHue||0}" aria-label="Car color hue" aria-valuetext="${hueToColorName(settings.carHue||0)}" oninput="setCarHue(+this.value);this.setAttribute('aria-valuetext',hueToColorName(+this.value))">
+        <input type="range" class="hue-slider" min="0" max="359" value="${carHue}" aria-label="Car color hue" aria-valuetext="${hueToColorName(carHue)}" oninput="setCarHue(+this.value);this.setAttribute('aria-valuetext',hueToColorName(+this.value))">
         <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted);margin-top:5px"><span>← Original</span><span>Rotate hue</span><span>360°→</span></div>
       </div>
-      <div class="form-group"><label for="s-car-nick">Nickname (optional)</label><input id="s-car-nick" type="text" value="${settings.carNickname||''}" placeholder="e.g. Betty, The Beast" onchange="saveSettingsForm()" onblur="saveSettingsForm()"></div>
+      <div class="form-group"><label for="s-car-nick">Nickname (optional)</label><input id="s-car-nick" type="text" value="${esc(settings.carNickname||'')}" placeholder="e.g. Betty, The Beast" onchange="saveSettingsForm()" onblur="saveSettingsForm()"></div>
     </div>
     <div class="card">
       <div class="section-title" style="margin-top:0">☁️ Cloud Sync</div>
@@ -3101,17 +3115,66 @@ function exportJSON(){
   download('ReadyToRoll.json',JSON.stringify(exportPayload(),null,2),'application/json');
 }
 
-// Normalise one imported session, or return null if it can't be counted
+// Normalise one imported or synced session, or return null if it can't be counted.
+// Everything rendered from a session is also escaped, but bad types are dropped here so
+// nothing downstream (maps, charts, night split) trips over them.
+const SESSION_ID_RE=/^[A-Za-z0-9_-]{1,40}$/;
+function knownTags(tags){return Array.isArray(tags)?tags.filter(t=>typeof t==='string'&&Object.prototype.hasOwnProperty.call(TAG_LABELS,t)):[];}
+function finiteOrDrop(obj,key,min=0){if(obj[key]==null)return;const n=Number(obj[key]);if(Number.isFinite(n)&&n>=min)obj[key]=n;else delete obj[key];}
+function capStr(obj,key,max){if(obj[key]==null)return;obj[key]=typeof obj[key]==='string'?obj[key].slice(0,max):'';}
 function cleanImportedSession(s){
   if(!s||typeof s!=='object'||Array.isArray(s))return null;
-  if(typeof s.id!=='string'||!s.id)return null;
+  if(typeof s.id!=='string'||!SESSION_ID_RE.test(s.id))return null;
   if(typeof s.startTime!=='string'||isNaN(Date.parse(s.startTime)))return null;
   const duration=Number(s.duration);
   if(!Number.isFinite(duration)||duration<=0)return null;
   const out={...s,duration};
   if(out.nightMin!=null){const n=Number(out.nightMin);if(Number.isFinite(n))out.nightMin=Math.max(0,Math.min(duration,n));else delete out.nightMin;}
   if(out.distance!=null){const d=Number(out.distance);out.distance=Number.isFinite(d)&&d>=0?d:0;}
-  if(!Array.isArray(out.tags))out.tags=[];
+  out.tags=knownTags(out.tags);
+  out.route=Array.isArray(out.route)?out.route.filter(p=>Array.isArray(p)&&Number.isFinite(p[0])&&Number.isFinite(p[1]))
+    .map(p=>[p[0],p[1],Number.isFinite(p[2])?p[2]:null,Number.isFinite(p[3])?p[3]:null]):[];
+  finiteOrDrop(out,'maxSpeed');finiteOrDrop(out,'avgSpeed');
+  if(out.weather!=null){
+    const w=out.weather,code=w&&typeof w==='object'&&!Array.isArray(w)?Number(w.code):NaN;
+    if(Number.isFinite(code)){const nw={code};for(const k of ['temp','windSpeed'])if(w[k]!=null&&Number.isFinite(Number(w[k])))nw[k]=Number(w[k]);if(typeof w.isDay==='boolean')nw.isDay=w.isDay;out.weather=nw;}
+    else delete out.weather;
+  }
+  for(const k of ['startLocation','endLocation'])if(out[k]!=null&&(typeof out[k]!=='object'||Array.isArray(out[k])))out[k]=null;
+  capStr(out,'supervisor',80);capStr(out,'supervisorLicense',40);capStr(out,'notes',2000);
+  return out;
+}
+// Settings from a backup file: each key must have the type and range the app itself writes
+function cleanImportedSettings(src){
+  const out={};
+  if(!src||typeof src!=='object'||Array.isArray(src))return out;
+  const num=(v,min,max)=>{const n=typeof v==='number'||(typeof v==='string'&&v.trim()!=='')?Number(v):NaN;return Number.isFinite(n)&&n>=min&&n<=max?n:null;};
+  const str=v=>typeof v==='string'?v.trim().slice(0,60):'';
+  if('driverName' in src)out.driverName=str(src.driverName);
+  if('carNickname' in src)out.carNickname=str(src.carNickname);
+  if(typeof src.state==='string'&&Object.prototype.hasOwnProperty.call(STATE_REQS,src.state))out.state=src.state;
+  if('customTotal' in src)out.customTotal=num(src.customTotal,0,999);
+  if('customNight' in src)out.customNight=num(src.customNight,0,999);
+  if('goalDate' in src){const g=src.goalDate;out.goalDate=typeof g==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(g)&&!isNaN(Date.parse(g+'T00:00:00'))?g:'';}
+  if('accentHue' in src){const h=num(src.accentHue,0,360);if(h!=null)out.accentHue=h;}
+  if('carHue' in src)out.carHue=num(src.carHue,0,359)||0;
+  if(['small','medium','large'].includes(src.fontSize))out.fontSize=src.fontSize;
+  if('onboardingDone' in src)out.onboardingDone=!!src.onboardingDone;
+  if(VIBE_THEMES.some(t=>t.id===src.vibeTheme))out.vibeTheme=src.vibeTheme;
+  if(CAR_EMOJIS.includes(src.carEmoji))out.carEmoji=src.carEmoji;
+  return out;
+}
+// Skills from a backup file: known skill ids with a known status only
+function cleanImportedSkills(src){
+  const out={};
+  if(!src||typeof src!=='object'||Array.isArray(src))return out;
+  const statuses=['not_started','in_progress','mastered'];
+  for(const sk of SKILLS){
+    const v=src[sk.id];
+    if(!v||typeof v!=='object'||!statuses.includes(v.status))continue;
+    out[sk.id]={status:v.status};
+    if(typeof v.lastPracticed==='string'&&!isNaN(Date.parse(v.lastPracticed)))out[sk.id].lastPracticed=v.lastPracticed;
+  }
   return out;
 }
 
@@ -3129,10 +3192,11 @@ function applyImport(data,mode='merge'){
     const dropped=sessions.filter(s=>!seen.has(s.id)).map(s=>({id:s.id,at:now}));   // so sync doesn't bring them back
     sessions=valid;added=valid.length;
     if(data.settings&&typeof data.settings==='object'){
+      const clean=cleanImportedSettings(data.settings);
       const allowed=Object.keys(defaultSettings()).filter(k=>!DEVICE_ONLY_SETTINGS.includes(k));
-      for(const k of allowed)if(k in data.settings)settings[k]=data.settings[k];
+      for(const k of allowed)if(k in clean)settings[k]=clean[k];
     }
-    if(data.skills&&typeof data.skills==='object')skillsData=data.skills;
+    if(data.skills&&typeof data.skills==='object')skillsData=cleanImportedSkills(data.skills);
     const tomb=addTombstones(new Map(),dropped);if(Array.isArray(data.deleted))addTombstones(tomb,data.deleted);
     for(const id of seen)tomb.delete(id);
     saveTombstones(tomb);
@@ -3157,7 +3221,7 @@ function exportCSV(){
   for(const s of sessions){
     rows.push([s.id,fmtDate(s.startTime),fmtTime(s.startTime),fmtTime(s.endTime),
       (s.duration||0).toFixed(1),(s.distance||0).toFixed(2),s.isNight?'Yes':'No',Math.round(sessionNightMin(s)),
-      s.maxSpeed?s.maxSpeed.toFixed(0):'',s.avgSpeed?s.avgSpeed.toFixed(0):'',
+      Number.isFinite(s.maxSpeed)?s.maxSpeed.toFixed(0):'',Number.isFinite(s.avgSpeed)?s.avgSpeed.toFixed(0):'',
       s.weather?(WX_DESC[s.weather.code]||''):'',s.weather?s.weather.temp:'',s.weather?s.weather.windSpeed:'',
       s.supervisor||'',s.startLocation?.address||'',s.endLocation?.address||'',
       (s.notes||'').replace(/\n/g,' ')]);
@@ -3199,16 +3263,16 @@ function printLog(){
     <td>${(s.distance||0).toFixed(1)} mi</td>
     <td>${(()=>{const n=sessionNightMin(s);return n>0&&n<(s.duration||0)?'Night '+fmtDur(n):(s.isNight?'Night':'Day');})()}</td>
     <td>${esc(s.supervisor||'')}</td>
-    <td>${s.weather?s.weather.temp+'°F '+wxEmoji(s.weather.code):''}</td>
+    <td>${s.weather?esc(s.weather.temp)+'°F '+wxEmoji(s.weather.code):''}</td>
     <td>${esc((s.notes||'').substring(0,40))}</td>
   </tr>`).join('');
-  const skillRows=SKILLS.map(sk=>{const sd=skillsData[sk.id];return`<tr><td>${sk.label}</td><td>${sk.cat}</td><td>${sd?sd.status.replace('_',' '):'not started'}</td><td>${sd?.lastPracticed?fmtDate(sd.lastPracticed):''}</td></tr>`;}).join('');
+  const skillRows=SKILLS.map(sk=>{const sd=skillsData[sk.id];return`<tr><td>${sk.label}</td><td>${sk.cat}</td><td>${typeof sd?.status==='string'?esc(sd.status.replace('_',' ')):'not started'}</td><td>${sd?.lastPracticed?fmtDate(sd.lastPracticed):''}</td></tr>`;}).join('');
   const w=window.open('','_blank');
-  w.document.write(`<!DOCTYPE html><html><head><title>ReadyToRoll — ${settings.driverName||'Driver'}</title>
+  w.document.write(`<!DOCTYPE html><html><head><title>ReadyToRoll — ${esc(settings.driverName||'Driver')}</title>
   <style>body{font-family:Arial,sans-serif;font-size:11px;margin:24px}h1{font-size:18px;margin-bottom:4px}h2{font-size:13px;margin:20px 0 8px;border-bottom:1px solid #ccc;padding-bottom:4px}table{width:100%;border-collapse:collapse;margin-bottom:16px}th{background:#f1f5f9;text-align:left;padding:5px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.5px}td{padding:5px 8px;border-bottom:1px solid #e2e8f0;font-size:11px}.sig{margin-top:32px;display:flex;gap:40px}.sig-line{flex:1;border-top:1px solid #000;padding-top:4px;font-size:10px}@media print{button{display:none}}</style>
   </head><body>
   <h1>ReadyToRoll — Supervised Driving Record</h1>
-  <p><strong>Driver:</strong> ${settings.driverName||'_____________________'} &nbsp;&nbsp; <strong>State:</strong> ${reqs.stateName} &nbsp;&nbsp; <strong>Printed:</strong> ${new Date().toLocaleDateString()}</p>
+  <p><strong>Driver:</strong> ${esc(settings.driverName||'_____________________')} &nbsp;&nbsp; <strong>State:</strong> ${reqs.stateName} &nbsp;&nbsp; <strong>Printed:</strong> ${new Date().toLocaleDateString()}</p>
   <p><strong>Total Hours:</strong> ${totals.totalHours.toFixed(1)} / ${reqs.total} required &nbsp;&nbsp; <strong>Night Hours:</strong> ${totals.nightHours.toFixed(1)} / ${reqs.night} required</p>
   <h2>Session Log</h2>
   <table><thead><tr><th>Date</th><th>Start</th><th>End</th><th>Duration</th><th>Distance</th><th>Day/Night</th><th>Supervisor</th><th>Weather</th><th>Notes</th></tr></thead>
