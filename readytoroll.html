@@ -1007,15 +1007,24 @@ function loadSessions(){
   try{return JSON.parse(localStorage.getItem('rtr_sessions'))||[];}
   catch{return[];}
 }
-function saveSessions(){localStorage.setItem('rtr_sessions',JSON.stringify(sessions));}
+// Returns false (and tells the user) when the browser refuses the write, e.g. storage quota full
+function saveSessions(){
+  try{localStorage.setItem('rtr_sessions',JSON.stringify(sessions));return true;}
+  catch(e){
+    console.warn('Saving drives failed:',e);
+    toast('Storage full — drive not saved on this device. Export your log (Settings), then delete old drives.',7000);
+    return false;
+  }
+}
 
 function onSessionsChanged(){
-  saveSessions();
-  checkMilestones();
+  const saved=saveSessions();
+  if(saved)checkMilestones();   // don't celebrate a drive that isn't on disk
   scheduleSyncPush();
   if(currentView==='home')renderHome();
   else if(currentView==='dashboard')renderDashboard();
   else if(currentView==='history')renderHistory();
+  return saved;
 }
 
 function loadSkillsData(){
@@ -2096,7 +2105,10 @@ function renderHome(){
   });
   // Keep elapsed time ticking if drive is active
   if(activeSession){
-    const tick=()=>{const el=document.getElementById('home-elapsed');if(el)el.textContent=fmtElapsed(activeSession.startTime);};
+    const tick=()=>{
+      if(!activeSession){clearInterval(window._homeTimer);window._homeTimer=null;return;}
+      const el=document.getElementById('home-elapsed');if(el)el.textContent=fmtElapsed(activeSession.startTime);
+    };
     clearInterval(window._homeTimer);window._homeTimer=setInterval(tick,1000);
   } else {clearInterval(window._homeTimer);}
 }
@@ -2371,6 +2383,7 @@ function renderDrive(){
       <button class="btn-outline" style="width:100%;margin-top:10px;flex:none" onclick="openManualModal()">Add Drive Manually</button>
     </div>`;
     if(driveMap){driveMap.remove();driveMap=null;}
+    drivePolyline=null;drivePosMarker=null;
   } else {
     mapDiv.style.display='';
     panel.style.flex='';
@@ -2432,6 +2445,7 @@ function renderDrivePanel(){
 }
 
 async function startDrive(){
+  if(activeSession)return;   // double tap: one drive, one timer, one GPS watch
   vibrate([30,50,30]);
   activeSession={
     id:genId(),startTime:new Date().toISOString(),endTime:null,
@@ -2453,11 +2467,16 @@ async function startDrive(){
     if(el)el.textContent=fmtElapsed(activeSession.startTime);
     if(++_driveTick%30===0)checkStopDetection(); // idle check every 30s
   },1000);
-  if(navigator.geolocation){
-    gpsWatchId=navigator.geolocation.watchPosition(
-      pos=>handleFirstFix(pos),
+  const s=activeSession;
+  if(navigator.geolocation&&s){
+    let firstWatchId=null;
+    firstWatchId=gpsWatchId=navigator.geolocation.watchPosition(
+      pos=>handleFirstFix(pos,firstWatchId),
       err=>{
         console.warn('GPS:',err.message);
+        // A timeout (code 3) repeats every 15 s while there is no fix: tell the user once per drive
+        if(activeSession!==s||s.gpsWarned)return;
+        s.gpsWarned=true;
         const msg=err.code===1?'Location access denied — route won\'t be recorded.':'GPS unavailable — route won\'t be recorded.';
         toast(msg,4000);
       },
@@ -2466,32 +2485,37 @@ async function startDrive(){
   }
 }
 
-async function handleFirstFix(pos){
+function handleFirstFix(pos,watchId){
+  // Close the watch that delivered this fix (not whatever gpsWatchId holds now)
+  if(watchId!=null){navigator.geolocation.clearWatch(watchId);if(gpsWatchId===watchId)gpsWatchId=null;}
   const s=activeSession;
-  if(!s)return;
-  if(gpsWatchId!=null)navigator.geolocation.clearWatch(gpsWatchId);
+  if(!s||s.route.length)return;
   const{latitude:lat,longitude:lng,speed,heading,altitude}=pos.coords;
   const mph0=speed!=null?speed*2.23694:null;
   s.route.push([lat,lng,altitude,mph0]);
-  s.lastSpeed=speed;s.lastMovedAt=Date.now();
+  s.lastSpeed=speed;s.lastMovedAt=s.lastFixAt=Date.now();
   if(mph0!=null){s.maxSpeed=mph0;s.speedSamples=[mph0];}
-  const[wx,loc]=await Promise.all([fetchWeather(lat,lng),reverseGeocode(lat,lng)]);
-  if(activeSession!==s)return;   // stopped (or a new drive started) while we waited
-  s.weather=wx;s.startLocation=loc;
   s.isNight=sunAltitude(Date.now(),lat,lng)<-0.833;   // live hint only; the saved split is worked out at stop
   if(driveMap){
     driveMap.setView([lat,lng],15);
     setPulseMarker(lat,lng);
-    drivePolyline.setLatLngs([[lat,lng]]);
+    if(drivePolyline)drivePolyline.setLatLngs([[lat,lng]]);
   }
+  // Keep recording while weather and the start address load
+  gpsWatchId=navigator.geolocation.watchPosition(onPosition,err=>console.warn('GPS:',err.message),{enableHighAccuracy:true,maximumAge:5000,timeout:15000});
   if(currentView==='drive')renderDrivePanel();
   updateCompass(heading);
-  gpsWatchId=navigator.geolocation.watchPosition(onPosition,err=>console.warn('GPS:',err.message),{enableHighAccuracy:true,maximumAge:5000,timeout:15000});
+  Promise.all([fetchWeather(lat,lng),reverseGeocode(lat,lng)]).then(([wx,loc])=>{
+    if(activeSession!==s)return;   // stopped (or a new drive started) while we waited
+    s.weather=wx;s.startLocation=loc;
+    if(currentView==='drive'){renderDrivePanel();checkStopDetection();}
+  });
 }
 
 function onPosition(pos){
   if(!activeSession)return;
   const{latitude:lat,longitude:lng,speed,heading,altitude}=pos.coords;
+  activeSession.lastFixAt=Date.now();
   activeSession.lastSpeed=speed;
   if(speed!=null){
     const mph=speed*2.23694;
@@ -2532,6 +2556,8 @@ function checkStopDetection(){
   if(!el)return;
   // No GPS fix means we can't tell parked from moving, so never auto-stop
   if(!activeSession.route.length){el.style.display='none';return;}
+  // Hidden: mobile browsers pause GPS, so idle time is unknown; the resume handler restarts the clock
+  if(document.hidden){el.style.display='none';return;}
   const stoppedMs=Date.now()-(activeSession.lastMovedAt||Date.now());
   const stoppedMin=stoppedMs/60000;
   if(stoppedMin>=10){
@@ -2539,7 +2565,11 @@ function checkStopDetection(){
     el.textContent='🛑 No movement for 10 min — stopping drive automatically…';
     if(!activeSession.autoStopping){
       const s=activeSession;s.autoStopping=true;
-      setTimeout(()=>{if(activeSession===s)stopDrive({auto:true});},2000);
+      setTimeout(()=>{
+        if(activeSession!==s)return;
+        if(Date.now()-(s.lastMovedAt||0)>=10*60000)stopDrive({auto:true});
+        else s.autoStopping=false;   // moved again during the notice
+      },2000);
     }
   } else if(stoppedMin>=5){
     const minsLeft=Math.ceil(10-stoppedMin);
@@ -2565,8 +2595,17 @@ async function stopDrive({auto=false}={}){
   if(!s)return;
   activeSession=null;
   vibrate([50,30,50]);
+  // All teardown is synchronous: nothing after the await below may touch a newer drive or its map
   if(gpsWatchId!=null){navigator.geolocation.clearWatch(gpsWatchId);gpsWatchId=null;}
   clearInterval(driveTimerInterval);driveTimerInterval=null;
+  clearInterval(window._homeTimer);window._homeTimer=null;
+  if(wakeLock){const wl=wakeLock;wakeLock=null;try{Promise.resolve(wl.release()).catch(()=>{});}catch(e){}}
+  document.getElementById('live-badge').style.display='none';
+  document.querySelector('.drive-btn')?.classList.remove('recording');
+  const compass=document.getElementById('compass-el');
+  if(compass)compass.classList.remove('visible');
+  if(driveMap){driveMap.remove();driveMap=null;}
+  drivePolyline=null;drivePosMarker=null;
   const startMs=new Date(s.startTime).getTime();
   // An auto-stop ends the drive when the car stopped moving, not 10 idle minutes later
   const endMs=auto&&s.lastMovedAt?Math.max(startMs,Math.min(Date.now(),s.lastMovedAt)):Date.now();
@@ -2576,23 +2615,28 @@ async function stopDrive({auto=false}={}){
   if(s.speedSamples&&s.speedSamples.length)
     s.avgSpeed=s.speedSamples.reduce((a,b)=>a+b,0)/s.speedSamples.length;
   applyNightSplit(s);
-  for(const k of ['speedSamples','lastSpeed','lastMovedAt','autoStopping'])delete s[k];
-  if(wakeLock){try{await wakeLock.release();}catch(e){}wakeLock=null;}
-  if(s.route.length>0){
-    const last=s.route[s.route.length-1];
-    s.endLocation=await reverseGeocode(last[0],last[1]);
+  for(const k of ['speedSamples','lastSpeed','lastMovedAt','lastFixAt','autoStopping','gpsWarned'])delete s[k];
+  // An accidental Start/Stop tap is not a drive: no history row, no streak, no milestone
+  if(s.duration<1&&s.distance<0.05){
+    toast('Drive too short to log');
+    navigate('home');
+    return;
   }
   sessions.push(s);
-  document.getElementById('live-badge').style.display='none';
-  document.querySelector('.drive-btn')?.classList.remove('recording');
-  const compass=document.getElementById('compass-el');
-  if(compass)compass.classList.remove('visible');
-  if(driveMap){driveMap.remove();driveMap=null;drivePolyline=null;drivePosMarker=null;}
-  onSessionsChanged();   // saves, checks milestones and queues the sync push
-  toast('Drive saved! 🎉');
+  if(onSessionsChanged())toast('Drive saved! 🎉');   // saves, checks milestones and queues the sync push
   navigate('home');
   // Progress ring heartbeat — celebrates the new drive being added
   setTimeout(()=>{const ring=document.querySelector('.ring-wrap');if(ring){ring.classList.add('ring-pulse');setTimeout(()=>ring.classList.remove('ring-pulse'),600);}},380);
+  // The end address is a nice-to-have: look it up after the drive is safe, then patch it in
+  if(s.route.length>0){
+    const last=s.route[s.route.length-1];
+    const loc=await reverseGeocode(last[0],last[1]);
+    const saved=sessions.find(x=>x.id===s.id);
+    if(!loc||!saved||saved.endLocation)return;
+    saved.endLocation=loc;
+    saved.updatedAt=new Date().toISOString();
+    onSessionsChanged();
+  }
 }
 
 // ═══════════════════════════════════════════════════
@@ -3292,18 +3336,23 @@ function printLog(){
 // ═══════════════════════════════════════════════════
 // WEATHER & GEOCODING
 // ═══════════════════════════════════════════════════
+// fetch + JSON with a hard time limit, so a stalled connection can't hang a drive
+async function fetchJSON(url,opts={},ms=8000){
+  const ctl=typeof AbortController==='function'?new AbortController():null;
+  const t=ctl?setTimeout(()=>ctl.abort(),ms):null;
+  try{const r=await fetch(url,ctl?{...opts,signal:ctl.signal}:opts);return await r.json();}
+  finally{clearTimeout(t);}
+}
 async function fetchWeather(lat,lng){
   try{
-    const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weather_code,wind_speed_10m,is_day&temperature_unit=fahrenheit&wind_speed_unit=mph`);
-    const d=await r.json(),c=d.current;
+    const d=await fetchJSON(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weather_code,wind_speed_10m,is_day&temperature_unit=fahrenheit&wind_speed_unit=mph`),c=d.current;
     return{temp:Math.round(c.temperature_2m),code:c.weather_code,windSpeed:Math.round(c.wind_speed_10m),isDay:c.is_day===1};
   }catch{return null;}
 }
 
 async function reverseGeocode(lat,lng){
   try{
-    const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,{headers:{'Accept-Language':'en'}});
-    const d=await r.json();
+    const d=await fetchJSON(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,{headers:{'Accept-Language':'en'}});
     const city=d.address?.city||d.address?.town||d.address?.village||d.address?.county||'';
     const state=d.address?.state||'';const road=d.address?.road||'';
     return{lat,lng,city:city?`${city}, ${state}`:state,address:road?`${road}, ${city?city+', ':''}${state}`:d.display_name?.split(',').slice(0,3).join(',').trim()||`${lat.toFixed(4)}, ${lng.toFixed(4)}`};
@@ -3562,6 +3611,10 @@ document.addEventListener('visibilitychange', ()=>{
     // Drive timer is timestamp-based so duration stays accurate.
     // GPS will pause on most mobile browsers.
   } else if(!document.hidden && activeSession){
+    // GPS was likely paused while hidden, so the last fix says nothing about whether the car
+    // stopped: restart the idle clock and let fresh fixes decide
+    activeSession.lastMovedAt=Date.now();
+    activeSession.autoStopping=false;
     // Re-render drive panel to show accurate elapsed time
     if(currentView==='drive') renderDrivePanel();
     checkStopDetection();
