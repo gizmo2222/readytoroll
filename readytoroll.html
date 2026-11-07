@@ -360,7 +360,7 @@ body{display:flex;flex-direction:column;overflow:hidden}
 .sync-status-row{display:flex;align-items:center;gap:7px;font-size:.75rem;font-weight:600;color:var(--muted);margin-top:8px;justify-content:center}
 .sync-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;background:var(--muted)}
 .sync-dot.ok{background:var(--green)}.sync-dot.busy{background:var(--amber);animation:pulse-badge 1.2s infinite}
-.sync-dot.err{background:var(--red)}.sync-dot.off{background:var(--muted)}
+.sync-dot.err,.sync-dot.big{background:var(--red)}.sync-dot.offline{background:var(--muted)}.sync-dot.off{background:var(--muted)}
 /* ── 23. Quick Add modal ── */
 .qa-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
 .qa-chip{border:1.5px solid var(--border);background:var(--card);border-radius:99px;padding:9px 16px;font-size:.84rem;font-weight:600;cursor:pointer;color:var(--text);transition:all .15s}
@@ -914,6 +914,16 @@ const DRIVING_TIPS = [
 // ═══════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════
+// Migrate old dl_* localStorage keys to rtr_* (one-time, preserves all data)
+(function migrateStorage(){
+  const keys=[['dl_settings','rtr_settings'],['dl_sessions','rtr_sessions'],['dl_skills','rtr_skills'],['dl_milestones','rtr_milestones']];
+  keys.forEach(([old,next])=>{
+    const val=localStorage.getItem(old);
+    if(val!==null&&localStorage.getItem(next)===null){localStorage.setItem(next,val);}
+    if(val!==null){localStorage.removeItem(old);}
+  });
+})();
+
 let settings = loadSettings();
 let sessions = loadSessions();
 let skillsData = loadSkillsData();
@@ -930,7 +940,7 @@ let gpsPermState = 'unknown';
 // Relative, so the app always syncs with the host it was loaded from (metacrystal.com or www.)
 const SYNC_URL = 'rtr-sync.php';
 let syncDebounceTimer = null;
-let syncStatus = 'off'; // 'off' | 'ok' | 'busy' | 'err'
+let syncStatus = 'off'; // 'off' | 'ok' | 'busy' | 'err' | 'offline' | 'big'
 let syncLastAt = null;
 // Quick Add
 let qaSelectedMin = 60;
@@ -946,16 +956,6 @@ let openSkillTip = null;
 // ═══════════════════════════════════════════════════
 // PERSISTENCE
 // ═══════════════════════════════════════════════════
-
-// Migrate old dl_* localStorage keys to rtr_* (one-time, preserves all data)
-(function migrateStorage(){
-  const keys=[['dl_settings','rtr_settings'],['dl_sessions','rtr_sessions'],['dl_skills','rtr_skills'],['dl_milestones','rtr_milestones']];
-  keys.forEach(([old,next])=>{
-    const val=localStorage.getItem(old);
-    if(val!==null&&localStorage.getItem(next)===null){localStorage.setItem(next,val);}
-    if(val!==null){localStorage.removeItem(old);}
-  });
-})();
 
 // rtr_deleted holds tombstones [{id,at}]; older builds stored plain id strings
 const EPOCH_ISO='1970-01-01T00:00:00.000Z';
@@ -1272,7 +1272,11 @@ const SYNC_KDF_ITER = 310000;
 let syncKeys = null;   // { code, id, key } cached for the current sync code
 
 const b64u = {
-  enc: buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''),
+  enc: buf => {
+    const u = new Uint8Array(buf); let bin = '';
+    for (let i = 0; i < u.length; i += 0x8000) bin += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  },
   dec: str => Uint8Array.from(atob(str.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)),
 };
 const toHex = buf => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
@@ -1392,10 +1396,19 @@ async function createSyncCode() {
 async function connectSyncCode(input) {
   const code = normSyncCode(input);
   if (isLegacyCode(code)) {
-    // An old code typed in on a new device: upgrade it from here
-    settings.syncCode = code; saveSettings();
-    await pullSync();
-    renderSettings();
+    // An old code typed in on a new device: check it exists before saving it, then upgrade from here
+    syncStatus = 'busy'; updateSyncUI();
+    try {
+      const d = await syncCall('legacy_pull', { code });
+      if (d.status === 404) { toast('Code not found — check and try again'); syncStatus = 'off'; updateSyncUI(); return; }
+      if (!d.ok) throw new Error(d.error || 'Request failed');
+      settings.syncCode = code; saveSettings();
+      await pullSync();
+      renderSettings();
+    } catch (e) {
+      syncStatus = 'err'; updateSyncUI();
+      toast('Could not connect to sync: ' + (e && e.message || e));
+    }
     return;
   }
   if (code.length !== SYNC_CODE_LEN) { toast('Enter the 12-character code, like ABCD-EFGH-JKMN'); return; }
@@ -1441,17 +1454,37 @@ async function upgradeLegacySync() {
   return true;
 }
 
+const SYNC_MAX_BLOB = Math.floor(2.9 * 1024 * 1024);   // the server refuses blobs over 3 MB
+
+// Newest parent link wins (parentAt, ms). A blob or device without parentAt counts as 0,
+// and a device with no link at all adopts one it finds.
+function adoptParent(data) {
+  if (!data) return false;
+  const rAt = data.parentAt || 0, lAt = settings.parentAt || 0;
+  if (rAt > lAt || (!lAt && !settings.parent && data.parent)) {
+    settings.parent = data.parent || null; settings.parentAt = rAt; saveSettings();
+    if (currentView === 'settings') renderSettings();
+    return true;
+  }
+  return false;
+}
+function setParent(p) {
+  settings.parent = p; settings.parentAt = Math.max(Date.now(), (settings.parentAt || 0) + 1); saveSettings();
+}
+
 async function pushSync() {
-  if (!settings.syncCode || !navigator.onLine) return;
-  if (isLegacyCode(settings.syncCode)) { await pullSync(); return; }   // upgrade first
+  if (!settings.syncCode) return false;
+  if (!navigator.onLine) { syncStatus = 'offline'; updateSyncUI(); return false; }
+  if (isLegacyCode(settings.syncCode)) { await pullSync(); return false; }   // upgrade first
   syncStatus = 'busy'; updateSyncUI();
   try {
     const { id, key } = await deriveSyncKeys(settings.syncCode);
     // Merge what other devices uploaded first, so this push never overwrites their drives or deletes
     const cur = await syncCall('get', { id });
-    if (cur.ok && cur.blob) mergeSyncData(await unseal(key, cur.blob));
+    if (cur.ok && cur.blob) { const data = await unseal(key, cur.blob); mergeSyncData(data); adoptParent(data); }
     else if (cur.status !== 404) throw new Error(cur.error || 'Pull failed');
-    const blob = await seal(key, { v: 2, sessions, deleted: tombstoneList(), parent: settings.parent || null });
+    const blob = await seal(key, { v: 2, sessions, deleted: tombstoneList(), parent: settings.parent || null, parentAt: settings.parentAt || 0 });
+    if (blob.length > SYNC_MAX_BLOB) { syncStatus = 'big'; updateSyncUI(); return false; }
     const d = await syncCall('put', { id, blob });
     if (!d.ok) throw new Error(d.error || 'Push failed');
     if (settings.parent) {
@@ -1460,14 +1493,18 @@ async function pushSync() {
       if (!p.ok) throw new Error(p.error || 'Parent update failed');
     }
     syncStatus = 'ok'; syncLastAt = d.updatedAt || new Date().toISOString();
+    updateSyncUI();
+    return true;
   } catch {
     syncStatus = 'err';
   }
   updateSyncUI();
+  return false;
 }
 
 async function pullSync() {
-  if (!settings.syncCode || !navigator.onLine) return;
+  if (!settings.syncCode) return;
+  if (!navigator.onLine) { syncStatus = 'offline'; updateSyncUI(); return; }
   syncStatus = 'busy'; updateSyncUI();
   try {
     if (isLegacyCode(settings.syncCode)) { await upgradeLegacySync(); return; }
@@ -1476,11 +1513,7 @@ async function pullSync() {
     if (!d.ok) throw new Error(d.error || 'Pull failed');
     const data = await unseal(key, d.blob);
     mergeSyncData(data);
-    // Pick up a parent link made (or revoked) on another device
-    if (data.parent && data.parent.token !== settings.parent?.token) {
-      settings.parent = data.parent; saveSettings();
-      if (currentView === 'settings') renderSettings();
-    }
+    adoptParent(data);   // a parent link made or revoked on another device, newest wins
     syncStatus = 'ok'; syncLastAt = d.updatedAt || new Date().toISOString();
   } catch {
     syncStatus = 'err';
@@ -1499,13 +1532,13 @@ function updateSyncUI(){
   const txt=document.getElementById('sync-status-txt');
   if(!dot||!txt)return;
   dot.className='sync-dot '+syncStatus;
-  const labels={ok:'Synced'+(syncLastAt?' · '+new Date(syncLastAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):''),busy:'Syncing…',err:'Sync error — check connection',off:'Not connected'};
+  const labels={ok:'Synced'+(syncLastAt?' · '+new Date(syncLastAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):''),busy:'Syncing…',err:'Sync error — check connection',offline:'Offline — will sync when back online',big:'Sync data too large — export a backup',off:'Not connected'};
   txt.textContent=labels[syncStatus]||'—';
 }
 
 async function disconnectSync(){
   if(!confirm('Stop syncing on this device? Your encrypted backup stays on the server for your other devices.'))return;
-  settings.syncCode='';settings.parentToken='';settings.parent=null;saveSettings();syncStatus='off';syncKeys=null;
+  settings.syncCode='';settings.parentToken='';settings.parent=null;settings.parentAt=0;saveSettings();syncStatus='off';syncKeys=null;
   renderSettings();toast('Sync disconnected');
 }
 
@@ -1528,12 +1561,12 @@ async function shareParentLink(){
 
 // A new random storage token and key; publishing the summary makes the link live
 async function createParentLink(){
-  const previous = settings.parent;
-  settings.parent = { token: toHex(randomBytes(16)), key: b64u.enc(randomBytes(32)) };
-  saveSettings();
-  await pushSync();
-  if (syncStatus !== 'ok') {
-    settings.parent = previous; saveSettings();
+  const previous = settings.parent, prevAt = settings.parentAt;
+  setParent({ token: toHex(randomBytes(16)), key: b64u.enc(randomBytes(32)) });
+  syncStatus = 'busy'; updateSyncUI();
+  const ok = await pushSync();
+  if (!ok) {
+    settings.parent = previous; settings.parentAt = prevAt; saveSettings();
     toast('Could not create parent link — check your connection');
     return false;
   }
@@ -1544,15 +1577,17 @@ async function revokeParentToken(){
   if(!confirm('Revoke current parent link? Anyone using the old link will lose access.'))return;
   const old = settings.parent;
   if (await createParentLink()) {
-    if (old) await syncCall('delete', { id: old.token }).catch(()=>{});
-    renderSettings(); toast('Parent link revoked and regenerated');
+    let gone = true;
+    if (old) { const r = await syncCall('delete', { id: old.token }).catch(()=>null); gone = !!(r && r.ok); }
+    renderSettings();
+    toast(gone ? 'Parent link revoked and regenerated' : 'Old link could not be removed — try again online');
   }
 }
 
 function syncCodeHTML(){
   const code=settings.syncCode;
   const dotClass=syncStatus;
-  const statusLabel={ok:'Synced'+(syncLastAt?' · '+new Date(syncLastAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):''),busy:'Syncing…',err:'Sync error',off:'Not connected'}[syncStatus]||'—';
+  const statusLabel={ok:'Synced'+(syncLastAt?' · '+new Date(syncLastAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):''),busy:'Syncing…',err:'Sync error',offline:'Offline — will sync when back online',big:'Sync data too large — export a backup',off:'Not connected'}[syncStatus]||'—';
   if(code){
     return`<div class="sync-code-box">
       <div style="font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px">Your Sync Code</div>
@@ -3160,7 +3195,7 @@ function clearAllData(){
 // EXPORT / IMPORT / PRINT
 // ═══════════════════════════════════════════════════
 // Sync secrets stay on the device: an export file can be emailed or uploaded anywhere
-const DEVICE_ONLY_SETTINGS=['syncCode','parentToken','parent'];
+const DEVICE_ONLY_SETTINGS=['syncCode','parentToken','parent','parentAt'];
 function exportPayload(){
   const s={...settings};for(const k of DEVICE_ONLY_SETTINGS)delete s[k];
   return{settings:s,sessions,skills:skillsData,deleted:tombstoneList(),exported:new Date().toISOString()};
@@ -3243,26 +3278,35 @@ function applyImport(data,mode='merge'){
   let added=0;
   if(mode==='replace'){
     const now=new Date().toISOString();
-    const dropped=sessions.filter(s=>!seen.has(s.id)).map(s=>({id:s.id,at:now}));   // so sync doesn't bring them back
-    sessions=valid;added=valid.length;
+    const dropped=sessions.filter(s=>!seen.has(s.id)).map(s=>({id:s.id,at:now}));   // so sync does not bring them back
+    added=valid.length;
+    const newSettings={...settings};
     if(data.settings&&typeof data.settings==='object'){
       const clean=cleanImportedSettings(data.settings);
       const allowed=Object.keys(defaultSettings()).filter(k=>!DEVICE_ONLY_SETTINGS.includes(k));
-      for(const k of allowed)if(k in clean)settings[k]=clean[k];
+      for(const k of allowed)if(k in clean)newSettings[k]=clean[k];
     }
-    if(data.skills&&typeof data.skills==='object')skillsData=cleanImportedSkills(data.skills);
+    const newSkills=data.skills&&typeof data.skills==='object'?cleanImportedSkills(data.skills):skillsData;
     const tomb=addTombstones(new Map(),dropped);if(Array.isArray(data.deleted))addTombstones(tomb,data.deleted);
     for(const id of seen)tomb.delete(id);
+    // Sessions first: if storage refuses them, nothing else has changed yet
+    try{localStorage.setItem('rtr_sessions',JSON.stringify(valid));}
+    catch{throw new Error('not enough storage space, nothing was changed');}
+    sessions=valid;settings=newSettings;skillsData=newSkills;
     saveTombstones(tomb);
     saveSkillsData();saveSettings();applyTheme();
   } else {
     const tomb=loadTombstones();
-    if(Array.isArray(data.deleted)){addTombstones(tomb,data.deleted);saveTombstones(tomb);}
+    if(Array.isArray(data.deleted))addTombstones(tomb,data.deleted);
     const existing=new Set(sessions.map(s=>s.id));
     for(const s of valid){
-      if(existing.has(s.id)||tomb.has(s.id)){skipped++;continue;}
+      if(existing.has(s.id)){skipped++;continue;}
+      const t=tomb.get(s.id);
+      if(t&&!(s.updatedAt&&s.updatedAt>t)){skipped++;continue;}   // same rule as sync: edited after the delete means restored
+      if(t)tomb.delete(s.id);
       sessions.push(s);added++;
     }
+    saveTombstones(tomb);
     const removed=sessions.filter(s=>tomb.has(s.id)&&!(s.updatedAt&&s.updatedAt>tomb.get(s.id)));
     if(removed.length)sessions=sessions.filter(s=>!removed.includes(s));
   }
@@ -3293,6 +3337,7 @@ function importData(){
       const data=JSON.parse(text);
       if(!data||!Array.isArray(data.sessions))throw new Error('Invalid file');
       const merge=confirm(`Found ${data.sessions.length} sessions.\n\nOK = Merge with existing\nCancel = Replace all data`);
+      if(!merge&&!confirm('Replace ALL data with this file? This cannot be undone.'))return;
       const r=applyImport(data,merge?'merge':'replace');
       const skip=r.skipped?` (${r.skipped} skipped)`:'';
       toast(merge?`Merged ${r.added} new sessions${skip}`:`Data replaced: ${r.added} sessions${skip}`);
@@ -3322,6 +3367,7 @@ function printLog(){
   </tr>`).join('');
   const skillRows=SKILLS.map(sk=>{const sd=skillsData[sk.id];return`<tr><td>${sk.label}</td><td>${sk.cat}</td><td>${typeof sd?.status==='string'?esc(sd.status.replace('_',' ')):'not started'}</td><td>${sd?.lastPracticed?fmtDate(sd.lastPracticed):''}</td></tr>`;}).join('');
   const w=window.open('','_blank');
+  if(!w){toast('Allow pop-ups to print, or use Export');return;}
   w.document.write(`<!DOCTYPE html><html><head><title>ReadyToRoll — ${esc(settings.driverName||'Driver')}</title>
   <style>body{font-family:Arial,sans-serif;font-size:11px;margin:24px}h1{font-size:18px;margin-bottom:4px}h2{font-size:13px;margin:20px 0 8px;border-bottom:1px solid #ccc;padding-bottom:4px}table{width:100%;border-collapse:collapse;margin-bottom:16px}th{background:#f1f5f9;text-align:left;padding:5px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.5px}td{padding:5px 8px;border-bottom:1px solid #e2e8f0;font-size:11px}.sig{margin-top:32px;display:flex;gap:40px}.sig-line{flex:1;border-top:1px solid #000;padding-top:4px;font-size:10px}@media print{button{display:none}}</style>
   </head><body>
@@ -3625,6 +3671,12 @@ if('serviceWorker' in navigator){
     setTimeout(()=>pullSync(),1500); // slight delay to let the UI settle
   }
 })();
+
+// Back online: catch up with other devices, then send what changed while away
+window.addEventListener('online',async()=>{
+  if(!settings.syncCode)return;
+  await pullSync();await pushSync();
+});
 
 // ── Page visibility: warn on background during active drive ──
 document.addEventListener('visibilitychange', ()=>{
