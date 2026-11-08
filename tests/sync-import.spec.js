@@ -83,6 +83,19 @@ test('a device whose clock put a revoked link ahead drops it on the server 410 i
   await ctx.close();
 });
 
+test('overlapping pulls and pushes run one at a time and end synced', async ({ page, browser, baseURL }) => {
+  const { b, ctx } = await pair(browser, baseURL, page);
+  const r = await b.evaluate(async s => {
+    let live = 0, most = 0; const real = syncCall;
+    window.syncCall = async (...a) => { live++; most = Math.max(most, live); try { return await real(...a); } finally { live--; } };
+    sessions.push(s);
+    const res = await Promise.all([pullSync(), pushSync(), retrySyncIfDirty(), pushSync()]);
+    return { most, last: res[3], status: syncStatus };
+  }, sess({ id: 'c1' }));
+  expect(r).toEqual({ most: 1, last: true, status: 'ok' });
+  await ctx.close();
+});
+
 test('a device without the link keeps it in the blob and feeds the parent view', async ({ page, browser, baseURL }) => {
   const { b, ctx } = await pair(browser, baseURL, page);
   await page.evaluate(() => createParentLink());   // B has not pulled since

@@ -1496,7 +1496,7 @@ async function upgradeLegacySync() {
   settings.syncCode = genSyncCode();
   settings.parentToken = '';   // old parent links stop working; share a new one
   saveSettings();
-  if (!(await pushSync())) { settings.syncCode = oldCode; saveSettings(); throw new Error('upgrade push failed'); }
+  if (!(await pushSyncNow())) { settings.syncCode = oldCode; saveSettings(); throw new Error('upgrade push failed'); }
   settings.legacyPendingDelete = oldCode; saveSettings();
   await retryLegacyDelete();
   if (currentView === 'settings') renderSettings();
@@ -1524,10 +1524,15 @@ function setParent(p) {
   settings.parent = p; settings.parentAt = Math.max(Date.now(), (settings.parentAt || 0) + 1); saveSettings();
 }
 
-async function pushSync() {
+// One sync call at a time: a load-time pull, a retry or the debounce never overlaps a push already in flight
+let syncQueue = Promise.resolve();
+function syncSerial(fn) { const run = syncQueue.then(fn, fn); syncQueue = run.catch(() => {}); return run; }
+function pushSync() { return syncSerial(pushSyncNow); }
+function pullSync() { return syncSerial(pullSyncNow); }
+async function pushSyncNow() {
   if (!settings.syncCode) return false;
   if (!navigator.onLine) { markSyncDirty(); syncStatus = 'offline'; updateSyncUI(); return false; }
-  if (isLegacyCode(settings.syncCode)) { await pullSync(); return false; }   // upgrade first
+  if (isLegacyCode(settings.syncCode)) { await pullSyncNow(); return false; }   // upgrade first
   await retryLegacyDelete();   // no-op unless an old plaintext file still needs deleting
   syncStatus = 'busy'; updateSyncUI();
   try {
@@ -1567,7 +1572,7 @@ async function pushSync() {
 function markSyncDirty() { if (!settings.syncDirty) { settings.syncDirty = true; saveSettings(); } }
 function retrySyncIfDirty() { if (settings.syncCode && settings.syncDirty) return pushSync(); }
 
-async function pullSync() {
+async function pullSyncNow() {
   if (!settings.syncCode) return;
   if (!navigator.onLine) { syncStatus = 'offline'; updateSyncUI(); return; }
   syncStatus = 'busy'; updateSyncUI();
