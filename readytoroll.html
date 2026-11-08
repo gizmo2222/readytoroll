@@ -1526,7 +1526,7 @@ function setParent(p) {
 
 async function pushSync() {
   if (!settings.syncCode) return false;
-  if (!navigator.onLine) { syncStatus = 'offline'; updateSyncUI(); return false; }
+  if (!navigator.onLine) { markSyncDirty(); syncStatus = 'offline'; updateSyncUI(); return false; }
   if (isLegacyCode(settings.syncCode)) { await pullSync(); return false; }   // upgrade first
   await retryLegacyDelete();   // no-op unless an old plaintext file still needs deleting
   syncStatus = 'busy'; updateSyncUI();
@@ -1552,15 +1552,20 @@ async function pushSync() {
         if (!d.ok) throw new Error(d.error || 'Push failed');
       } else if (!p.ok) throw new Error(p.error || 'Parent update failed');
     }
+    if (settings.syncDirty) { delete settings.syncDirty; saveSettings(); }
     markSynced(d);
     updateSyncUI();
     return true;
   } catch {
+    markSyncDirty();
     syncStatus = 'err';
   }
   updateSyncUI();
   return false;
 }
+// A push that was skipped or failed leaves this device-only flag set, so it is retried and never reads "Synced"
+function markSyncDirty() { if (!settings.syncDirty) { settings.syncDirty = true; saveSettings(); } }
+function retrySyncIfDirty() { if (settings.syncCode && settings.syncDirty) return pushSync(); }
 
 async function pullSync() {
   if (!settings.syncCode) return;
@@ -1589,17 +1594,22 @@ function updateSyncUI(){
   const dot=document.getElementById('sync-status-dot');
   const txt=document.getElementById('sync-status-txt');
   if(!dot||!txt)return;
-  dot.className='sync-dot '+syncStatus;
+  dot.className='sync-dot '+effSyncStatus();
   txt.textContent=syncStatusLabel();
 }
+function effSyncStatus(){return syncStatus==='ok'&&settings.syncDirty?'offline':syncStatus;}
 function syncStatusLabel(){
+  const labels={...syncLabels(),offline:syncStatus==='ok'&&settings.syncDirty?'Changes waiting to sync':'Offline — will sync when back online'};
+  return labels[effSyncStatus()]||'—';
+}
+function syncLabels(){
   const labels={ok:'Synced'+(syncLastAt?' · '+new Date(syncLastAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):''),busy:'Syncing…',err:'Sync error — check connection',offline:'Offline — will sync when back online',big:'Sync data too large — export a backup',off:'Not connected'};
-  return labels[syncStatus]||'—';
+  return labels;
 }
 
 async function disconnectSync(){
   if(!confirm('Stop syncing on this device? Your encrypted backup stays on the server for your other devices.'))return;
-  settings.syncCode='';settings.parentToken='';settings.parent=null;settings.parentAt=0;saveSettings();syncStatus='off';syncKeys=null;
+  settings.syncCode='';settings.parentToken='';settings.parent=null;settings.parentAt=0;delete settings.syncDirty;saveSettings();syncStatus='off';syncKeys=null;
   renderSettings();toast('Sync disconnected');
 }
 
@@ -1647,7 +1657,7 @@ async function revokeParentToken(){
 
 function syncCodeHTML(){
   const code=settings.syncCode;
-  const dotClass=syncStatus;
+  const dotClass=effSyncStatus();
   const statusLabel=syncStatusLabel();
   if(code){
     return`<div class="sync-code-box">
@@ -3301,8 +3311,21 @@ function setCarHue(deg){
   const preview=document.getElementById('car-hue-preview');if(preview)preview.style.filter=f;
 }
 
-function clearAllData(){
-  if(!confirm('Delete ALL sessions, skills, and settings? This cannot be undone.'))return;
+async function clearAllData(){
+  const code=settings.syncCode, cloud=!!code&&!isLegacyCode(code);
+  if(!confirm('Delete ALL sessions, skills, and settings? This cannot be undone.'+(cloud?' This also deletes your cloud copy and turns off the parent link.':'')))return;
+  if(cloud){
+    // Remove the encrypted blob and the live parent id from the server before the codes are forgotten here
+    let ok=false;
+    try{
+      const {id}=await deriveSyncKeys(code);
+      const r=await syncCall('delete',{id});
+      const p=settings.parent?await syncCall('delete',{id:settings.parent.token}):{ok:true};
+      ok=!!(r.ok&&p.ok);
+    }catch{ok=false;}
+    if(!ok&&!confirm("Couldn't remove the cloud copy. Clear this device anyway? Your cloud copy stays and you can reconnect with your code."))return;
+    clearTimeout(syncDebounceTimer);syncKeys=null;syncStatus='off';
+  }
   sessions=[];settings=defaultSettings();skillsData={};
   saveSessions();saveSettings();saveSkillsData();
   localStorage.removeItem('rtr_milestones');
@@ -3315,7 +3338,7 @@ function clearAllData(){
 // EXPORT / IMPORT / PRINT
 // ═══════════════════════════════════════════════════
 // Sync secrets stay on the device: an export file can be emailed or uploaded anywhere
-const DEVICE_ONLY_SETTINGS=['syncCode','parentToken','parent','parentAt','legacyPendingDelete'];
+const DEVICE_ONLY_SETTINGS=['syncCode','parentToken','parent','parentAt','legacyPendingDelete','syncDirty'];
 function exportPayload(){
   const s={...settings};for(const k of DEVICE_ONLY_SETTINGS)delete s[k];
   return{settings:s,sessions,skills:skillsData,deleted:tombstoneList(),exported:new Date().toISOString()};
@@ -3821,7 +3844,7 @@ if('serviceWorker' in navigator){
   // ── Pull sync on load if code exists ──
   if(settings.syncCode){
     syncStatus='busy';
-    setTimeout(()=>pullSync(),1500); // slight delay to let the UI settle
+    setTimeout(async()=>{await pullSync();retrySyncIfDirty();},1500); // slight delay to let the UI settle
   }
 })();
 
@@ -3836,6 +3859,7 @@ window.addEventListener('pagehide',()=>checkpointDrive(true));
 // ── Page visibility: resume idle clock when visible during active drive ──
 document.addEventListener('visibilitychange', ()=>{
   if(document.hidden)checkpointDrive(true);
+  else retrySyncIfDirty();
   if(!document.hidden && activeSession){
     // Drive timer is timestamp-based so duration stays accurate; GPS will pause on most mobile browsers.
     // GPS was likely paused while hidden, so the last fix says nothing about whether the car

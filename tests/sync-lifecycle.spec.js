@@ -360,3 +360,98 @@ test('both sync status labels come from one map, with the same error wording', a
   await page.evaluate(() => { navigate('settings'); renderSettings(); syncStatus = 'busy'; updateSyncUI(); syncStatus = 'err'; updateSyncUI(); });
   await expect(page.locator('#sync-status-txt')).toHaveText('Sync error — check connection');
 });
+
+// ── Clear all data with sync connected ──
+async function connectedWithParent(page) {
+  const o = await openApp(page, { sessions: [sess({ id: 'cl1' })] });
+  await page.evaluate(() => createSyncCode());
+  await page.evaluate(() => createParentLink());
+  const ids = await page.evaluate(async () => ({ id: (await deriveSyncKeys(settings.syncCode)).id, tok: settings.parent.token }));
+  return { ...o, ...ids };
+}
+
+test('clear all with sync deletes the cloud blob and parent id, then clears locally', async ({ page }) => {
+  const { sync, id, tok } = await connectedWithParent(page);
+  expect(sync.store.has(id) && sync.store.has(tok)).toBe(true);
+  const msgs = [];
+  page.on('dialog', d => { msgs.push(d.message()); d.accept(); });
+  await page.evaluate(() => clearAllData());
+  expect(msgs).toHaveLength(1);
+  expect(msgs[0]).toContain('cloud copy');
+  expect(msgs[0]).toContain('parent link');
+  expect(sync.store.has(id)).toBe(false);
+  expect(sync.store.has(tok)).toBe(false);
+  expect(sync.store.revoked.has(tok)).toBe(true);
+  expect(await page.evaluate(() => ({ c: settings.syncCode, p: settings.parent, n: sessions.length, k: syncKeys, st: syncStatus })))
+    .toEqual({ c: '', p: null, n: 0, k: null, st: 'off' });
+});
+
+test('clear all with a failing cloud delete asks again: No changes nothing, Yes clears this device only', async ({ page }) => {
+  const { sync, id } = await connectedWithParent(page);
+  await page.route('**/rtr-sync.php', route => {
+    if (JSON.parse(route.request().postData() || '{}').action === 'delete') return reply(route, { ok: false, error: 'boom' }, 500);
+    return route.fallback();
+  });
+  const msgs = [];
+  let answers = [true, false];
+  page.on('dialog', d => { msgs.push(d.message()); (answers.shift() ? d.accept() : d.dismiss()); });
+  await page.evaluate(() => clearAllData());
+  expect(msgs).toHaveLength(2);
+  expect(msgs[1]).toBe("Couldn't remove the cloud copy. Clear this device anyway? Your cloud copy stays and you can reconnect with your code.");
+  expect(await page.evaluate(() => ({ c: !!settings.syncCode, p: !!settings.parent, n: sessions.length }))).toEqual({ c: true, p: true, n: 1 });
+  answers = [true, true];
+  await page.evaluate(() => clearAllData());
+  expect(await page.evaluate(() => ({ c: settings.syncCode, n: sessions.length }))).toEqual({ c: '', n: 0 });
+  expect(sync.store.has(id)).toBe(true);
+});
+
+test('clear all without sync asks once and makes no sync request', async ({ page }) => {
+  const { sync } = await openApp(page, { sessions: [sess({ id: 'ns1' })] });
+  const msgs = [];
+  page.on('dialog', d => { msgs.push(d.message()); d.accept(); });
+  await page.evaluate(() => clearAllData());
+  expect(msgs).toHaveLength(1);
+  expect(msgs[0]).not.toContain('cloud');
+  expect(await page.evaluate(() => sessions.length)).toBe(0);
+  expect(sync.calls).toHaveLength(0);
+});
+
+// ── Dirty flag: a skipped or failed push is retried ──
+test('a push skipped offline sets a device-only dirty flag, reads not Synced, and goes out when back online', async ({ page, context }) => {
+  const { sync } = await openApp(page);
+  await page.evaluate(() => createSyncCode());
+  const id = await page.evaluate(async () => (await deriveSyncKeys(settings.syncCode)).id);
+  await context.setOffline(true);
+  await page.evaluate(() => { navigate('settings'); renderSettings(); });
+  expect(await page.evaluate(() => pushSync())).toBe(false);
+  expect(await page.evaluate(() => settings.syncDirty)).toBe(true);
+  const before = sync.store.get(id);
+  await page.evaluate(() => { syncStatus = 'ok'; renderSettings(); });
+  await expect(page.locator('#sync-status-txt')).not.toContainText('Synced');
+  expect(await page.evaluate(() => exportPayload().settings.syncDirty)).toBeUndefined();
+  await context.setOffline(false);
+  await expect.poll(() => page.evaluate(() => settings.syncDirty)).toBeUndefined();
+  expect(await page.evaluate(() => syncStatus)).toBe('ok');
+  expect(sync.store.get(id)).not.toBe(before);
+});
+
+test('the dirty flag survives a reload and is retried at load; a failing push stays dirty without looping', async ({ page }) => {
+  const { sync } = await openApp(page);
+  await page.evaluate(() => createSyncCode());
+  const failPuts = route => {
+    if (JSON.parse(route.request().postData() || '{}').action === 'put') return reply(route, { ok: false, error: 'down' }, 500);
+    return route.fallback();
+  };
+  await page.route('**/rtr-sync.php', failPuts);
+  expect(await page.evaluate(() => pushSync())).toBe(false);
+  expect(await page.evaluate(() => settings.syncDirty)).toBe(true);
+  const puts = () => sync.calls.filter(c => c.body.action === 'put').length;
+  const n = puts();
+  await page.waitForTimeout(500);
+  expect(puts()).toBe(n);   // no retry loop
+  await page.unroute('**/rtr-sync.php', failPuts);
+  await page.reload();
+  await page.waitForFunction(() => typeof getTotals === 'function');
+  expect(await page.evaluate(() => settings.syncDirty)).toBe(true);
+  await expect.poll(() => page.evaluate(() => settings.syncDirty), { timeout: 8000 }).toBeUndefined();
+});
