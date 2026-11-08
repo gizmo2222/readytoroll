@@ -258,3 +258,74 @@ test('dl_* data is migrated before the app loads it', async ({ page }) => {
   }));
   expect(r).toEqual({ ids: ['old1', 'old2'], name: 'Sam', state: 'TX', rtr: true, dl: null });
 });
+
+// ── storage quota on the non-session writes ──
+test('a full quota on settings, skills, tombstones and milestones returns false and toasts once', async ({ page }) => {
+  await openApp(page, { sessions: [sess({ duration: 60 })] });
+  const r = await page.evaluate(() => {
+    const orig = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (k, v) {
+      if (/^rtr_(settings|skills|deleted|milestones)$/.test(k)) throw new DOMException('full', 'QuotaExceededError');
+      return orig.call(this, k, v);
+    };
+    const toasts = []; const t = window.toast; window.toast = (m, ms) => { toasts.push(m); return t(m, ms); };
+    const res = [saveSettings(), saveSkillsData(), saveTombstones(new Map()), (checkMilestones(), 'ran')];
+    Storage.prototype.setItem = orig; window.toast = t;
+    return { res, toasts };
+  });
+  expect(r.res).toEqual([false, false, false, 'ran']);
+  expect(r.toasts.filter(m => m.includes('Storage full'))).toHaveLength(1);
+});
+
+test('a full quota during the dl_* migration does not throw and keeps the old keys', async ({ page }) => {
+  await openApp(page);
+  await page.evaluate(() => {
+    localStorage.clear();
+    localStorage.setItem('dl_settings', JSON.stringify({ driverName: 'Sam', onboardingDone: true }));
+  });
+  await page.addInitScript(() => {
+    const orig = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (k, v) { if (/^rtr_/.test(k)) throw new DOMException('full', 'QuotaExceededError'); return orig.call(this, k, v); };
+  });
+  await page.reload();
+  await page.waitForFunction(() => typeof getTotals === 'function' && typeof sessions !== 'undefined');
+  expect(await page.evaluate(() => localStorage.getItem('dl_settings'))).not.toBeNull();
+});
+
+// ── quick-parent-milestones-8 ──
+const spyCelebrations = page => page.evaluate(() => {
+  window.__toasts = []; window.__confetti = 0;
+  const t = window.toast; window.toast = (m, ms) => { window.__toasts.push(m); return t(m, ms); };
+  window.launchConfetti = () => { window.__confetti++; };
+});
+const celebrated = page => page.evaluate(() => ({ unlocked: window.__toasts.filter(m => /unlocked/.test(m)).length, confetti: window.__confetti,
+  stored: JSON.parse(localStorage.getItem('rtr_milestones') || '[]') }));
+
+test('milestones earned through merged remote data are recorded silently', async ({ page }) => {
+  await openApp(page);
+  await spyCelebrations(page);
+  await page.evaluate(() => mergeSyncData({ sessions: [{ id: 'r1', startTime: '2026-10-01T21:00:00.000Z', duration: 600 }] }));
+  const c = await celebrated(page);
+  expect(c.stored).toContain('first');
+  expect(c.unlocked).toBe(0);
+  expect(c.confetti).toBe(0);
+});
+
+test('milestones earned through an import are recorded silently', async ({ page }) => {
+  await openApp(page);
+  await spyCelebrations(page);
+  await page.evaluate(() => applyImport({ sessions: [{ id: 'i1', startTime: '2026-10-01T21:00:00.000Z', duration: 600 }] }, 'merge'));
+  const c = await celebrated(page);
+  expect(c.stored).toContain('first');
+  expect(c.unlocked + c.confetti).toBe(0);
+});
+
+test('a brand-new user first drive logged on this device still celebrates', async ({ page }) => {
+  await openApp(page);
+  await spyCelebrations(page);
+  await page.evaluate(() => { sessions.push({ id: 'mine', startTime: '2026-10-01T21:00:00.000Z', duration: 60, tags: [], route: [] }); onSessionsChanged(); });
+  const c = await celebrated(page);
+  expect(c.unlocked).toBeGreaterThan(0);
+  expect(c.confetti).toBe(1);
+  expect(c.stored).toContain('first');
+});

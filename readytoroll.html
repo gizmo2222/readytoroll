@@ -918,8 +918,11 @@ const DRIVING_TIPS = [
   const keys=[['dl_settings','rtr_settings'],['dl_sessions','rtr_sessions'],['dl_skills','rtr_skills'],['dl_milestones','rtr_milestones']];
   keys.forEach(([old,next])=>{
     const val=localStorage.getItem(old);
-    if(val!==null&&localStorage.getItem(next)===null){localStorage.setItem(next,val);}
-    if(val!==null){localStorage.removeItem(old);}
+    if(val===null)return;
+    try{
+      if(localStorage.getItem(next)===null)localStorage.setItem(next,val);
+      localStorage.removeItem(old);   // only after the copy succeeded, so a full quota loses nothing
+    }catch(e){console.warn('Migrating',old,'failed:',e);}   // no toast this early; the old key stays for next load
   });
 })();
 
@@ -976,7 +979,7 @@ function loadTombstones(){
   try{return addTombstones(new Map(),JSON.parse(localStorage.getItem('rtr_deleted')||'[]'));}
   catch{return new Map();}
 }
-function saveTombstones(m){localStorage.setItem('rtr_deleted',JSON.stringify([...m].map(([id,at])=>({id,at}))));}
+function saveTombstones(m){return lsSave('rtr_deleted',JSON.stringify([...m].map(([id,at])=>({id,at}))));}
 function tombstoneList(){return[...loadTombstones()].map(([id,at])=>({id,at}));}
 function saveDeletedId(id){const m=loadTombstones();m.set(id,new Date().toISOString());saveTombstones(m);}
 function clearDeletedId(id){const m=loadTombstones();if(m.delete(id))saveTombstones(m);}
@@ -1005,7 +1008,18 @@ function loadSettings(){
 function defaultSettings(){
   return{driverName:'',state:'CA',customTotal:null,customNight:null,goalDate:'',accentHue:217,fontSize:'medium',onboardingDone:false,vibeTheme:'default',carEmoji:'🚗',carNickname:'',carHue:0,syncCode:'',parentToken:'',parent:null};
 }
-function saveSettings(){localStorage.setItem('rtr_settings',JSON.stringify(settings));}
+// Guarded write: returns false (and tells the user once, even if several saves fail together) when the browser refuses it
+var storageToastAt=0;
+function lsSave(key,val){
+  try{localStorage.setItem(key,val);return true;}
+  catch(e){
+    console.warn('Saving',key,'failed:',e);
+    const n=Date.now();
+    if(n-storageToastAt>5000){storageToastAt=n;toast('Storage full — changes not saved on this device. Export your log (Settings), then delete old drives.',7000);}
+    return false;
+  }
+}
+function saveSettings(){return lsSave('rtr_settings',JSON.stringify(settings));}
 
 function loadSessions(){
   try{return JSON.parse(localStorage.getItem('rtr_sessions'))||[];}
@@ -1013,17 +1027,12 @@ function loadSessions(){
 }
 // Returns false (and tells the user) when the browser refuses the write, e.g. storage quota full
 function saveSessions(){
-  try{localStorage.setItem('rtr_sessions',JSON.stringify(sessions));return true;}
-  catch(e){
-    console.warn('Saving drives failed:',e);
-    toast('Storage full — drive not saved on this device. Export your log (Settings), then delete old drives.',7000);
-    return false;
-  }
+  return lsSave('rtr_sessions',JSON.stringify(sessions));
 }
 
-function onSessionsChanged(){
+function onSessionsChanged(opts){
   const saved=saveSessions();
-  if(saved)checkMilestones();   // don't celebrate a drive that isn't on disk
+  if(saved)checkMilestones(opts);   // don't celebrate a drive that isn't on disk
   scheduleSyncPush();
   renderSessionViews();
   return saved;
@@ -1038,8 +1047,10 @@ function loadSkillsData(){
   try{return JSON.parse(localStorage.getItem('rtr_skills'))||{};}
   catch{return{};}
 }
-function saveSkillsData(){localStorage.setItem('rtr_skills',JSON.stringify(skillsData));}
+function saveSkillsData(){return lsSave('rtr_skills',JSON.stringify(skillsData));}
 
+// Whole calendar days between two local midnights (a DST change makes that gap 23 or 25 hours, not 24)
+function calDaysBetween(a,b){return Math.round((b-a)/86400000);}
 function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2);}
 
 // ═══════════════════════════════════════════════════
@@ -1388,7 +1399,7 @@ function mergeSyncData(data) {
   saveTombstones(tomb);
   if (added || changed || removed) {
     sessions = newestFirst(byId.values());
-    saveSessions(); checkMilestones();
+    if (saveSessions()) checkMilestones({ silent: true });   // drives from another device never celebrate
     renderSessionViews();
     if (added > 0) toast('Synced — ' + added + ' new drive' + (added === 1 ? '' : 's') + ' added');
   }
@@ -1876,7 +1887,7 @@ function personalRecordsHTML(){
 // SKILLS BADGE
 // ═══════════════════════════════════════════════════
 function updateSkillsBadge(){
-  const notStarted = SKILLS.filter(s=>!skillsData[s.id]||skillsData[s.id].status==='not_started').length;
+  const notStarted = SKILLS.filter(s=>!['in_progress','mastered'].includes(skillsData[s.id]?.status)).length;
   const badge = document.getElementById('skills-nav-badge');
   if(!badge)return;
   if(notStarted>0){badge.textContent=notStarted;badge.classList.add('show');}
@@ -1886,7 +1897,9 @@ function updateSkillsBadge(){
 // ═══════════════════════════════════════════════════
 // MILESTONES
 // ═══════════════════════════════════════════════════
-function checkMilestones(){
+// silent: record milestones that data from elsewhere (sync, import) just made earned, without toast or confetti
+function checkMilestones(opts){
+  const silent=!!(opts&&opts.silent);
   const {earned:now}=computeEarnedMilestones(sessions,getReqs());
   let prev;
   try{const v=JSON.parse(localStorage.getItem('rtr_milestones')||'[]');prev=new Set(Array.isArray(v)?v:[]);}catch(e){prev=new Set();}
@@ -1895,11 +1908,11 @@ function checkMilestones(){
   for(const m of MILESTONES){
     if(now.has(m.id)){
       earned.add(m.id);
-      if(!prev.has(m.id)){toast(m.icon+' '+m.label+' unlocked!');anyNew=true;}
+      if(!prev.has(m.id)&&!silent){toast(m.icon+' '+m.label+' unlocked!');anyNew=true;}
     }
   }
   if(anyNew)launchConfetti();
-  localStorage.setItem('rtr_milestones',JSON.stringify([...earned]));
+  lsSave('rtr_milestones',JSON.stringify([...earned]));
   return earned;
 }
 
@@ -2100,7 +2113,7 @@ function renderHome(){
   if(reqs.total>0||settings.goalDate){
     const today=new Date();today.setHours(0,0,0,0);
     const goalMs=settings.goalDate?new Date(settings.goalDate+'T00:00:00').getTime():NaN;
-    const goalDays=Number.isFinite(goalMs)?Math.max(0,Math.ceil((goalMs-today)/86400000)):null;
+    const goalDays=Number.isFinite(goalMs)?Math.max(0,calDaysBetween(today,goalMs)):null;
     const boxes=[];
     if(reqs.total>0&&hoursLeft>0){
       boxes.push(`<div class="countdown-box"><div class="countdown-val">${hoursLeft.toFixed(1)}</div><div class="countdown-lbl">Total hrs left</div></div>`);
@@ -2263,7 +2276,7 @@ function goalCard(reqs,totals){
   const today=new Date();today.setHours(0,0,0,0);
   const goal=new Date(settings.goalDate+'T00:00:00');
   if(isNaN(goal))return'';
-  const daysLeft=Math.ceil((goal-today)/86400000);
+  const daysLeft=calDaysBetween(today,goal);
   const {hoursLeft,nightLeft,inclementLeft,allMet}=progressLeft(reqs,totals);
   const paceLeft=Math.max(hoursLeft,nightLeft);
   if(daysLeft<=0){
@@ -3333,7 +3346,7 @@ function applyImport(data,mode='merge'){
     const removed=sessions.filter(s=>tomb.has(s.id)&&!(s.updatedAt&&s.updatedAt>tomb.get(s.id)));
     if(removed.length)sessions=sessions.filter(s=>!removed.includes(s));
   }
-  onSessionsChanged();
+  onSessionsChanged({silent:true});   // an imported log records its milestones without celebrating
   return{added,skipped};
 }
 

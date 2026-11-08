@@ -190,3 +190,16 @@ test('manual and quick-add controls all have a label', async ({ page }) => {
     .filter(e => !(e.labels && e.labels.length) && !e.getAttribute('aria-label')).map(e => e.id || e.outerHTML.slice(0, 60)));
   expect(unlabeled).toEqual([]);
 });
+
+test('days to goal is a whole calendar count across the fall-back DST change', async ({ page }) => {
+  // Noon PDT on Oct 31; 2026-11-01 has 25 hours, so midnight-to-midnight is 49 h, not 48
+  await openApp(page, { clock: new Date('2026-10-31T19:00:00.000Z'), settings: { state: 'CA', goalDate: '2026-11-02' }, sessions: [sess({ duration: 60 })] });
+  const r = await page.evaluate(() => {
+    renderHome();
+    const box = [...document.querySelectorAll('.countdown-box')].find(b => /Days to goal/.test(b.textContent));
+    return { box: box && box.querySelector('.countdown-val').textContent, goal: goalCard(getReqs(), getTotals()) };
+  });
+  expect(r.box).toBe('2');
+  expect(r.goal).toContain('2 days');
+  expect(r.goal).not.toContain('3 days');
+});

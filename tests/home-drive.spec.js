@@ -157,7 +157,7 @@ test('skills nav badge counts skills not started and hides when all are started'
   const total = await page.evaluate(() => SKILLS.length);
   await expect(badge).toHaveClass(/show/);
   await expect(badge).toHaveText(String(total));
-  await page.evaluate(() => { SKILLS.forEach(s => { skillsData[s.id] = { status: 'learning' }; }); updateSkillsBadge(); });
+  await page.evaluate(() => { SKILLS.forEach(s => { skillsData[s.id] = { status: 'in_progress' }; }); updateSkillsBadge(); });
   await expect(badge).not.toHaveClass(/show/);
   await page.evaluate(() => { skillsData[SKILLS[0].id] = { status: 'not_started' }; updateSkillsBadge(); });
   await expect(badge).toHaveText('1');

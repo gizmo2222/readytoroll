@@ -170,6 +170,8 @@ test('stored skills with null entries or unknown ids do not break rendering', as
   await expect(page.locator('.skill-row')).toHaveCount(n);
   // unknown ids are ignored in the counts; an unrecognised status counts as not started
   expect(await summary(page)).toEqual(['0', '0', String(n)]);
+  // the nav badge agrees with the view: only the unknown 'bogus' and null entries and unset skills count as not started
+  await expect(page.locator('#skills-nav-badge')).toHaveText(String(n));
 });
 
 test('nav badge still shows 1 when exactly one skill is not started', async ({ page }) => {
