@@ -139,23 +139,6 @@ test('offline shows Offline, and coming back online syncs', async ({ page }) => 
   expect(sync.calls.some(c => c.body.action === 'put')).toBe(true);
 });
 
-// ── sync-8 ──
-test('joining with an 8-character code that does not exist does not save it', async ({ page }) => {
-  await openApp(page);
-  await page.route('**/rtr-sync.php', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false,"error":"Not found"}' }));
-  await page.evaluate(() => connectSyncCode('ABCD-EFGH'));
-  expect(await page.evaluate(() => settings.syncCode)).toBe('');
-  expect(await toastText(page)).toContain('Code not found');
-});
-
-test('a network failure while joining a legacy code leaves no code saved', async ({ page }) => {
-  await openApp(page);
-  await page.route('**/rtr-sync.php', r => r.abort());
-  await page.evaluate(() => connectSyncCode('ABCD-EFGH'));
-  expect(await page.evaluate(() => settings.syncCode)).toBe('');
-  expect(await toastText(page)).toContain('Could not connect');
-});
-
 // ── sync-5 ──
 test('offline revoke does not claim success and keeps the old link', async ({ page, browser, baseURL }) => {
   const { ctx } = await pair(browser, baseURL, page);

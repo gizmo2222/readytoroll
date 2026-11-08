@@ -1,22 +1,5 @@
-// Sync code lifecycle: code generation, create/connect/disconnect, legacy upgrade, parent link and copy/email/share paths.
+// Sync code lifecycle: code generation, create/connect/disconnect, old-code rejection, parent link and copy/email/share paths.
 const { test, expect, openApp, sess, json: reply, toastText } = require('./helpers');
-
-// Legacy server stub: serves legacy_pull/legacy_delete, passes everything else to the helpers' fake server.
-async function legacyServer(page, { sessions = [], pullStatus = 200, pullError } = {}) {
-  const legacy = [];
-  await page.route('**/rtr-sync.php', route => {
-    const body = JSON.parse(route.request().postData() || '{}');
-    if (body.action === 'legacy_pull') {
-      legacy.push(body);
-      if (pullStatus === 404) return reply(route, { ok: false, error: 'Sync code not found' }, 404);
-      if (pullError) return reply(route, { ok: false, error: pullError }, 500);
-      return reply(route, { ok: true, sessions });
-    }
-    if (body.action === 'legacy_delete') { legacy.push(body); return reply(route, { ok: true }); }
-    return route.fallback();
-  });
-  return legacy;
-}
 
 test('generated sync codes are 12 characters from the unambiguous alphabet and unique', async ({ page }) => {
   await openApp(page);
@@ -83,91 +66,6 @@ test('a second device joins a created code typed with dashes and lower case', as
   await expect.poll(() => p2.evaluate(() => sessions.map(s => s.id))).toEqual(['j1']);
   expect(await p2.evaluate(() => settings.syncCode)).toBe(code);
   await ctx.close();
-});
-
-test('a legacy upgrade migrates drives, deletes the old file and never sends drives in clear', async ({ page }) => {
-  const remote = sess({ id: 'old1', notes: 'legacy-note-abc' });
-  const { sync } = await openApp(page, { settings: { syncCode: 'ABCD2345', parentToken: 'tok' }, sessions: [sess({ id: 'mine1' })] });
-  const legacy = await legacyServer(page, { sessions: [remote] });
-  const ok = await page.evaluate(() => upgradeLegacySync());
-  expect(ok).toBe(true);
-  expect((await page.evaluate(() => sessions.map(s => s.id))).sort()).toEqual(['mine1', 'old1']);
-  const s = await page.evaluate(() => ({ code: settings.syncCode, tok: settings.parentToken }));
-  expect(s.code).toMatch(/^[A-Z2-9]{12}$/);
-  expect(s.tok).toBe('');
-  expect(legacy.map(l => l.action)).toEqual(['legacy_pull', 'legacy_delete']);
-  expect(legacy[1].code).toBe('ABCD2345');
-  expect(sync.calls.some(c => c.body.action === 'put')).toBe(true);
-  for (const c of sync.calls) {
-    expect(c.raw).not.toContain('legacy-note-abc');
-    expect(c.raw).not.toContain('old1');
-    expect(c.raw).not.toContain('mine1');
-    expect(c.raw).not.toContain(s.code);
-  }
-  expect(await toastText(page)).toContain('Sync upgraded and encrypted');
-});
-
-test('upgrade when another device already upgraded clears the old code', async ({ page }) => {
-  await openApp(page, { settings: { syncCode: 'ABCD2345', parentToken: 'tok' } });
-  const legacy = await legacyServer(page, { pullStatus: 404 });
-  const ok = await page.evaluate(() => upgradeLegacySync());
-  expect(ok).toBe(false);
-  expect(await page.evaluate(() => ({ c: settings.syncCode, t: settings.parentToken, st: syncStatus }))).toEqual({ c: '', t: '', st: 'off' });
-  expect(legacy.map(l => l.action)).toEqual(['legacy_pull']);
-  expect(await toastText(page)).toContain('upgraded on another device');
-});
-
-test('upgrade fails cleanly when the legacy pull errors', async ({ page }) => {
-  await openApp(page, { settings: { syncCode: 'ABCD2345' }, sessions: [sess({ id: 'keep' })] });
-  const legacy = await legacyServer(page, { pullError: 'Server busy' });
-  const msg = await page.evaluate(() => upgradeLegacySync().then(() => 'resolved', e => e.message));
-  expect(msg).toBe('Server busy');
-  expect(await page.evaluate(() => settings.syncCode)).toBe('ABCD2345');
-  expect(legacy.map(l => l.action)).toEqual(['legacy_pull']);
-});
-
-test('if the encrypted upload fails the old code is restored and the old file is kept', async ({ page }) => {
-  const { sync } = await openApp(page, { settings: { syncCode: 'ABCD2345' }, sessions: [sess({ id: 'keep2' })] });
-  const legacy = await legacyServer(page, { sessions: [sess({ id: 'old2' })] });
-  await page.route('**/rtr-sync.php', route => {
-    const b = JSON.parse(route.request().postData() || '{}');
-    if (b.action === 'put') return reply(route, { ok: false, error: 'Disk full' }, 500);
-    return route.fallback();
-  });
-  const msg = await page.evaluate(() => upgradeLegacySync().then(() => 'resolved', e => e.message));
-  expect(msg).toBe('upgrade push failed');
-  expect(await page.evaluate(() => settings.syncCode)).toBe('ABCD2345');
-  expect(legacy.some(l => l.action === 'legacy_delete')).toBe(false);
-  expect(sync.store.size).toBe(0);
-});
-
-test('joining a legacy code that exists saves it and upgrades', async ({ page }) => {
-  await openApp(page);
-  const legacy = await legacyServer(page, { sessions: [sess({ id: 'lg1' })] });
-  await page.evaluate(() => connectSyncCode('abcd-2345'));
-  await expect.poll(() => page.evaluate(() => settings.syncCode)).toMatch(/^[A-Z2-9]{12}$/);
-  expect(await page.evaluate(() => sessions.map(s => s.id))).toContain('lg1');
-  expect(legacy[0].action).toBe('legacy_pull');
-  expect(legacy[legacy.length - 1].action).toBe('legacy_delete');
-});
-
-test('joining a legacy code when the server errors toasts and saves nothing', async ({ page }) => {
-  await openApp(page);
-  await legacyServer(page, { pullError: 'Rate limited' });
-  await page.evaluate(() => connectSyncCode('ABCD2345'));
-  expect(await toastText(page)).toBe('Could not connect to sync: Rate limited');
-  expect(await page.evaluate(() => settings.syncCode || '')).toBe('');
-  expect(await page.evaluate(() => syncStatus)).toBe('err');
-});
-
-test('joining a legacy code that does not exist toasts and saves nothing', async ({ page }) => {
-  await openApp(page);
-  const legacy = await legacyServer(page, { pullStatus: 404 });
-  await page.evaluate(() => connectSyncCode('ABCD2345'));
-  expect(await toastText(page)).toContain('Code not found');
-  expect(await page.evaluate(() => settings.syncCode || '')).toBe('');
-  expect(await page.evaluate(() => syncStatus)).toBe('off');
-  expect(legacy.map(l => l.action)).toEqual(['legacy_pull']);
 });
 
 test('the parent link keeps the key after # and the token in the query', async ({ page }) => {
@@ -240,24 +138,6 @@ test('a denied clipboard write toasts instead of throwing', async ({ page }) => 
   await expect.poll(() => toastText(page)).toBe('Your code: ABCD-EFGH-2345');
   await page.evaluate(() => shareParentLink());
   await expect.poll(() => toastText(page)).toContain('?parent=');
-});
-
-test('a failed legacy delete after an upgrade is retried on the next push, and never exported', async ({ page }) => {
-  await openApp(page, { settings: { syncCode: 'ABCD2345' } });
-  const legacy = await legacyServer(page, { sessions: [] });
-  let failDelete = true;
-  await page.route('**/rtr-sync.php', route => {
-    const b = JSON.parse(route.request().postData() || '{}');
-    if (b.action === 'legacy_delete' && failDelete) { legacy.push({ ...b, failed: true }); return reply(route, { ok: false, error: 'Busy' }, 500); }
-    return route.fallback();
-  });
-  expect(await page.evaluate(() => upgradeLegacySync())).toBe(true);
-  expect(await page.evaluate(() => settings.legacyPendingDelete)).toBe('ABCD2345');
-  expect(await page.evaluate(() => JSON.stringify(exportPayload()))).not.toContain('ABCD2345');
-  failDelete = false;
-  await page.evaluate(() => pushSync());
-  expect(legacy.filter(l => l.action === 'legacy_delete').map(l => !!l.failed)).toEqual([true, false]);
-  expect(await page.evaluate(() => settings.legacyPendingDelete)).toBeUndefined();
 });
 
 test('emailing the sync code builds a mailto with the code and the app address only', async ({ page }) => {
@@ -454,4 +334,24 @@ test('the dirty flag survives a reload and is retried at load; a failing push st
   await page.waitForFunction(() => typeof getTotals === 'function');
   expect(await page.evaluate(() => settings.syncDirty)).toBe(true);
   await expect.poll(() => page.evaluate(() => settings.syncDirty), { timeout: 8000 }).toBeUndefined();
+});
+
+test('typing an old 8-character code into connect shows the old-style message and makes no request', async ({ page }) => {
+  const { sync } = await openApp(page);
+  await page.evaluate(() => connectSyncCode('abcd-2345'));
+  expect(await toastText(page)).toBe("That's an old-style code. Create a new sync code on your other device.");
+  expect(sync.calls).toEqual([]);
+  expect(await page.evaluate(() => settings.syncCode || '')).toBe('');
+});
+
+test('an old 8-character code in stored settings is dropped at load, with no sync request and drives kept', async ({ page }) => {
+  const { sync } = await openApp(page, { sessions: [sess({ id: 'keep1' })], settings: { syncCode: 'ABCD2345', legacyPendingDelete: 'ABCD2345' } });
+  expect(await page.evaluate(() => settings.syncCode || '')).toBe('');
+  expect(await page.evaluate(() => settings.legacyPendingDelete)).toBeUndefined();
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('rtr_settings')));
+  expect(stored.syncCode || '').toBe('');
+  expect(stored.legacyPendingDelete).toBeUndefined();
+  expect(await page.evaluate(() => sessions.map(s => s.id))).toEqual(['keep1']);
+  await page.evaluate(() => pushSync());
+  expect(sync.calls).toEqual([]);
 });

@@ -103,7 +103,7 @@ Use **Export → JSON** to back up your data or move it to another device. The e
 
 ## Cloud Sync Backend
 
-`rtr-sync.php` is a small PHP backend that stores **sealed blobs it cannot read**. Actions: `get`, `put`, `delete` (plus `legacy_pull` / `legacy_delete` for the one-time upgrade below). Max 3 MB per blob. The data directory (`rtr-sync-data/`) is denied to the web with `.htaccess` and is git-ignored.
+`rtr-sync.php` is a small PHP backend that stores **sealed blobs it cannot read**. Actions: `get`, `put`, `delete`. Max 3 MB per blob. The data directory (`rtr-sync-data/`) is denied to the web with `.htaccess` and is git-ignored.
 
 How the encryption works (all in the browser, with WebCrypto):
 
@@ -116,9 +116,13 @@ The sync code is generated on the device, so the server never sees it, and the f
 
 **If the sync code is lost, the cloud copy can't be recovered** — there's no reset, by design. Each device keeps its own full copy, and **Export → JSON** is the backup.
 
-### Upgrade from the old 8-character codes
+### Expiry
 
-Codes created before October 2026 were 8 characters and stored the drives in plain text, named after the code. The first device to open the new version upgrades automatically: it downloads the drives, re-uploads them encrypted under a new 12-character code, deletes the old file and its parent link, and shows the new code. Other devices still on the old code are told to enter the new one, and old parent links stop working — share a new one.
+Blobs (and revoked-link markers) not written for 12 months (`BLOB_TTL_DAYS`) are deleted. A sweep runs at most once a day, guarded by `rtr-sync-data/.last-sweep`; a `put` refreshes a blob's age, a `get` does not. The drives on the device are never touched.
+
+### Old 8-character codes
+
+The old plaintext v1 sync is gone. The server answers `legacy_pull` / `legacy_delete` with `Unknown action`, the app drops a stored 8-character code at load (sync turns off, local drives stay), and typing one into Join shows "That's an old-style code". Any v1 `*.json` files still in `rtr-sync-data/` are deleted by hand.
 
 ## Tech Stack
 
@@ -181,7 +185,7 @@ npx playwright test --headed
 | `tests/settings.spec.js` | Settings form, theme/accent/font/car setters, clear all |
 | `tests/detail.spec.js` | Detail modal, elevation/speed SVGs, replay, share card, notes, delete |
 | `tests/history.spec.js` | Filters, search, swipe delete, undo, JSON/CSV export, print |
-| `tests/sync-lifecycle.spec.js` | Create/connect/upgrade sync, parent link, copy/email code |
+| `tests/sync-lifecycle.spec.js` | Create/connect sync, old-code rejection, parent link, copy/email code |
 | `tests/service-worker.spec.js` | `rtr-service-worker.js` in a Node `vm` (install, activate, fetch strategies) plus registration |
 | `tests/sync-server.spec.js` | Real `rtr-sync.php` under `php -S`: actions, caps, CORS, rate limit |
 

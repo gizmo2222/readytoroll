@@ -548,7 +548,7 @@ body{display:flex;flex-direction:column;overflow:hidden}
 
       <div class="section-title">Cloud Sync & Parent View</div>
       <div class="card" style="font-size:.84rem;line-height:1.6">
-        <b>☁️ Cloud Sync</b> — in Settings → Cloud Sync, tap <b>Create Sync Code</b> to get a 12-character code. Your drives are automatically backed up to the cloud after every change.<br><br>
+        <b>☁️ Cloud Sync</b> — in Settings → Cloud Sync, tap <b>Create Sync Code</b> to get a 12-character code. Your drives are automatically backed up to the cloud after every change. Cloud copies that aren't updated for 12 months are deleted from the server. The drives on your device stay.<br><br>
         <b>Second device</b> — type your code in the <b>Join existing</b> box and tap <b>Join</b> to sync across devices.<br><br>
         <b>📤 Parent View Link</b> — once you have a sync code, tap <b>Create &amp; Share</b> (or <b>Share Link</b> once it exists). This shares a URL your parent can open to see your live progress, recent drives, and milestones — without being able to edit anything.
       </div>
@@ -936,6 +936,11 @@ const DRIVING_TIPS = [
 })();
 
 let settings = loadSettings();
+// The old 8-character plaintext sync is gone: drop its code (sync is off, local drives stay)
+if (isLegacyCode(normSyncCode(settings.syncCode)) || settings.legacyPendingDelete) {
+  if (isLegacyCode(normSyncCode(settings.syncCode))) delete settings.syncCode;
+  delete settings.legacyPendingDelete; saveSettings();
+}
 let sessions = loadSessions();
 let skillsData = loadSkillsData();
 let activeSession = null;
@@ -1325,6 +1330,7 @@ function randomBytes(n) { return crypto.getRandomValues(new Uint8Array(n)); }
 
 function normSyncCode(s) { return String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
 function fmtSyncCode(c) { return c.length === SYNC_CODE_LEN ? c.match(/.{4}/g).join('-') : c; }
+// Old v1 codes were 8 characters; that sync no longer exists
 function isLegacyCode(c) { return !!c && c.length === 8; }
 function genSyncCode() {
   // Rejection sampling keeps every character equally likely
@@ -1432,22 +1438,7 @@ async function createSyncCode() {
 
 async function connectSyncCode(input) {
   const code = normSyncCode(input);
-  if (isLegacyCode(code)) {
-    // An old code typed in on a new device: check it exists before saving it, then upgrade from here
-    syncStatus = 'busy'; updateSyncUI();
-    try {
-      const d = await syncCall('legacy_pull', { code });
-      if (d.status === 404) { toast('Code not found — check and try again'); syncStatus = 'off'; updateSyncUI(); return; }
-      if (!d.ok) throw new Error(d.error || 'Request failed');
-      settings.syncCode = code; saveSettings();
-      await pullSync();
-      renderSettings();
-    } catch (e) {
-      syncStatus = 'err'; updateSyncUI();
-      toast('Could not connect to sync: ' + (e && e.message || e));
-    }
-    return;
-  }
+  if (isLegacyCode(code)) { toast("That's an old-style code. Create a new sync code on your other device."); return; }
   if (code.length !== SYNC_CODE_LEN) { toast('Enter the 12-character code, like ABCD-EFGH-JKMN'); return; }
   syncStatus = 'busy'; updateSyncUI();
   try {
@@ -1466,42 +1457,6 @@ async function connectSyncCode(input) {
     syncStatus = 'err'; updateSyncUI();
     toast('Could not connect to sync');
   }
-}
-
-// One-time upgrade of an old plaintext code: fetch its drives, re-upload them
-// encrypted under a new code, then delete the old file (and its parent link).
-// The old plaintext file must not outlive the upgrade: a failed delete is retried on every later push
-async function retryLegacyDelete() {
-  const code = settings.legacyPendingDelete;
-  if (!code) return;
-  try {
-    const d = await syncCall('legacy_delete', { code });
-    if (d.ok) { delete settings.legacyPendingDelete; saveSettings(); }
-  } catch (e) { /* offline: try again next push */ }
-}
-
-async function upgradeLegacySync() {
-  const oldCode = settings.syncCode;
-  const d = await syncCall('legacy_pull', { code: oldCode });
-  if (d.status === 404) {
-    // Another device already upgraded it, so this code is gone
-    settings.syncCode = ''; settings.parentToken = ''; saveSettings();
-    syncStatus = 'off'; updateSyncUI();
-    if (currentView === 'settings') renderSettings();
-    toast('Sync was upgraded on another device — enter the new 12-character code from there', 6000);
-    return false;
-  }
-  if (!d.ok) throw new Error(d.error);
-  mergeSyncData({ sessions: d.sessions });
-  settings.syncCode = genSyncCode();
-  settings.parentToken = '';   // old parent links stop working; share a new one
-  saveSettings();
-  if (!(await pushSyncNow())) { settings.syncCode = oldCode; saveSettings(); throw new Error('upgrade push failed'); }
-  settings.legacyPendingDelete = oldCode; saveSettings();
-  await retryLegacyDelete();
-  if (currentView === 'settings') renderSettings();
-  toast('Sync upgraded and encrypted. New code: ' + fmtSyncCode(settings.syncCode) + ' — enter it on your other devices', 8000);
-  return true;
 }
 
 const SYNC_MAX_BLOB = Math.floor(2.9 * 1024 * 1024);   // the server refuses blobs over 3 MB
@@ -1532,8 +1487,6 @@ function pullSync() { return syncSerial(pullSyncNow); }
 async function pushSyncNow() {
   if (!settings.syncCode) return false;
   if (!navigator.onLine) { markSyncDirty(); syncStatus = 'offline'; updateSyncUI(); return false; }
-  if (isLegacyCode(settings.syncCode)) { await pullSyncNow(); return false; }   // upgrade first
-  await retryLegacyDelete();   // no-op unless an old plaintext file still needs deleting
   syncStatus = 'busy'; updateSyncUI();
   try {
     const { id, key } = await deriveSyncKeys(settings.syncCode);
@@ -1577,7 +1530,6 @@ async function pullSyncNow() {
   if (!navigator.onLine) { syncStatus = 'offline'; updateSyncUI(); return; }
   syncStatus = 'busy'; updateSyncUI();
   try {
-    if (isLegacyCode(settings.syncCode)) { await upgradeLegacySync(); return; }
     const { id, key } = await deriveSyncKeys(settings.syncCode);
     const d = await syncCall('get', { id });
     if (!d.ok) throw new Error(d.error || 'Pull failed');
@@ -3317,7 +3269,7 @@ function setCarHue(deg){
 }
 
 async function clearAllData(){
-  const code=settings.syncCode, cloud=!!code&&!isLegacyCode(code);
+  const code=settings.syncCode, cloud=!!code;
   if(!confirm('Delete ALL sessions, skills, and settings? This cannot be undone.'+(cloud?' This also deletes your cloud copy and turns off the parent link.':'')))return;
   if(cloud){
     // Remove the encrypted blob and the live parent id from the server before the codes are forgotten here
@@ -3343,7 +3295,7 @@ async function clearAllData(){
 // EXPORT / IMPORT / PRINT
 // ═══════════════════════════════════════════════════
 // Sync secrets stay on the device: an export file can be emailed or uploaded anywhere
-const DEVICE_ONLY_SETTINGS=['syncCode','parentToken','parent','parentAt','legacyPendingDelete','syncDirty'];
+const DEVICE_ONLY_SETTINGS=['syncCode','parentToken','parent','parentAt','syncDirty'];
 function exportPayload(){
   const s={...settings};for(const k of DEVICE_ONLY_SETTINGS)delete s[k];
   return{settings:s,sessions,skills:skillsData,deleted:tombstoneList(),exported:new Date().toISOString()};

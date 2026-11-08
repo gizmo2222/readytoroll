@@ -11,8 +11,8 @@
 //
 // Storage: rtr-sync-data/v2/{id}.blob (the data folder is denied to the web).
 //
-// Legacy (v1) files — rtr-sync-data/{CODE}.json, plaintext, named by sync
-// code — are only read and deleted, by the app's one-time upgrade.
+// Expiry: blobs (and revoked-link markers) not written for 12 months are deleted
+// by a sweep that runs at most once a day. A put refreshes the clock; a get does not.
 
 // ── CORS: only the app's own site may call this ──────────────────────────────
 // Browsers set Origin themselves, so another website can't pretend to be us.
@@ -40,6 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 define('DATA_DIR', __DIR__ . '/rtr-sync-data/');
 define('BLOB_DIR', DATA_DIR . 'v2/');
 define('MAX_BLOB_BYTES', 3 * 1024 * 1024); // 3 MB per blob (encryption adds ~35%)
+define('BLOB_TTL_DAYS', 365);               // blobs not written for this long are swept
 
 // Deny the data folder to the web on Apache 2.4 (Require) and 2.2 (Deny). Checked on every
 // request, so a missing or older file (2.2 syntax only) is put right without a deploy step.
@@ -104,14 +105,26 @@ function blobPath($in) {
 function isParentId($in) { return strlen($in['id']) === 32; }   // blobPath() has validated it
 function revokedPath($in) { return BLOB_DIR . $in['id'] . '.revoked'; }
 
-// Legacy sync codes: 8 characters from the old alphabet
-function legacyPath($in) {
-    $raw  = $in['code'] ?? '';
-    if (!is_string($raw)) err('Invalid code');
-    $code = preg_replace('/[^A-Z0-9]/', '', strtoupper($raw));
-    if (strlen($code) !== 8) err('Invalid code');
-    return DATA_DIR . $code . '.json';
+// ── Expiry sweep: at most once a day, never fails the request ────────────────
+function sweepExpired() {
+    $fh = @fopen(DATA_DIR . '.last-sweep', 'c+');
+    if (!$fh) return;
+    if (@flock($fh, LOCK_EX | LOCK_NB)) {
+        clearstatcache(true, DATA_DIR . '.last-sweep');
+        $m = @filemtime(DATA_DIR . '.last-sweep');
+        if (!$m || @filesize(DATA_DIR . '.last-sweep') === 0 || time() - $m > 86400) {
+            @fwrite($fh, '1'); @fflush($fh);   // non-empty from now on, so only the mtime says when it ran
+            @touch(DATA_DIR . '.last-sweep');
+            $cut = time() - BLOB_TTL_DAYS * 86400;
+            foreach ((array)@glob(BLOB_DIR . '*.{blob,revoked}', GLOB_BRACE) as $f) {
+                if (is_file($f) && @filemtime($f) < $cut) @unlink($f);
+            }
+        }
+        @flock($fh, LOCK_UN);
+    }
+    @fclose($fh);
 }
+if (in_array($action, ['get', 'put', 'delete'], true)) sweepExpired();
 
 switch ($action) {
 
@@ -159,30 +172,6 @@ switch ($action) {
         // stops a stale device from re-creating it with a later put
         if (isParentId($in)) @touch(revokedPath($in));
         if (file_exists($path)) @unlink($path);
-        respond(['ok' => true]);
-
-    // ── Legacy: read an old plaintext sync file (one-time upgrade) ────────
-    case 'legacy_pull':
-        rateLimit('legacy', 30, 60);
-        rateLimit('legacy', 300, 3600, true);   // codes are short: cap guessing across all clients
-        $path = legacyPath($in);
-        if (!file_exists($path)) err('Sync code not found', 404);
-        $data = json_decode(file_get_contents($path), true) ?: [];
-        respond(['ok' => true, 'sessions' => $data['sessions'] ?? []]);
-
-    // ── Legacy: delete an old plaintext sync file and its parent link ─────
-    case 'legacy_delete':
-        rateLimit('legacy', 30, 60);
-        rateLimit('legacy', 300, 3600, true);   // codes are short: cap guessing across all clients
-        $path = legacyPath($in);
-        if (file_exists($path)) {
-            $data  = json_decode(file_get_contents($path), true) ?: [];
-            $token = (string)($data['parentToken'] ?? '');
-            if (preg_match('/^[0-9a-f]{32}$/', $token) && file_exists(DATA_DIR . $token . '.parent')) {
-                @unlink(DATA_DIR . $token . '.parent');
-            }
-            @unlink($path);
-        }
         respond(['ok' => true]);
 
     default:

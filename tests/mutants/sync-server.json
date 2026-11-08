@@ -100,16 +100,6 @@
     "why": "data dir exposed"
   },
   {
-    "id": "sync-server-11",
-    "file": "rtr-sync.php",
-    "find": "respond(['ok' => true, 'sessions' => $data['sessions'] ?? []]);",
-    "replace": "respond(['ok' => true] + $data);",
-    "spec": [
-      "tests/sync-server.spec.js"
-    ],
-    "why": "legacy_pull leaks whole file"
-  },
-  {
     "id": "sync-server-12",
     "file": "rtr-sync.php",
     "find": "strtolower(trim((string)($in['action']",
@@ -118,16 +108,6 @@
       "tests/sync-server.spec.js"
     ],
     "why": "action not trimmed"
-  },
-  {
-    "id": "sync-server-13",
-    "file": "rtr-sync.php",
-    "find": "if (strlen($code) !== 8)",
-    "replace": "if (strlen($code) < 8)",
-    "spec": [
-      "tests/sync-server.spec.js"
-    ],
-    "why": "legacy code length"
   },
   {
     "id": "sync-server-14",
@@ -148,5 +128,25 @@
       "tests/sync-server.spec.js"
     ],
     "why": "delete shares get counter"
+  },
+  {
+    "id": "sync-server-sweep-1",
+    "file": "rtr-sync.php",
+    "find": "time() - $m > 86400",
+    "replace": "true",
+    "spec": [
+      "tests/sync-server.spec.js"
+    ],
+    "why": "sweep runs on every request"
+  },
+  {
+    "id": "sync-server-sweep-2",
+    "file": "rtr-sync.php",
+    "find": "@filemtime($f) < $cut",
+    "replace": "false",
+    "spec": [
+      "tests/sync-server.spec.js"
+    ],
+    "why": "sweep deletes nothing"
   }
 ]

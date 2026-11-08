@@ -1,4 +1,4 @@
-// Real rtr-sync.php under `php -S`: CORS, blob put/get/delete, validation, size cap, rate limits, legacy v1 files.
+// Real rtr-sync.php under `php -S`: CORS, blob put/get/delete, validation, size cap, rate limits, 12-month expiry sweep.
 const { test, expect, appRoot } = require('./helpers');
 const fs = require('fs');
 const os = require('os');
@@ -172,7 +172,7 @@ test('an id with a trailing newline is rejected', async () => {
   expect([r.status, r.json.error]).toEqual([400, 'Invalid id']);
 });
 
-test('path traversal in ids and legacy codes cannot reach other files', async () => {
+test('path traversal in ids cannot reach other files', async () => {
   const secret = path.join(path.dirname(dataDir), 'secret.blob');
   fs.writeFileSync(secret, sealed('secret'));
   const ids = ['../../secret', '../' + 'a'.repeat(29), 'a'.repeat(32) + '/../../../secret', '..%2f' + 'a'.repeat(28),
@@ -185,11 +185,6 @@ test('path traversal in ids and legacy codes cannot reach other files', async ()
   }
   expect(fs.readFileSync(secret, 'utf8')).toBe(sealed('secret'));
   expect(blobFiles()).toEqual([]);
-  // legacy: separators and dots are stripped, so only 8 clean characters ever form a file name
-  const lp = await call({ action: 'legacy_pull', code: '../../secret' });
-  expect([lp.status, lp.json.error]).toEqual([400, 'Invalid code']);
-  const ld = await call({ action: 'legacy_delete', code: '..\\..\\x' });
-  expect(ld.status).toBe(400);
   expect(fs.existsSync(secret)).toBe(true);
 });
 
@@ -236,7 +231,7 @@ test('wrong method, malformed JSON and unknown actions are rejected cleanly', as
     const r = await call(null, { raw });
     expect([r.status, r.json && r.json.error], JSON.stringify(raw)).toEqual([400, 'Invalid request']);
   }
-  for (const action of ['', 'list', 'purge', 'legacy', 'get2', 5, null]) {
+  for (const action of ['', 'list', 'purge', 'legacy', 'legacy_pull', 'legacy_delete', 'get2', 5, null]) {
     const r = await call({ action, id: ID1 });
     expect([r.status, r.json.error], String(action)).toEqual([400, 'Unknown action']);
   }
@@ -286,11 +281,9 @@ test('rate limit: a corrupt or future-dated counter file starts a fresh window i
   resetRl();
 });
 
-test('rate limit: legacy calls and new blobs also have a server-wide hourly cap', async () => {
+test('rate limit: new blobs also have a server-wide hourly cap', async () => {
   resetRl();
   const now = Math.floor(Date.now() / 1000);
-  fs.writeFileSync(path.join(rlDir, 'rtr_rl_all_legacy'), JSON.stringify({ count: 300, start: now }));
-  expect((await call({ action: 'legacy_pull', code: 'ZZZZ9999' })).status).toBe(429);
   fs.writeFileSync(path.join(rlDir, 'rtr_rl_all_create'), JSON.stringify({ count: 500, start: now }));
   expect((await put('e'.repeat(32), sealed())).status).toBe(429);
   expect(blobFiles()).not.toContain('e'.repeat(32) + '.blob');
@@ -314,43 +307,65 @@ test('stored files hold exactly the blob and nothing else (no id, code, headers 
   expect(blobFiles()).toEqual([ID2 + '.blob']);
   expect(fs.readFileSync(path.join(blobDir, ID2 + '.blob'), 'utf8')).toBe(blob);
   expect(fs.readdirSync(dataDir).filter(f => f !== 'secret.blob' && !f.endsWith('.json') && !f.endsWith('.parent')).sort())
-    .toEqual(['.htaccess', 'v2']);
+    .toEqual(['.htaccess', '.last-sweep', 'v2']);
   await call({ action: 'delete', id: ID2 });
 });
 
-test('legacy_pull returns only sessions; invalid and missing codes are rejected', async () => {
-  const sessions = [{ id: 's1', duration: 30 }, { id: 's2', duration: 45 }];
-  fs.writeFileSync(path.join(dataDir, 'ABCD2345.json'), JSON.stringify({ sessions, parentToken: 'c'.repeat(32), notes: 'x' }));
-  const r = await call({ action: 'legacy_pull', code: 'abcd-2345' });   // lower case and separators are normalised
-  expect(r.status).toBe(200);
-  expect(r.json).toEqual({ ok: true, sessions });
-  expect((await call({ action: 'legacy_pull', code: 'ZZZZ9999' })).status).toBe(404);
-  for (const code of ['', 'ABC', 'ABCDEFGHI', 'ABCD234', undefined]) {
-    const x = await call({ action: 'legacy_pull', code });
-    expect([x.status, x.json.error], String(code)).toEqual([400, 'Invalid code']);
+test('the legacy v1 actions are gone: legacy_pull and legacy_delete are unknown actions', async () => {
+  fs.writeFileSync(path.join(dataDir, 'ABCD2345.json'), JSON.stringify({ sessions: [{ id: 's1' }] }));
+  for (const action of ['legacy_pull', 'legacy_delete']) {
+    const r = await call({ action, code: 'ABCD2345' });
+    expect([r.status, r.json.error], action).toEqual([400, 'Unknown action']);
   }
-  fs.writeFileSync(path.join(dataDir, 'NODATA11.json'), 'garbage');
-  expect((await call({ action: 'legacy_pull', code: 'NODATA11' })).json).toEqual({ ok: true, sessions: [] });
+  expect(fs.existsSync(path.join(dataDir, 'ABCD2345.json'))).toBe(true);   // never touched
+  fs.rmSync(path.join(dataDir, 'ABCD2345.json'));
 });
 
-test('legacy_delete removes the legacy file and its parent link, and is idempotent', async () => {
-  const token = 'd'.repeat(32);
-  const legacy = path.join(dataDir, 'LEGACY99.json');
-  const parent = path.join(dataDir, token + '.parent');
-  const other = path.join(dataDir, 'e'.repeat(32) + '.parent');
-  fs.writeFileSync(legacy, JSON.stringify({ sessions: [], parentToken: token }));
-  fs.writeFileSync(parent, '{}');
-  fs.writeFileSync(other, '{}');
-  expect((await call({ action: 'legacy_delete', code: 'legacy99' })).json).toEqual({ ok: true });
-  expect(fs.existsSync(legacy)).toBe(false);
-  expect(fs.existsSync(parent)).toBe(false);
-  expect(fs.existsSync(other)).toBe(true);
-  expect((await call({ action: 'legacy_delete', code: 'LEGACY99' })).json).toEqual({ ok: true });
-  // a bad parentToken (not 32 hex) is never turned into a path
-  const evilTarget = path.join(path.dirname(dataDir), 'victim.parent');
-  fs.writeFileSync(evilTarget, 'keep');
-  fs.writeFileSync(path.join(dataDir, 'EVILTOK1.json'), JSON.stringify({ sessions: [], parentToken: '../victim' }));
-  expect((await call({ action: 'legacy_delete', code: 'EVILTOK1' })).json.ok).toBe(true);
-  expect(fs.existsSync(evilTarget)).toBe(true);
-  expect(fs.existsSync(path.join(dataDir, 'EVILTOK1.json'))).toBe(false);
+// ── expiry sweep ──
+const DAY = 86400 * 1000;
+const stamp = () => path.join(dataDir, '.last-sweep');
+const ageFile = (f, days) => { const t = new Date(Date.now() - days * DAY); fs.utimesSync(f, t, t); };
+const mkBlob = (name, days) => { const f = path.join(blobDir, name); fs.writeFileSync(f, sealed()); ageFile(f, days); return f; };
+
+test('a sweep removes blobs and revoked markers older than 12 months, keeps fresh ones, and get does not refresh', async () => {
+  resetRl();
+  const old = mkBlob('1'.repeat(32) + '.blob', 400);
+  const fresh = mkBlob('2'.repeat(32) + '.blob', 30);
+  const staleRev = mkBlob('3'.repeat(32) + '.revoked', 400);
+  const freshRev = mkBlob('4'.repeat(32) + '.revoked', 10);
+  fs.rmSync(stamp(), { force: true });
+  expect((await call({ action: 'get', id: ID1 })).status).toBe(404);
+  expect(fs.existsSync(old)).toBe(false);
+  expect(fs.existsSync(staleRev)).toBe(false);
+  expect(fs.existsSync(fresh)).toBe(true);
+  expect(fs.existsSync(freshRev)).toBe(true);
+  expect(Date.now() - fs.statSync(stamp()).mtimeMs).toBeLessThan(60000);
+  // get leaves mtime alone; put refreshes it
+  const before = fs.statSync(fresh).mtimeMs;
+  expect((await call({ action: 'get', id: '2'.repeat(32) })).json.ok).toBe(true);
+  expect(fs.statSync(fresh).mtimeMs).toBe(before);
+  fs.rmSync(fresh); fs.rmSync(freshRev);
+});
+
+test('an old blob refreshed by a put survives the sweep', async () => {
+  resetRl();
+  const id = '5'.repeat(32);
+  const f = mkBlob(id + '.blob', 400);
+  const now = new Date(); fs.utimesSync(stamp(), now, now);   // no sweep on the put itself
+  expect((await put(id, sealed('new'))).json.ok).toBe(true);
+  ageFile(stamp(), 2);
+  await call({ action: 'get', id: ID1 });
+  expect(fs.existsSync(f)).toBe(true);
+  await call({ action: 'delete', id });
+});
+
+test('a second sweep within a day does not run', async () => {
+  resetRl();
+  const old = mkBlob('6'.repeat(32) + '.blob', 400);
+  const now = new Date(); fs.utimesSync(stamp(), now, now);
+  await call({ action: 'get', id: ID1 });
+  expect(fs.existsSync(old)).toBe(true);
+  ageFile(stamp(), 2);                       // a day has passed: the next request sweeps
+  await call({ action: 'get', id: ID1 });
+  expect(fs.existsSync(old)).toBe(false);
 });
