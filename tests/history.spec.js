@@ -88,7 +88,7 @@ test('tapping a row opens its detail modal', async ({ page }) => {
 });
 
 // BUG: the search box value is interpolated into value="..." unescaped, so a quote in the query breaks out of the attribute.
-test.fixme('search text is escaped when the toolbar is re-rendered', async ({ page }) => {
+test('search text is escaped when the toolbar is re-rendered', async ({ page }) => {
   await openHistory(page, { sessions: SESSIONS() });
   await page.evaluate(() => { historySearch = '"><img src=x onerror="window.__xss=1">'; renderHistory(); });
   await page.waitForTimeout(100);

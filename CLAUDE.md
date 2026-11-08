@@ -12,7 +12,7 @@ and an end-to-end-encrypted cloud sync with a read-only parent view. Live at
 - Weather: Open-Meteo (free, no key)
 - Geocoding: Nominatim/OpenStreetMap
 - Sync backend: `rtr-sync.php` (flat-file PHP, SFTP-deployed via GitHub Actions). **End-to-end encrypted**: the app seals everything with WebCrypto before upload; the server only stores blobs by ID and can't read them. Never send drive data, the sync code, or keys to the server in the clear. The parent summary (`parentSummary()`) must not include routes, locations/addresses, supervisor details or notes. See README → Cloud Sync Backend.
-- Service worker: `rtr-service-worker.js` (cache name `rtr-v5`, network-first for HTML), registered with scope `./readytoroll.html` so it never controls other metacrystal.com pages. PWA files are all `rtr-`-prefixed. Bump the cache name when cached assets change.
+- Service worker: `rtr-service-worker.js` (cache name `rtr-v6`, network-first for HTML), registered with scope `./readytoroll.html` so it never controls other metacrystal.com pages. PWA files are all `rtr-`-prefixed. Bump the cache name when cached assets change.
 
 ## Storage
 `localStorage` keys: `rtr_settings`, `rtr_sessions`, `rtr_skills`, `rtr_milestones`, `rtr_deleted`
@@ -37,7 +37,7 @@ npm install
 npx playwright install chromium
 ```
 
-Run the suite (227 tests, 7 of them `test.fixme` for known bugs; under a minute; it starts its own server on port 4173).
+Run the suite (238 tests, 3 of them `test.fixme` for known bugs; under a minute; it starts its own server on port 4173).
 `tests/sync-server.spec.js` runs the real `rtr-sync.php` under `php -S` and skips itself if `php` is not on PATH:
 
 ```powershell

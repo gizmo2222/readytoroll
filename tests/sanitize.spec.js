@@ -147,6 +147,27 @@ test('parent summary keeps only known tags and the parent view escapes what it s
   expect(await page.evaluate(() => window.__pwned)).toBeUndefined();
 });
 
+test('a forged parent blob cannot inject markup through the hour requirements or sessions', async ({ page }) => {
+  await openApp(page, { settings: { syncCode: 'ABCDEFGHJKLM' } });
+  const link = await page.evaluate(async img => {
+    const p = { token: toHex(randomBytes(16)), key: b64u.enc(randomBytes(32)) };
+    // A blob written by someone holding the parent token: numbers replaced with markup, junk sessions
+    const forged = { v: 2, driverName: 'Sam', reqs: { total: img, night: img, inclement: img, stateName: img },
+      sessions: [{ id: 'ok1', startTime: '2026-10-01T21:00:00.000Z', duration: 90, tags: [] },
+        { id: img, startTime: img, duration: img }, 'junk', null] };
+    await syncCall('put', { id: p.token, blob: await seal(await importParentKey(p.key), forged) });
+    return `/readytoroll.html?parent=${p.token}#k=${p.key}`;
+  }, IMG);
+  await page.goto(link);
+  await expect(page.locator('#parent-content')).toContainText('1.5');
+  await expect(page.locator('#parent-content')).toContainText('/ 50 hrs');
+  await expect(page.locator('#parent-content')).toContainText('/ 10 night hrs');
+  const h = await html(page, '#parent-content');
+  expect(h).not.toContain('<img');
+  expect(h).not.toContain('NaN');
+  expect(await page.evaluate(() => window.__pwned)).toBeUndefined();
+});
+
 test('synced sessions go through the same cleaner as imports', async ({ page }) => {
   await openApp(page);
   const r = await page.evaluate(img => {
@@ -178,4 +199,36 @@ test('print log escapes the driver name and survives a bad skill entry', async (
     return skillsData;
   });
   expect(skills).toEqual({ braking: { status: 'in_progress' } });
+});
+
+test('imported timestamps are normalised: a far-future updatedAt is clamped, a bad one dropped, a bad tombstone date is epoch', async ({ page }) => {
+  await openApp(page);
+  const r = await page.evaluate(() => {
+    const base = { startTime: '2026-10-01T18:00:00Z', duration: 30 };
+    const a = cleanImportedSession({ ...base, id: 'ts1', updatedAt: '9999-01-01T00:00:00Z', endTime: '2026-10-01T11:30:00-07:00' });
+    const b = cleanImportedSession({ ...base, id: 'ts2', updatedAt: 'not a date', endTime: { evil: 1 } });
+    const t = addTombstones(new Map(), [{ id: 'x1', at: '9999-12-31T00:00:00Z' }, { id: 'x2', at: 'junk' }, { id: 'x3', at: 42 }]);
+    return { a, b, now: Date.now(), t: [...t] };
+  });
+  expect(Date.parse(r.a.updatedAt)).toBeLessThanOrEqual(r.now);
+  expect(r.a.endTime).toBe('2026-10-01T18:30:00.000Z');
+  expect(r.b).not.toHaveProperty('updatedAt');
+  expect(r.b).not.toHaveProperty('endTime');
+  expect(Date.parse(r.t[0][1])).toBeLessThanOrEqual(r.now);
+  expect(r.t.slice(1)).toEqual([['x2', '1970-01-01T00:00:00.000Z'], ['x3', '1970-01-01T00:00:00.000Z']]);
+});
+
+test('imported start and end locations keep only finite coordinates and short text', async ({ page }) => {
+  await openApp(page);
+  const r = await page.evaluate(img => cleanImportedSession({
+    id: 'loc1', startTime: '2026-10-01T18:00:00Z', duration: 30,
+    startLocation: { lat: '37', lng: Infinity, city: img, address: 'x'.repeat(5000), extra: { deep: 1 } },
+    endLocation: [1, 2],
+  }), IMG);
+  expect(r.startLocation.lat).toBeNull();
+  expect(r.startLocation.lng).toBeNull();
+  expect(r.startLocation.city).toBe(IMG);              // kept as text; rendering escapes it
+  expect(r.startLocation.address).toHaveLength(200);
+  expect(r.startLocation).not.toHaveProperty('extra');
+  expect(r.endLocation).toBeNull();
 });

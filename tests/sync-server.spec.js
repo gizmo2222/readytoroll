@@ -60,7 +60,9 @@ test.afterAll(() => {
   if (tmp) fs.rmSync(tmp, { recursive: true, force: true });
 });
 
-test.beforeEach(() => { if (rlDir) resetRl(); });
+// Revoked-parent markers from an earlier test's clean-up delete must not leak into the next test
+const clearRevoked = () => { for (const f of blobFiles()) if (f.endsWith('.revoked')) fs.rmSync(path.join(blobDir, f), { force: true }); };
+test.beforeEach(() => { if (rlDir) resetRl(); if (blobDir) clearRevoked(); });
 
 test('CORS: same-host and allowed origins pass, foreign origin gets 403, no Origin is fine', async () => {
   for (const origin of [base, 'https://metacrystal.com', 'https://www.metacrystal.com']) {
@@ -116,6 +118,22 @@ test('put/get/delete round trip; first request creates the data folder with a de
   expect((await call({ action: 'delete', id: ID1 })).json).toEqual({ ok: true });   // idempotent
 });
 
+test('a deleted parent id (32 hex) stays revoked; a deleted sync id (64 hex) can be stored again', async () => {
+  expect((await put(ID1, sealed('parent'))).json.ok).toBe(true);
+  expect((await call({ action: 'delete', id: ID1 })).json).toEqual({ ok: true });
+  expect(fs.readFileSync(path.join(blobDir, ID1 + '.revoked'), 'utf8')).toBe('');   // an empty marker, no data
+  const again = await put(ID1, sealed('stale device'));
+  expect([again.status, again.json]).toEqual([410, { ok: false, error: 'Revoked' }]);
+  expect((await call({ action: 'get', id: ID1 })).status).toBe(404);
+  expect(blobFiles()).not.toContain(ID1 + '.blob');
+  // a sync blob comes back when a device reconnects with the same code
+  expect((await put(ID2, sealed('sync'))).json.ok).toBe(true);
+  await call({ action: 'delete', id: ID2 });
+  expect(blobFiles()).not.toContain(ID2 + '.revoked');
+  expect((await put(ID2, sealed('sync again'))).json.ok).toBe(true);
+  await call({ action: 'delete', id: ID2 });
+});
+
 test('get of a missing blob is 404; 64-char ids work and action is case-insensitive', async () => {
   const miss = await call({ action: 'get', id: ID2 });
   expect(miss.status).toBe(404);
@@ -141,7 +159,7 @@ test('invalid ids are rejected on get, put and delete', async () => {
 
 // BUG: a non-string id (object/array) triggers PHP "Array to string conversion"; with display_errors on, the warning
 // (including the server file path) is printed before the JSON, so the client gets a non-JSON body.
-test.fixme('non-string ids get a clean JSON 400 without PHP warnings in the body', async () => {
+test('non-string ids get a clean JSON 400 without PHP warnings in the body', async () => {
   const r = await call({ action: 'get', id: {} });
   expect(r.status).toBe(400);
   expect(r.json).toEqual({ ok: false, error: 'Invalid id' });
@@ -149,7 +167,7 @@ test.fixme('non-string ids get a clean JSON 400 without PHP warnings in the body
 
 // BUG: the id regex ends in `$` without the D modifier, so a valid id plus a trailing newline passes validation
 // and addresses a different (newline-named) file instead of being rejected.
-test.fixme('an id with a trailing newline is rejected', async () => {
+test('an id with a trailing newline is rejected', async () => {
   const r = await call({ action: 'get', id: ID1 + '\n' });
   expect([r.status, r.json.error]).toEqual([400, 'Invalid id']);
 });
@@ -253,6 +271,41 @@ test('rate limit: only new blobs count toward the 10-per-5-minutes create limit'
   for (let i = 0; i < 5; i++) expect((await put(mk(1), sealed('upd' + i))).status).toBe(200);   // replacing is not a create
   expect((await call({ action: 'get', id: mk(1) })).json.blob).toBe(sealed('upd4'));
   for (let i = 1; i <= 10; i++) await call({ action: 'delete', id: mk(i) });
+});
+
+test('rate limit: a corrupt or future-dated counter file starts a fresh window instead of failing open or locking out', async () => {
+  resetRl();
+  const ip = crypto.createHash('md5').update('127.0.0.1').digest('hex');
+  const file = path.join(rlDir, `rtr_rl_${ip}_get`);
+  fs.writeFileSync(file, JSON.stringify({ count: 1e6, start: Math.floor(Date.now() / 1000) + 86400 }));
+  expect((await call({ action: 'get', id: ID2 })).status).toBe(404);
+  expect(JSON.parse(fs.readFileSync(file, 'utf8')).count).toBe(1);
+  fs.writeFileSync(file, '{"count":"9999","start":"x"}');
+  expect((await call({ action: 'get', id: ID2 })).status).toBe(404);
+  expect(JSON.parse(fs.readFileSync(file, 'utf8')).count).toBe(1);
+  resetRl();
+});
+
+test('rate limit: legacy calls and new blobs also have a server-wide hourly cap', async () => {
+  resetRl();
+  const now = Math.floor(Date.now() / 1000);
+  fs.writeFileSync(path.join(rlDir, 'rtr_rl_all_legacy'), JSON.stringify({ count: 300, start: now }));
+  expect((await call({ action: 'legacy_pull', code: 'ZZZZ9999' })).status).toBe(429);
+  fs.writeFileSync(path.join(rlDir, 'rtr_rl_all_create'), JSON.stringify({ count: 500, start: now }));
+  expect((await put('e'.repeat(32), sealed())).status).toBe(429);
+  expect(blobFiles()).not.toContain('e'.repeat(32) + '.blob');
+  resetRl();
+});
+
+test('an old 2.2-only .htaccess is replaced with one that also denies on Apache 2.4', async () => {
+  const ht = path.join(dataDir, '.htaccess');
+  fs.writeFileSync(ht, 'Options -Indexes' + String.fromCharCode(10) + 'Deny from all' + String.fromCharCode(10));
+  await call({ action: 'get', id: ID2 });
+  const text = fs.readFileSync(ht, 'utf8');
+  expect(text).toContain('Require all denied');
+  expect(text).toContain('Deny from all');
+  expect(text).toContain('Options -Indexes');
+  resetRl();
 });
 
 test('stored files hold exactly the blob and nothing else (no id, code, headers or metadata)', async () => {

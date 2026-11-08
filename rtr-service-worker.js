@@ -6,7 +6,7 @@
 // else goes straight to the network untouched.
 'use strict';
 
-const CACHE = 'rtr-v5';
+const CACHE = 'rtr-v6';   // v6: Leaflet loads with SRI, so old opaque copies must go
 const STATIC = [
   './readytoroll.html',
   './rtr-manifest.json',

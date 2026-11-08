@@ -71,14 +71,22 @@ const test = base.extend({
 async function openApp(page, opts = {}) {
   if (!page._rtrErrHook) { page._rtrErrHook = true; page.on('pageerror', e => pageErrors.push(String(e))); }
   const store = opts.store || new Map();
+  const revoked = store.revoked || (store.revoked = new Set());   // deleted parent ids; rides on the shared store
   const calls = [];
   const external = [];
   const weather = Object.assign({ code: 0, is_day: 1, temp: 60 }, opts.weather || {});
 
   // Registered first = matched last: abort anything not stubbed below
   await page.route(/^https?:\/\/(?!127\.0\.0\.1)/, route => { external.push(route.request().url()); route.abort(); });
-  await page.route('https://unpkg.com/leaflet@*/dist/leaflet.js', r => r.fulfill({ contentType: 'text/javascript', body: LEAFLET_JS }));
-  await page.route('https://unpkg.com/leaflet@*/dist/leaflet.css', r => r.fulfill({ contentType: 'text/css', body: '' }));
+  // The app loads Leaflet with SRI hashes of the real files; the fake ones can't match, so the page's
+  // integrity attributes are stripped here (crossorigin stays, so the stubs send CORS headers)
+  const cors = { 'Access-Control-Allow-Origin': '*' };
+  await page.route('https://unpkg.com/leaflet@*/dist/leaflet.js', r => r.fulfill({ contentType: 'text/javascript', headers: cors, body: LEAFLET_JS }));
+  await page.route('https://unpkg.com/leaflet@*/dist/leaflet.css', r => r.fulfill({ contentType: 'text/css', headers: cors, body: '' }));
+  await page.route(/^http:\/\/127\.0\.0\.1:\d+\/readytoroll\.html/, async r => {
+    const res = await r.fetch();
+    r.fulfill({ response: res, body: (await res.text()).replace(/ integrity="sha256-[^"]+"/g, '') });
+  });
   await page.route('https://*.tile.openstreetmap.org/**', r => r.fulfill({ status: 204, body: '' }));
   await page.route('https://api.open-meteo.com/**', r => json(r, { current: {
     temperature_2m: weather.temp, weather_code: weather.code, wind_speed_10m: 5, is_day: weather.is_day } }));
@@ -94,9 +102,10 @@ async function openApp(page, opts = {}) {
     if (body.action === 'put') {
       const s = JSON.parse(body.blob);   // same shape check as rtr-sync.php
       if (s.v !== 2 || typeof s.iv !== 'string' || typeof s.ct !== 'string') return json(route, { ok: false, error: 'Invalid payload' }, 400);
+      if (revoked.has(body.id)) return json(route, { ok: false, error: 'Revoked' }, 410);   // as rtr-sync.php
       store.set(body.id, body.blob); return json(route, { ok: true, updatedAt: new Date().toISOString() });
     }
-    if (body.action === 'delete') { store.delete(body.id); return json(route, { ok: true }); }
+    if (body.action === 'delete') { if (String(body.id).length === 32) revoked.add(body.id); store.delete(body.id); return json(route, { ok: true }); }
     return json(route, { ok: false, error: 'Unknown action' }, 400);
   });
 

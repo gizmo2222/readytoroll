@@ -56,7 +56,7 @@ const lifecycle = async (w, type) => { let p; w.handlers[type]({ waitUntil: x =>
 test('install caches STATIC assets and skips waiting', async () => {
   const w = loadWorker();
   await lifecycle(w, 'install');
-  const cached = [...w.store.get('rtr-v5').keys()];
+  const cached = [...w.store.get('rtr-v6').keys()];
   expect(cached).toEqual(expect.arrayContaining(['./readytoroll.html', './rtr-manifest.json', './rtr-icon-192.svg', './rtr-icon-512.svg']));
   expect(cached.some(u => u.includes('leaflet.js'))).toBe(true);
   expect(w.log.skipWaiting).toBe(1);
@@ -65,16 +65,16 @@ test('install caches STATIC assets and skips waiting', async () => {
 test('install survives CDN failures and still caches local files', async () => {
   const w = loadWorker({ fetchImpl: u => { if (u.startsWith('https://unpkg.com')) throw new TypeError('offline'); return new Response('ok'); } });
   await lifecycle(w, 'install');   // must not reject
-  const cached = [...w.store.get('rtr-v5').keys()];
+  const cached = [...w.store.get('rtr-v6').keys()];
   expect(cached).toContain('./readytoroll.html');
   expect(cached.some(u => u.includes('unpkg.com'))).toBe(false);
 });
 
 test('activate deletes old rtr- caches, keeps current and non-rtr ones', async () => {
-  const w = loadWorker({ caches: { 'rtr-v4': {}, 'rtr-v1': {}, 'rtr-v5': { a: 1 }, 'other-app': {}, 'workbox-x': {} } });
+  const w = loadWorker({ caches: { 'rtr-v5': {}, 'rtr-v4': {}, 'rtr-v1': {}, 'rtr-v6': { a: 1 }, 'other-app': {}, 'workbox-x': {} } });
   await lifecycle(w, 'activate');
-  expect([...w.store.keys()].sort()).toEqual(['other-app', 'rtr-v5', 'workbox-x']);
-  expect(w.log.deleted.sort()).toEqual(['rtr-v1', 'rtr-v4']);
+  expect([...w.store.keys()].sort()).toEqual(['other-app', 'rtr-v6', 'workbox-x']);
+  expect(w.log.deleted.sort()).toEqual(['rtr-v1', 'rtr-v4', 'rtr-v5']);
   expect(w.log.claimed).toBe(1);
 });
 
@@ -89,24 +89,24 @@ test('non-GET requests and foreign hosts are left to the browser', async () => {
 });
 
 test('HTML is network-first and refreshes the cached copy when ok', async () => {
-  const w = loadWorker({ caches: { 'rtr-v5': { './readytoroll.html': new Response('old') } } });
+  const w = loadWorker({ caches: { 'rtr-v6': { './readytoroll.html': new Response('old') } } });
   const { response } = await doFetch(w, ORIGIN + '/readytoroll.html');
   expect(await response.text()).toBe('net:' + ORIGIN + '/readytoroll.html');
   await settle();
-  expect(await w.store.get('rtr-v5').get('./readytoroll.html').text()).toBe('net:' + ORIGIN + '/readytoroll.html');
+  expect(await w.store.get('rtr-v6').get('./readytoroll.html').text()).toBe('net:' + ORIGIN + '/readytoroll.html');
 });
 
 test('HTML falls back to the cached copy offline, and a bad response is not cached', async () => {
   const cachedPage = new Response('cached');
-  const w = loadWorker({ caches: { 'rtr-v5': { './readytoroll.html': cachedPage } }, fetchImpl: () => { throw new TypeError('offline'); } });
+  const w = loadWorker({ caches: { 'rtr-v6': { './readytoroll.html': cachedPage } }, fetchImpl: () => { throw new TypeError('offline'); } });
   const { response } = await doFetch(w, ORIGIN + '/readytoroll.html');
   expect(response).toBe(cachedPage);
 
-  const w2 = loadWorker({ caches: { 'rtr-v5': { './readytoroll.html': cachedPage } }, fetchImpl: () => new Response('boom', { status: 500 }) });
+  const w2 = loadWorker({ caches: { 'rtr-v6': { './readytoroll.html': cachedPage } }, fetchImpl: () => new Response('boom', { status: 500 }) });
   const r2 = (await doFetch(w2, ORIGIN + '/readytoroll.html')).response;
   expect(r2.status).toBe(500);   // server error passes through
   await settle();
-  expect(w2.store.get('rtr-v5').get('./readytoroll.html')).toBe(cachedPage);
+  expect(w2.store.get('rtr-v6').get('./readytoroll.html')).toBe(cachedPage);
 });
 
 test('sync, weather and geocoding go live; offline gives an empty JSON answer', async () => {
@@ -127,7 +127,7 @@ test('icons, manifest, unpkg and tiles are cache-first', async () => {
   const urls = [ORIGIN + '/rtr-manifest.json', ORIGIN + '/rtr-icon-192.svg', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', 'https://a.tile.openstreetmap.org/1/2/3.png'];
   for (const u of urls) {
     const hit = new Response('hit');
-    const w = loadWorker({ caches: { 'rtr-v5': { [u]: hit } } });
+    const w = loadWorker({ caches: { 'rtr-v6': { [u]: hit } } });
     const { response } = await doFetch(w, u);
     expect(response).toBe(hit);
     expect(w.log.fetched).toEqual([]);   // no network when cached
@@ -141,8 +141,8 @@ test('cache-first misses fetch the network and cache only ok responses', async (
   expect(await (await doFetch(w, good)).response.text()).toBe('body');
   expect((await doFetch(w, bad)).response.status).toBe(404);
   await settle();
-  expect(w.store.get('rtr-v5').has(good)).toBe(true);
-  expect(w.store.get('rtr-v5').has(bad)).toBe(false);
+  expect(w.store.get('rtr-v6').has(good)).toBe(true);
+  expect(w.store.get('rtr-v6').has(bad)).toBe(false);
 });
 
 test('drive-sync background sync notifies every client; other tags do not', async () => {
@@ -183,4 +183,15 @@ test('the page registers the worker with the readytoroll.html scope', async ({ p
   await page.waitForFunction(() => window.__swReg.length > 0);
   expect(await page.evaluate(() => window.__swReg)).toEqual([{ url: './rtr-service-worker.js', opts: { scope: './readytoroll.html' } }]);
   expect(external).toEqual([]);
+});
+
+test('Leaflet loads with SRI hashes and CORS, so a tampered CDN copy is refused', async () => {
+  const html = fs.readFileSync(path.join(appRoot, 'readytoroll.html'), 'utf8');
+  const tags = html.match(/<(?:script|link)[^>]+unpkg\.com[^>]*>/g);
+  expect(tags.length).toBe(2);
+  for (const t of tags) {
+    expect(t).toMatch(/ integrity="sha256-[A-Za-z0-9+/]{43}="/);
+    expect(t).toContain('crossorigin=""');
+    expect(t).toContain('leaflet@1.9.4/');   // a version change needs new hashes
+  }
 });

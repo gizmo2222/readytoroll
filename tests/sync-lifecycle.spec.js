@@ -233,13 +233,35 @@ test('copying the sync code uses the clipboard, falls back to a toast, and survi
   expect(await toastText(page)).toBe('Your code: ABCD-EFGH-2345');
 });
 
-// BUG: copySyncCode and shareParentLink call clipboard.writeText(...).then(toast) with no .catch, so a denied
-// clipboard permission raises an uncaught promise rejection and the user gets no feedback.
-test.fixme('a denied clipboard write toasts instead of throwing', async ({ page }) => {
+// Fixed in phase 4: a denied clipboard write used to raise an uncaught rejection with no feedback
+test('a denied clipboard write toasts instead of throwing', async ({ page }) => {
   await openApp(page, { settings: { syncCode: 'ABCDEFGH2345' } });
-  await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: () => Promise.reject(new Error('denied')) } }));
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: () => Promise.reject(new Error('denied')) } });
+    Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
+  });
   await page.evaluate(() => copySyncCode());
-  await page.waitForTimeout(200);
+  await expect.poll(() => toastText(page)).toBe('Your code: ABCD-EFGH-2345');
+  await page.evaluate(() => shareParentLink());
+  await expect.poll(() => toastText(page)).toContain('?parent=');
+});
+
+test('a failed legacy delete after an upgrade is retried on the next push, and never exported', async ({ page }) => {
+  await openApp(page, { settings: { syncCode: 'ABCD2345' } });
+  const legacy = await legacyServer(page, { sessions: [] });
+  let failDelete = true;
+  await page.route('**/rtr-sync.php', route => {
+    const b = JSON.parse(route.request().postData() || '{}');
+    if (b.action === 'legacy_delete' && failDelete) { legacy.push({ ...b, failed: true }); return reply(route, { ok: false, error: 'Busy' }, 500); }
+    return route.fallback();
+  });
+  expect(await page.evaluate(() => upgradeLegacySync())).toBe(true);
+  expect(await page.evaluate(() => settings.legacyPendingDelete)).toBe('ABCD2345');
+  expect(await page.evaluate(() => JSON.stringify(exportPayload()))).not.toContain('ABCD2345');
+  failDelete = false;
+  await page.evaluate(() => pushSync());
+  expect(legacy.filter(l => l.action === 'legacy_delete').map(l => !!l.failed)).toEqual([true, false]);
+  expect(await page.evaluate(() => settings.legacyPendingDelete)).toBeUndefined();
 });
 
 test('emailing the sync code builds a mailto with the code and the app address only', async ({ page }) => {

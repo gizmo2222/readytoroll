@@ -10,8 +10,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="ReadyToRoll">
   <link rel="apple-touch-icon" href="rtr-icon-192.svg">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <style>
 /* ── 1. CSS Custom Properties ── */
 :root {
@@ -959,10 +959,17 @@ let openSkillTip = null;
 
 // rtr_deleted holds tombstones [{id,at}]; older builds stored plain id strings
 const EPOCH_ISO='1970-01-01T00:00:00.000Z';
+// A stored or synced timestamp as a canonical ISO string, or null if it isn't a date. One more than
+// a day ahead is clamped to now: a far-future tombstone or edit time would otherwise win every merge.
+function cleanIso(v){
+  if(typeof v!=='string')return null;
+  const t=Date.parse(v);if(!Number.isFinite(t))return null;
+  const now=Date.now();return new Date(t>now+864e5?now:t).toISOString();
+}
 function addTombstones(map,list){
   for(const d of Array.isArray(list)?list:[]){
-    const id=typeof d==='string'?d:d&&d.id;if(!id)continue;
-    const at=(d&&typeof d.at==='string'&&d.at)||EPOCH_ISO;
+    const id=typeof d==='string'?d:d&&d.id;if(typeof id!=='string'||!id)continue;
+    const at=(d&&cleanIso(d.at))||EPOCH_ISO;
     if(!map.has(id)||map.get(id)<at)map.set(id,at);
   }
   return map;
@@ -1430,6 +1437,16 @@ async function connectSyncCode(input) {
 
 // One-time upgrade of an old plaintext code: fetch its drives, re-upload them
 // encrypted under a new code, then delete the old file (and its parent link).
+// The old plaintext file must not outlive the upgrade: a failed delete is retried on every later push
+async function retryLegacyDelete() {
+  const code = settings.legacyPendingDelete;
+  if (!code) return;
+  try {
+    const d = await syncCall('legacy_delete', { code });
+    if (d.ok) { delete settings.legacyPendingDelete; saveSettings(); }
+  } catch (e) { /* offline: try again next push */ }
+}
+
 async function upgradeLegacySync() {
   const oldCode = settings.syncCode;
   const d = await syncCall('legacy_pull', { code: oldCode });
@@ -1448,7 +1465,8 @@ async function upgradeLegacySync() {
   saveSettings();
   await pushSync();
   if (syncStatus !== 'ok') { settings.syncCode = oldCode; saveSettings(); throw new Error('upgrade push failed'); }
-  await syncCall('legacy_delete', { code: oldCode });
+  settings.legacyPendingDelete = oldCode; saveSettings();
+  await retryLegacyDelete();
   if (currentView === 'settings') renderSettings();
   toast('Sync upgraded and encrypted. New code: ' + fmtSyncCode(settings.syncCode) + ' — enter it on your other devices', 8000);
   return true;
@@ -1476,6 +1494,7 @@ async function pushSync() {
   if (!settings.syncCode) return false;
   if (!navigator.onLine) { syncStatus = 'offline'; updateSyncUI(); return false; }
   if (isLegacyCode(settings.syncCode)) { await pullSync(); return false; }   // upgrade first
+  if (settings.legacyPendingDelete) await retryLegacyDelete();
   syncStatus = 'busy'; updateSyncUI();
   try {
     const { id, key } = await deriveSyncKeys(settings.syncCode);
@@ -1483,14 +1502,21 @@ async function pushSync() {
     const cur = await syncCall('get', { id });
     if (cur.ok && cur.blob) { const data = await unseal(key, cur.blob); mergeSyncData(data); adoptParent(data); }
     else if (cur.status !== 404) throw new Error(cur.error || 'Pull failed');
-    const blob = await seal(key, { v: 2, sessions, deleted: tombstoneList(), parent: settings.parent || null, parentAt: settings.parentAt || 0 });
+    const sealSync = () => seal(key, { v: 2, sessions, deleted: tombstoneList(), parent: settings.parent || null, parentAt: settings.parentAt || 0 });
+    const blob = await sealSync();
     if (blob.length > SYNC_MAX_BLOB) { syncStatus = 'big'; updateSyncUI(); return false; }
-    const d = await syncCall('put', { id, blob });
+    let d = await syncCall('put', { id, blob });
     if (!d.ok) throw new Error(d.error || 'Push failed');
     if (settings.parent) {
       const pkey = await importParentKey(settings.parent.key);
       const p = await syncCall('put', { id: settings.parent.token, blob: await seal(pkey, { v: 2, ...parentSummary() }) });
-      if (!p.ok) throw new Error(p.error || 'Parent update failed');
+      if (p.status === 410) {
+        // The server says this link was revoked (this device held it with a skewed clock): forget it with
+        // parentAt 0, so the other devices' newer link wins, and take it back out of the sync blob
+        settings.parent = null; settings.parentAt = 0; saveSettings();
+        d = await syncCall('put', { id, blob: await sealSync() });
+        if (!d.ok) throw new Error(d.error || 'Push failed');
+      } else if (!p.ok) throw new Error(p.error || 'Parent update failed');
     }
     syncStatus = 'ok'; syncLastAt = d.updatedAt || new Date().toISOString();
     updateSyncUI();
@@ -1553,7 +1579,7 @@ async function shareParentLink(){
   if(navigator.share){
     navigator.share({title:"ReadyToRoll — "+settings.driverName+"'s progress",text:'Follow my driving progress!',url}).catch(()=>{});
   } else if(navigator.clipboard){
-    navigator.clipboard.writeText(url).then(()=>toast('Parent link copied!'));
+    navigator.clipboard.writeText(url).then(()=>toast('Parent link copied!'),()=>toast(url,8000));
   } else {
     toast(url);
   }
@@ -1624,7 +1650,7 @@ function syncCodeHTML(){
 function copySyncCode(){
   if(!settings.syncCode)return;
   if(navigator.clipboard){
-    navigator.clipboard.writeText(fmtSyncCode(settings.syncCode)).then(()=>toast('Sync code copied: '+fmtSyncCode(settings.syncCode)));
+    navigator.clipboard.writeText(fmtSyncCode(settings.syncCode)).then(()=>toast('Sync code copied: '+fmtSyncCode(settings.syncCode)),()=>toast('Your code: '+fmtSyncCode(settings.syncCode),6000));
   } else {
     toast('Your code: '+fmtSyncCode(settings.syncCode));
   }
@@ -1737,9 +1763,13 @@ async function initParentView(token){
     const d=await syncCall('get',{id:token});
     if(!d.ok)throw new Error(d.error||'Not found');
     const data=await unseal(await importParentKey(keyB64),d.blob);
-    const remoteSessions=data.sessions||[];
+    // Anyone holding the parent token can store a blob, so every field is checked before it's rendered
+    const remoteSessions=(Array.isArray(data.sessions)?data.sessions:[]).map(cleanImportedSession).filter(Boolean);
     // A state can require 0 hours (Arkansas), so only fall back when reqs are missing
-    const reqs=data.reqs&&data.reqs.total!=null?data.reqs:{total:50,night:10,stateName:''};
+    const hrs=(v,d)=>{const n=Number(v);return Number.isFinite(n)&&n>=0?n:d;};
+    const rq=data.reqs&&typeof data.reqs==='object'&&data.reqs.total!=null?data.reqs:null;
+    const reqs=rq?{total:hrs(rq.total,50),night:hrs(rq.night,10),inclement:hrs(rq.inclement,0),stateName:typeof rq.stateName==='string'?rq.stateName:''}
+      :{total:50,night:10,stateName:''};
     const {totals,earned}=computeEarnedMilestones(remoteSessions,reqs);
     const totalPct=reqs.total>0?Math.min(totals.totalHours/reqs.total,1):1;
     const recent=[...remoteSessions].sort((a,b)=>new Date(b.startTime)-new Date(a.startTime)).slice(0,5);
@@ -2717,7 +2747,7 @@ function renderHistory(){
   }).join('');
   document.getElementById('history-content').innerHTML=`
     <div class="history-toolbar">
-      <input class="history-search" type="search" placeholder="Search location, supervisor…" value="${historySearch}" oninput="historySearch=this.value;renderHistory()">
+      <input class="history-search" type="search" placeholder="Search location, supervisor…" value="${esc(historySearch)}" oninput="historySearch=this.value;renderHistory()">
       <select class="history-sort" onchange="historySort=this.value;renderHistory()">
         <option value="newest" ${historySort==='newest'?'selected':''}>Newest</option>
         <option value="oldest" ${historySort==='oldest'?'selected':''}>Oldest</option>
@@ -3195,7 +3225,7 @@ function clearAllData(){
 // EXPORT / IMPORT / PRINT
 // ═══════════════════════════════════════════════════
 // Sync secrets stay on the device: an export file can be emailed or uploaded anywhere
-const DEVICE_ONLY_SETTINGS=['syncCode','parentToken','parent','parentAt'];
+const DEVICE_ONLY_SETTINGS=['syncCode','parentToken','parent','parentAt','legacyPendingDelete'];
 function exportPayload(){
   const s={...settings};for(const k of DEVICE_ONLY_SETTINGS)delete s[k];
   return{settings:s,sessions,skills:skillsData,deleted:tombstoneList(),exported:new Date().toISOString()};
@@ -3229,7 +3259,14 @@ function cleanImportedSession(s){
     if(Number.isFinite(code)){const nw={code};for(const k of ['temp','windSpeed'])if(w[k]!=null&&Number.isFinite(Number(w[k])))nw[k]=Number(w[k]);if(typeof w.isDay==='boolean')nw.isDay=w.isDay;out.weather=nw;}
     else delete out.weather;
   }
-  for(const k of ['startLocation','endLocation'])if(out[k]!=null&&(typeof out[k]!=='object'||Array.isArray(out[k])))out[k]=null;
+  for(const k of ['updatedAt','endTime']){if(out[k]==null)continue;const v=cleanIso(out[k]);if(v)out[k]=v;else delete out[k];}
+  for(const k of ['startLocation','endLocation']){
+    const l=out[k];if(l==null)continue;
+    if(typeof l!=='object'||Array.isArray(l)){out[k]=null;continue;}
+    const nl={lat:Number.isFinite(l.lat)?l.lat:null,lng:Number.isFinite(l.lng)?l.lng:null};
+    for(const f of ['city','address'])if(l[f]!=null)nl[f]=typeof l[f]==='string'?l[f].slice(0,200):'';
+    out[k]=nl;
+  }
   capStr(out,'supervisor',80);capStr(out,'supervisorLicense',40);capStr(out,'notes',2000);
   return out;
 }
@@ -3328,11 +3365,13 @@ function exportCSV(){
   download('ReadyToRoll.csv',rows.map(r=>r.map(csvEscape).join(',')).join('\n'),'text/csv');
 }
 
+const IMPORT_MAX_BYTES=20*1024*1024;   // a real backup is a few MB at most
 function importData(){
   const input=document.createElement('input');input.type='file';input.accept='.json';
   input.onchange=async e=>{
     const file=e.target.files[0];if(!file)return;
     try{
+      if(file.size>IMPORT_MAX_BYTES)throw new Error('file is too large');
       const text=await file.text();
       const data=JSON.parse(text);
       if(!data||!Array.isArray(data.sessions))throw new Error('Invalid file');

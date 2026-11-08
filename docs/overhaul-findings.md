@@ -34,7 +34,7 @@ fixed, each with regression tests.
 | state-persist-6 | low | A second delete inside the 5 s undo window overwrites `undoSession`; the first drive can no longer be undone. | Needs an undo stack and a redesigned toast. Phase 6 together with state-persist-9. |
 | state-persist-9 | low | `toast()` during the undo window removes the Undo button and leaves `pointer-events:auto` set. | Same toast redesign as above. |
 | sync-9 | low | After a successful legacy upgrade, a failing `legacy_delete` surfaces as "Sync error" and hides the new-code toast. | Rare one-time path; fold into the next sync change. |
-| sync-10 | low | `rtr-sync.php` `put` ignores the return value of `file_put_contents`; `get` reads without a shared lock. | Server file; changing it means a deploy. Safe one-line fix for phase 4 (security) to pick up. |
+| sync-10 | low | **Fixed in phase 4.** `rtr-sync.php` `put` ignores the return value of `file_put_contents`; `get` reads without a shared lock. | Server file; changing it means a deploy. Safe one-line fix for phase 4 (security) to pick up. |
 | quick-parent-milestones-3 | low | Parent view computes Early Bird, streaks and weekly buckets in the parent's time zone and clock. | Needs the teen's zone in `parentSummary`; small protocol change. |
 | quick-parent-milestones-4 | low | The milestone "unlocked!" toast is overwritten in the same tick by "Drive logged". | Toast queue; same redesign as state-persist-6/9. |
 | quick-parent-milestones-5 | low | Quick-add Day/Night chip reflects the sun now, not over the backdated interval. | Cosmetic; recompute the preselection when the duration chip changes. |
@@ -54,9 +54,9 @@ Confirmed findings the fix clusters touched, with the part left undone:
 |---|---|---|
 | Storage quota (W2) | `saveSettings`, `saveSkillsData`, `saveTombstones` and the `dl_*` migration still call `localStorage.setItem` unguarded; only `saveSessions` toasts on a full store | Same pattern as `saveSessions`; phase 3 or 5 |
 | Route size (W2, sync-1) | Routes are neither rounded nor thinned, so a long GPS history still grows the sync blob toward the 2.9 MB client cap (now a clear "Sync data too large" status, not a silent failure) | Thinning changes stored user data; needs a decision (phase 5 or backlog) |
-| Parent revoke (sync-2) | Client-side newest-wins fixes resurrection between our devices; the server still lets any `put` recreate a deleted parent id | Needs a tombstone in `rtr-sync.php`, a deploy change; phase 4 |
+| Parent revoke (sync-2) | **Fixed in phase 4** (`.revoked` marker, put returns 410). Client-side newest-wins fixes resurrection between our devices; the server still lets any `put` recreate a deleted parent id | Needs a tombstone in `rtr-sync.php`, a deploy change; phase 4 |
 | Parent view (W3) | Parent badge now needs total, night and inclement hours met; the parent view still shows no inclement line | Phase 6 |
-| Service worker | Cached HTML changed in this phase; `rtr-v5` was not bumped because HTML is network-first | Decide at landing |
+| Service worker | Cached HTML changed in this phase; `rtr-v5` was not bumped because HTML is network-first | **Phase 4 bumped it to `rtr-v6`** (Leaflet now loads with SRI) |
 
 
 ## Phase 3 — Tests (2026-11-07, branch `overhaul/phase-3`)
@@ -68,10 +68,10 @@ were found while writing tests. Each is pinned by a `test.fixme` (search the spe
 
 | Id | Sev | Finding | Where | Pinned by |
 |---|---|---|---|---|
-| p3-history-search | high | History search text is interpolated unescaped into `value="${historySearch}"`, so a query containing `"` breaks out of the attribute (markup and script injection from your own typing; also any future deep-link of the query). | `renderHistory` toolbar | `history.spec.js` "search text is escaped…" |
-| p3-php-newline-id | medium | `rtr-sync.php` id regex ends in `$` without the `D` modifier, so a valid id plus a trailing `\n` passes validation and addresses a different file. | `rtr-sync.php` ~79 | `sync-server.spec.js` "an id with a trailing newline…" |
-| p3-php-array-id | low | A non-string id (object or array) hits "Array to string conversion"; with `display_errors` on, the warning and server path print before the JSON body. | `rtr-sync.php` ~78 | `sync-server.spec.js` "non-string ids get a clean JSON 400…" |
-| p3-clipboard | low | `copySyncCode` and `shareParentLink` call `clipboard.writeText(...).then(toast)` with no `.catch`: a denied clipboard gives an uncaught rejection and no feedback. | `copySyncCode`, `shareParentLink` | `sync-lifecycle.spec.js` "a denied clipboard write toasts…" |
+| p3-history-search | high | **Fixed in phase 4.** History search text is interpolated unescaped into `value="${historySearch}"`, so a query containing `"` breaks out of the attribute (markup and script injection from your own typing; also any future deep-link of the query). | `renderHistory` toolbar | `history.spec.js` "search text is escaped…" |
+| p3-php-newline-id | medium | **Fixed in phase 4.** `rtr-sync.php` id regex ends in `$` without the `D` modifier, so a valid id plus a trailing `\n` passes validation and addresses a different file. | `rtr-sync.php` ~79 | `sync-server.spec.js` "an id with a trailing newline…" |
+| p3-php-array-id | low | **Fixed in phase 4.** A non-string id (object or array) hits "Array to string conversion"; with `display_errors` on, the warning and server path print before the JSON body. | `rtr-sync.php` ~78 | `sync-server.spec.js` "non-string ids get a clean JSON 400…" |
+| p3-clipboard | low | **Fixed in phase 4.** `copySyncCode` and `shareParentLink` call `clipboard.writeText(...).then(toast)` with no `.catch`: a denied clipboard gives an uncaught rejection and no feedback. | `copySyncCode`, `shareParentLink` | `sync-lifecycle.spec.js` "a denied clipboard write toasts…" |
 | p3-swipe-bubble | medium | Swipe-to-delete on a History row bubbles to the `#main` tab-swipe handler, so deleting a row also switches tab; Undo then restores the drive without re-rendering History. | `setupSwipeDelete`, `#main` swipe handlers | `history.spec.js` "swiping a row to delete stays on the History tab" |
 | p3-undo-timer | low | `toastUndo` does not clear the pending `toast()` timer, so a toast shown just before a delete hides the Undo toast after 2.8 s instead of 5 s. Same toast redesign as state-persist-6/9. | `toast`, `toastUndo` | `history.spec.js` "undo toast stays visible for 5 seconds…" |
 | p3-help-escape | low | The help modal is `aria-modal` but Escape does not close it (no keydown handler). | `#help-modal`, `openHelp`/`closeHelp` | `onboarding.spec.js` "Escape closes the help modal" |
@@ -83,3 +83,50 @@ Still never run: `emailSyncCode` (opens `mailto:`, which the harness blocks), th
 and short defensive branches at roughly lines 795, 1372, 1426, 1633-1640, 1676, 1800-1804, 2091, 2753-2767,
 3014, 3166, 3230 and 3495. None of them hides a known bug; they are listed so phase 5 can judge dead code.
 `home-dashboard-skills-6` (days-to-goal across DST) is still open; no test was added for it.
+
+## Phase 4 — Security (2026-11-08, branch `overhaul/phase-4`)
+
+Method: four reviewers (sync server; crypto and sync client; DOM and import; platform: SW, CDN, deploy and
+test server), then one skeptic per finding who tried to disprove it against the working tree. Of 29 findings,
+22 were confirmed, 1 was unsure and 6 were refuted. Every fix has a regression test, and the four security
+fixmes from phase 3 are now `test(`.
+
+### Fixed
+
+| Id | Sev | Fix | Test |
+|---|---|---|---|
+| crypto-1 / dom-a-1 | high | The parent view put the decrypted blob's `reqs.total`/`night`/`stateName` into `innerHTML` unchecked and used `data.sessions` as is. The hour values are now coerced to finite numbers and the state name to a string, and the sessions go through `cleanImportedSession`. | sanitize: forged parent blob |
+| p3-history-search | high | The History search value is escaped. | history (fixme flipped) |
+| platform-sri / platform-sw-pin | medium | The Leaflet CSS and JS from unpkg carry `integrity` (sha256) and `crossorigin`. The SW cache is `rtr-v6`, so old opaque copies are dropped. The test harness strips `integrity`, because its stubs are fakes. | service-worker: SRI tags, activate |
+| server-ratelimit-race / server-tmp-ratelimit-files | medium | `rateLimit` reads, counts and writes under one `flock`. A counter file that is corrupt or dated in the future starts a fresh window. IPv6 clients are keyed by their /64. | sync-server: corrupt counter |
+| server-legacy-bruteforce | medium | Partly fixed: `legacy_pull`/`legacy_delete` now have a server-wide cap of 300 per hour, on top of the 30 per minute per IP. Sunsetting the plaintext v1 files is deferred (see below). | sync-server: server-wide cap |
+| server-disk-fill | medium | Partly fixed: new blobs now have a server-wide cap of 500 per hour, on top of the 10 per 5 minutes per IP. Expiry is deferred (see below). | sync-server: server-wide cap |
+| p3-php-newline-id / p3-php-array-id | medium | `blobPath` accepts only string ids and uses the `D` modifier. `legacyPath` rejects non-strings. | sync-server (fixmes flipped) |
+| sync-2 / sync-10 (parent revoke) | low | Deleting a 32-hex parent id leaves a `.revoked` marker, and a later put to that id gets 410. On a 410 the client drops the link (`parent=null`, `parentAt=0`) and pushes again. A put whose write comes up short gets 500, `get` reads under a shared lock, and the create rate limit is checked before the write. | sync-server: revoked parent; sync-import: skewed clock |
+| platform-htaccess / server-storage-in-webroot | low | The data folder's `.htaccess` has both Apache 2.4 (`Require all denied`) and 2.2 rules, and is checked on every request. Moving the folder out of the webroot is deferred. | sync-server: old .htaccess replaced |
+| crypto-3 | low | When the `legacy_delete` after an upgrade fails, the code is kept in the device-only setting `legacyPendingDelete` and the next `pushSync` retries the delete. | sync-lifecycle: legacy retry |
+| dom-b-1 / dom-b-2 | low | `cleanIso`: a tombstone's `at`, `updatedAt` and `endTime` must parse. A time more than a day in the future is clamped to now, and a bad tombstone date becomes epoch, so a crafted file can no longer win every newest-wins merge. | sanitize: timestamps |
+| dom-b-4 | low | Locations are rebuilt with finite lat/lng and city/address capped at 200 characters. An import file over 20 MB is refused before it is read. | sanitize: locations; sync-import: size cap |
+| p3-clipboard | low | When the clipboard write is denied, a toast shows the code or the link. | sync-lifecycle (fixme flipped) |
+| platform-serve-crash | low | `tests/serve.js` answers a malformed `%` escape with 400 instead of crashing. | none (test tooling) |
+
+### Confirmed but deferred
+
+| Id | Sev | Finding | Why deferred |
+|---|---|---|---|
+| server-legacy-bruteforce (rest) | medium | The plaintext v1 files never expire, and anyone with an 8-character code (a 2^40 space) can read them. | A sunset would delete user data. Decide at landing: announce a cut-off, then delete the files not upgraded by then. |
+| server-disk-fill (rest) | medium | Blobs never expire, and the anonymous endpoint stores up to 3 MB of anything. | Expiry deletes user data, so it needs a policy (for example, a blob untouched for 12 months). Landing or backlog. |
+| server-id-is-write-capability / crypto-4 / platform-parent-id-capability | low | Put and delete authorise on the id alone. The parent token is that id, and it travels in `?parent=`, so it reaches access logs. | A separate write key per blob is a protocol change on both client and server. The parent link cannot destroy data: after a delete, the teen's next push gets 410 and the link is dropped. Backlog. |
+| crypto-2 | low | `connectSyncCode` merges local history into any code it is given and uploads it, without asking first. | Needs a confirm step, which is a UX change. Phase 6. |
+| crypto-6 | low | `emailSyncCode` puts the full-access code in a `mailto:` body. | It is a feature the user chooses. Phase 6 could add a warning line. |
+| platform-no-csp | low | The page has no Content-Security-Policy. | The inline script and styles would have to move out or be hashed. Suggested for phase 6, where a meta CSP can be tested against every screen. |
+| server-storage-in-webroot (rest) | low | `rtr-sync-data/` sits inside the docroot. | Deploy and hosting change. Report only. |
+| platform-deploy-pin | low | `deploy.yml` uses the mutable tag `actions/checkout@v5` in a job with `contents: write`, and SFTP signs in by password. | CI config, which phase 4 must not change. At landing, pin the action to a commit SHA and switch to key auth. |
+| server-tmp-ratelimit-files (rest) | low | The counter files sit in the shared temp dir under predictable names, and `fopen` follows symlinks. | Their contents are now validated. A private folder needs a deploy change. Report only. |
+
+### Refuted
+
+- server-error-path-leak: the host's settings print no path, and the array-id warning is fixed anyway.
+- crypto-5, dom-a-2, dom-b-3, dom-b-5.
+- platform-shared-origin: the SW scope is `./readytoroll.html`, and the other pages on the origin hold no secrets the page can't already reach.
+

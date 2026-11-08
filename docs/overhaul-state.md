@@ -3,14 +3,14 @@
 Every overhaul session reads this file first and writes to it last. One phase per session, each on
 branch `overhaul/phase-N` cut from the previous phase's branch (phase 1 from `master` at fc757e7).
 Rules that apply to every phase: do not push, merge or open a PR; the full suite (`npm run test:quiet`,
-227 tests after phase 3, 7 of them `test.fixme`) must pass before the phase commit; never touch deploy or CI config, secrets or user data.
+238 tests after phase 4, 3 of them `test.fixme`) must pass before the phase commit; never touch deploy or CI config, secrets or user data.
 
 | Phase | Name | Status | Branch |
 |---|---|---|---|
 | 1 | Map | done | overhaul/phase-1 |
 | 2 | Bug hunt | done | overhaul/phase-2 |
 | 3 | Tests | done | overhaul/phase-3 |
-| 4 | Security | todo | |
+| 4 | Security | done | overhaul/phase-4 |
 | 5 | Clean-up | todo | |
 | 6 | UI | todo | |
 | 7 | Simulation or game balance | todo | |
@@ -59,3 +59,9 @@ Rules that apply to every phase: do not push, merge or open a PR; the full suite
   `rtr-sync.php` id regex without `D` and the array-id PHP warning; `tests/sync-server.spec.js` exercises the real PHP.
 - Decision: phase 3 fixed no bugs (tests only). A fix should flip its fixme to `test(`. Specs that read app files must use
   `helpers.appRoot` so mutation runs see the mutated copy; `coverage/` is git-ignored scratch.
+
+### Phase 4 — Security (done 2026-11-08, branch `overhaul/phase-4`)
+- Four reviewers, then one skeptic per finding: 29 findings, 22 confirmed, 6 refuted. Fixed: the parent-view injection; the history search; Leaflet SRI (SW cache `rtr-v6`, and the test stubs strip `integrity`); PHP rate limits that are locked, validated and have server-wide caps on legacy calls and creates; the revoked-parent marker (`.revoked`: a put returns 410, and the client drops the link with `parentAt` 0); timestamp, location and size checks on imports; the legacy-delete retry; and the clipboard fallback. Tests went from 227 to 238, with 3 fixmes left (UI bugs).
+- Deferred items and their reasons are in `docs/overhaul-findings.md` under Phase 4. A legacy v1 sunset and blob expiry would both delete user data, so landing decides. Write keys separate from the ids are a protocol change (backlog). Pinning `deploy.yml` and SFTP key auth are CI, so report only.
+- For phase 5: `clientKey`, `rateLimit` and the `HTACCESS` constant in `rtr-sync.php`, and the device-only setting `legacyPendingDelete`, are all new. For phase 6: a meta CSP, a confirm step before `connectSyncCode` uploads, and a warning when the code is emailed. The server changes reach users only on deploy.
+

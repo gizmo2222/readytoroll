@@ -72,6 +72,28 @@ test('a stale device cannot resurrect a revoked parent link', async ({ page, bro
   await ctx.close();
 });
 
+test('a device whose clock put a revoked link ahead drops it on the server 410 instead of erroring', async ({ page, browser, baseURL }) => {
+  const { b, ctx, store } = await pair(browser, baseURL, page);
+  await page.evaluate(() => createParentLink());
+  await b.evaluate(() => pullSync());
+  const old = await b.evaluate(() => settings.parent.token);
+  await b.evaluate(() => { settings.parentAt = Date.now() + 864e5; saveSettings(); });   // B's clock runs a day ahead
+  await page.evaluate(() => { window.confirm = () => true; return revokeParentToken(); });
+  const fresh = await page.evaluate(() => settings.parent.token);
+  // B merges first but keeps its "newer" old link, so its parent put hits the revoked id
+  expect(await b.evaluate(s => { sessions.push(s); return pushSync(); }, sess({ id: 'b2' }))).toBe(true);
+  expect(await b.evaluate(() => [syncStatus, settings.parent, settings.parentAt])).toEqual(['ok', null, 0]);
+  expect(store.has(old)).toBe(false);
+  // A keeps its fresh link, and B picks it up on its next pull
+  await page.evaluate(() => pullSync());
+  expect(await page.evaluate(() => settings.parent.token)).toBe(fresh);
+  await page.evaluate(() => pushSync());
+  await b.evaluate(() => pullSync());
+  expect(await b.evaluate(() => settings.parent && settings.parent.token)).toBe(fresh);
+  expect(await page.evaluate(() => sessions.some(s => s.id === 'b2'))).toBe(true);
+  await ctx.close();
+});
+
 test('a device without the link keeps it in the blob and feeds the parent view', async ({ page, browser, baseURL }) => {
   const { b, ctx } = await pair(browser, baseURL, page);
   await page.evaluate(() => createParentLink());   // B has not pulled since
@@ -175,6 +197,16 @@ test('cancelling the import dialog and then the replace confirm changes nothing'
   expect(dialogs[1]).toContain('Replace ALL data');
   expect(await ids(page)).toEqual(['keep1', 'keep2']);
   expect(await page.evaluate(() => loadTombstones().size)).toBe(0);
+});
+
+test('an import file over the size cap is refused before it is read', async ({ page }) => {
+  await openApp(page, { sessions: [sess({ id: 'keep1' })] });
+  const chooser = page.waitForEvent('filechooser');
+  await page.evaluate(() => { window.__read = 0; const t = Blob.prototype.text; Blob.prototype.text = function () { window.__read++; return t.call(this); }; importData(); });
+  await (await chooser).setFiles({ name: 'big.json', mimeType: 'application/json', buffer: Buffer.alloc(20 * 1024 * 1024 + 1, 32) });
+  await expect.poll(() => page.locator('#toast').textContent()).toBe('Import failed: file is too large');
+  expect(await page.evaluate(() => window.__read)).toBe(0);
+  expect(await ids(page)).toEqual(['keep1']);
 });
 
 test('confirming the replace confirm replaces the data', async ({ page }) => {
