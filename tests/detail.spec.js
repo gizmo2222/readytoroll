@@ -1,8 +1,6 @@
 // Session detail modal: facts, elevation/speed charts, replay, share card, notes, delete, focus restore.
-const { test, expect, openApp, sess } = require('./helpers');
+const { test, expect, openApp, sess, readStore: read, deletedIds } = require('./helpers');
 
-const read = (page, key) => page.evaluate(k => JSON.parse(localStorage.getItem(k) || 'null'), key);
-const deletedIds = list => (list || []).map(d => (typeof d === 'string' ? d : d.id));
 const pt = (i, alt, spd) => [34.05 + i * 0.001, -118.24, alt, spd];
 const open = (page, id) => page.evaluate(i => showSessionDetail(i), id);
 const body = page => page.locator('#modal-body');
@@ -229,7 +227,7 @@ test('closing the modal returns focus to the element that opened it', async ({ p
   await expect(page.locator('#modal .modal-sheet')).toBeFocused();
   await page.locator('#modal .close-btn').click();
   await expect(page.locator('#opener')).toBeFocused();
-  expect(await page.evaluate(() => [activeSessionId, currentDetailSession])).toEqual([null, null]);
+  expect(await page.evaluate(() => currentDetailSession)).toBeNull();
 });
 
 test('an unknown id opens nothing and share with no drive is a no-op', async ({ page }) => {

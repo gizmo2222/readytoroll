@@ -1,152 +1,152 @@
 [
- {
-  "id": "sync-server-1",
-  "file": "rtr-sync.php",
-  "find": "} elseif ($origin === '') {",
-  "replace": "} elseif (true) {",
-  "spec": [
-   "tests/sync-server.spec.js"
-  ],
-  "why": "foreign Origin no longer refused"
- },
- {
-  "id": "sync-server-2",
-  "file": "rtr-sync.php",
-  "find": "http_response_code(204); exit;",
-  "replace": "http_response_code(200); exit;",
-  "spec": [
-   "tests/sync-server.spec.js"
-  ],
-  "why": "preflight status"
- },
- {
-  "id": "sync-server-3",
-  "file": "rtr-sync.php",
-  "find": "strlen($blob) > MAX_BLOB_BYTES",
-  "replace": "strlen($blob) >= MAX_BLOB_BYTES",
-  "spec": [
-   "tests/sync-server.spec.js"
-  ],
-  "why": "cap off by one"
- },
- {
-  "id": "sync-server-4",
-  "file": "rtr-sync.php",
-  "find": "rateLimit('get', 60, 60);",
-  "replace": "rateLimit('get', 61, 60);",
-  "spec": [
-   "tests/sync-server.spec.js"
-  ],
-  "why": "get limit off by one"
- },
- {
-  "id": "sync-server-5",
-  "file": "rtr-sync.php",
-  "find": "rateLimit('create', 10, 300);",
-  "replace": "rateLimit('create', 11, 300);",
-  "spec": [
-   "tests/sync-server.spec.js"
-  ],
-  "why": "create limit off by one"
- },
- {
-  "id": "sync-server-6",
-  "file": "rtr-sync.php",
-  "find": "($sealed['v'] ?? null) !== 2",
-  "replace": "($sealed['v'] ?? null) != 2",
-  "spec": [
-   "tests/sync-server.spec.js"
-  ],
-  "why": "loose version check"
- },
- {
-  "id": "sync-server-7",
-  "file": "rtr-sync.php",
-  "find": "preg_match('/^[0-9a-f]{32}$/', $token)",
-  "replace": "$token !== ''",
-  "spec": [
-   "tests/sync-server.spec.js"
-  ],
-  "why": "parentToken path traversal"
- },
- {
-  "id": "sync-server-8",
-  "file": "rtr-sync.php",
-  "find": "{32}|[0-9a-f]{64})$/'",
-  "replace": "{32}|[0-9a-f]{64})/'",
-  "spec": [
-   "tests/sync-server.spec.js"
-  ],
-  "why": "id anchor dropped"
- },
- {
-  "id": "sync-server-9",
-  "file": "rtr-sync.php",
-  "find": "< $windowSec) $data = $raw;",
-  "replace": "< 0) $data = $raw;",
-  "spec": [
-   "tests/sync-server.spec.js"
-  ],
-  "why": "rate window never persists"
- },
- {
-  "id": "sync-server-10",
-  "file": "rtr-sync.php",
-  "find": "Deny from all",
-  "replace": "Allow from all",
-  "spec": [
-   "tests/sync-server.spec.js"
-  ],
-  "why": "data dir exposed"
- },
- {
-  "id": "sync-server-11",
-  "file": "rtr-sync.php",
-  "find": "respond(['ok' => true, 'sessions' => $data['sessions'] ?? []]);",
-  "replace": "respond(['ok' => true] + $data);",
-  "spec": [
-   "tests/sync-server.spec.js"
-  ],
-  "why": "legacy_pull leaks whole file"
- },
- {
-  "id": "sync-server-12",
-  "file": "rtr-sync.php",
-  "find": "strtolower(trim((string)($in['action']",
-  "replace": "strtolower((string)($in['action']",
-  "spec": [
-   "tests/sync-server.spec.js"
-  ],
-  "why": "action not trimmed"
- },
- {
-  "id": "sync-server-13",
-  "file": "rtr-sync.php",
-  "find": "if (strlen($code) !== 8)",
-  "replace": "if (strlen($code) < 8)",
-  "spec": [
-   "tests/sync-server.spec.js"
-  ],
-  "why": "legacy code length"
- },
- {
-  "id": "sync-server-14",
-  "file": "rtr-sync.php",
-  "find": "if (!file_exists($path)) rateLimit('create', 10, 300);",
-  "replace": "rateLimit('create', 10, 300);",
-  "spec": [
-   "tests/sync-server.spec.js"
-  ],
-  "why": "updates count as creates"
- },
- {
-  "id": "sync-server-15",
-  "file": "rtr-sync.php",
-  "find": "rateLimit('delete', 20, 60);",
-  "replace": "rateLimit('get', 20, 60);",
-  "spec": [
-   "tests/sync-server.spec.js"
-  ],
-  "why": "delete shares get counter"
- }
+  {
+    "id": "sync-server-1",
+    "file": "rtr-sync.php",
+    "find": "} elseif ($origin === '') {",
+    "replace": "} elseif (true) {",
+    "spec": [
+      "tests/sync-server.spec.js"
+    ],
+    "why": "foreign Origin no longer refused"
+  },
+  {
+    "id": "sync-server-2",
+    "file": "rtr-sync.php",
+    "find": "http_response_code(204); exit;",
+    "replace": "http_response_code(200); exit;",
+    "spec": [
+      "tests/sync-server.spec.js"
+    ],
+    "why": "preflight status"
+  },
+  {
+    "id": "sync-server-3",
+    "file": "rtr-sync.php",
+    "find": "strlen($blob) > MAX_BLOB_BYTES",
+    "replace": "strlen($blob) >= MAX_BLOB_BYTES",
+    "spec": [
+      "tests/sync-server.spec.js"
+    ],
+    "why": "cap off by one"
+  },
+  {
+    "id": "sync-server-4",
+    "file": "rtr-sync.php",
+    "find": "rateLimit('get', 60, 60);",
+    "replace": "rateLimit('get', 61, 60);",
+    "spec": [
+      "tests/sync-server.spec.js"
+    ],
+    "why": "get limit off by one"
+  },
+  {
+    "id": "sync-server-5",
+    "file": "rtr-sync.php",
+    "find": "rateLimit('create', 10, 300);",
+    "replace": "rateLimit('create', 11, 300);",
+    "spec": [
+      "tests/sync-server.spec.js"
+    ],
+    "why": "create limit off by one"
+  },
+  {
+    "id": "sync-server-6",
+    "file": "rtr-sync.php",
+    "find": "($sealed['v'] ?? null) !== 2",
+    "replace": "($sealed['v'] ?? null) != 2",
+    "spec": [
+      "tests/sync-server.spec.js"
+    ],
+    "why": "loose version check"
+  },
+  {
+    "id": "sync-server-7",
+    "file": "rtr-sync.php",
+    "find": "preg_match('/^[0-9a-f]{32}$/', $token)",
+    "replace": "$token !== ''",
+    "spec": [
+      "tests/sync-server.spec.js"
+    ],
+    "why": "parentToken path traversal"
+  },
+  {
+    "id": "sync-server-8",
+    "file": "rtr-sync.php",
+    "find": "{32}|[0-9a-f]{64})$/D'",
+    "replace": "{32}|[0-9a-f]{64})/D'",
+    "spec": [
+      "tests/sync-server.spec.js"
+    ],
+    "why": "id anchor dropped"
+  },
+  {
+    "id": "sync-server-9",
+    "file": "rtr-sync.php",
+    "find": "< $windowSec;",
+    "replace": "< 0;",
+    "spec": [
+      "tests/sync-server.spec.js"
+    ],
+    "why": "rate window never persists"
+  },
+  {
+    "id": "sync-server-10",
+    "file": "rtr-sync.php",
+    "find": "Deny from all",
+    "replace": "Allow from all",
+    "spec": [
+      "tests/sync-server.spec.js"
+    ],
+    "why": "data dir exposed"
+  },
+  {
+    "id": "sync-server-11",
+    "file": "rtr-sync.php",
+    "find": "respond(['ok' => true, 'sessions' => $data['sessions'] ?? []]);",
+    "replace": "respond(['ok' => true] + $data);",
+    "spec": [
+      "tests/sync-server.spec.js"
+    ],
+    "why": "legacy_pull leaks whole file"
+  },
+  {
+    "id": "sync-server-12",
+    "file": "rtr-sync.php",
+    "find": "strtolower(trim((string)($in['action']",
+    "replace": "strtolower((string)($in['action']",
+    "spec": [
+      "tests/sync-server.spec.js"
+    ],
+    "why": "action not trimmed"
+  },
+  {
+    "id": "sync-server-13",
+    "file": "rtr-sync.php",
+    "find": "if (strlen($code) !== 8)",
+    "replace": "if (strlen($code) < 8)",
+    "spec": [
+      "tests/sync-server.spec.js"
+    ],
+    "why": "legacy code length"
+  },
+  {
+    "id": "sync-server-14",
+    "file": "rtr-sync.php",
+    "find": "if (!file_exists($path)) {",
+    "replace": "if (true) {",
+    "spec": [
+      "tests/sync-server.spec.js"
+    ],
+    "why": "updates count as creates"
+  },
+  {
+    "id": "sync-server-15",
+    "file": "rtr-sync.php",
+    "find": "rateLimit('delete', 20, 60);",
+    "replace": "rateLimit('get', 20, 60);",
+    "spec": [
+      "tests/sync-server.spec.js"
+    ],
+    "why": "delete shares get counter"
+  }
 ]

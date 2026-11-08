@@ -1,22 +1,8 @@
 // Live drive lifecycle: stop/save ordering, storage errors, re-entrancy, idle detection, GPS errors.
-const { test, expect, openApp } = require('./helpers');
+const { test, expect, openApp, readStore: read, startDriving, toastText, drive: driveFrom } = require('./helpers');
 
-const read = (page, key) => page.evaluate(k => JSON.parse(localStorage.getItem(k) || 'null'), key);
+const drive = (page, minutes, opts = {}) => driveFrom(page, minutes, { firstStep: 1, ...opts });
 const CLOCK = new Date('2026-10-01T18:00:00.000Z');
-
-async function drive(page, minutes, { from = [34.05, -118.24], step = 0.0005 } = {}) {
-  for (let i = 0; i < minutes; i++) {
-    await page.evaluate(([lat, lng]) => window.__geo.emit(lat, lng, 12), [from[0] + (i + 1) * step, from[1]]);
-    await page.clock.runFor(60000);
-  }
-}
-
-async function startDriving(page) {
-  await page.evaluate(() => startDrive());
-  await page.waitForFunction(() => window.__geo.watchers.size > 0);
-  await page.evaluate(() => window.__geo.emit(34.05, -118.24, 0));   // first fix
-  await page.waitForFunction(() => activeSession && activeSession.route.length > 0);
-}
 
 const setHidden = (page, hidden) => page.evaluate(h => {
   Object.defineProperty(document, 'hidden', { configurable: true, get: () => h });
@@ -24,7 +10,6 @@ const setHidden = (page, hidden) => page.evaluate(h => {
   document.dispatchEvent(new Event('visibilitychange'));
 }, hidden);
 
-const toastText = page => page.evaluate(() => document.getElementById('toast').textContent);
 
 test('a hanging reverse geocode neither blocks recording nor delays the save', async ({ page }) => {
   await openApp(page, { clock: CLOCK });

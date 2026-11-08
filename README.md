@@ -130,7 +130,7 @@ Codes created before October 2026 were 8 characters and stored the drives in pla
 
 ## Running the Tests
 
-The tests are dev-only: they use [Playwright](https://playwright.dev/) to load `readytoroll.html` in Chromium and call its functions directly. Nothing in `tests/`, `package.json` or `node_modules/` ships to the site, and the app itself still has no build step. You need Node.js 18 or later.
+The tests are dev-only: they use [Playwright](https://playwright.dev/) to load `readytoroll.html` in Chromium and call its functions directly. Nothing in `tests/`, `package.json` or `node_modules/` ships to the site, and the app itself still has no build step. You need Node.js 20 or later.
 
 Every network call is stubbed: Leaflet, map tiles, Open-Meteo and Nominatim get canned answers, and `rtr-sync.php` is replaced by an in-memory fake server. Any other external request is blocked, and any uncaught page error fails the test. The tests run in the `America/Los_Angeles` time zone unless a test sets its own.
 
@@ -166,11 +166,46 @@ npx playwright test --headed
 
 | File | Covers |
 |---|---|
-| `tests/totals.spec.js` | Hour totals; the day/night split across sunset, midnight, DST and time zones; manual and quick-add entries |
-| `tests/sessions.spec.js` | Live drives (start, stop, auto-stop), edits and deletes, `rtr_deleted` tombstones |
-| `tests/milestones.spec.js` | Streaks across local days and DST, milestones, inclement weather, the parent view |
-| `tests/importexport.spec.js` | JSON export/import round trips, import validation, CSV night minutes, secrets kept out of exports |
-| `tests/sync.spec.js` | No plaintext in any request, the parent summary allow-list, two-device merges, deletes and undo |
+| `tests/totals.spec.js` | Hour totals, sun split across sunset/midnight/DST/time zones, manual and quick-add |
+| `tests/sessions.spec.js` | Live drives, auto-stop, edits, deletes, tombstones |
+| `tests/milestones.spec.js` | Streaks, milestones, inclement weather, parent view |
+| `tests/importexport.spec.js` | JSON/CSV export and import, secrets kept out |
+| `tests/sync.spec.js` | No plaintext on the wire, parent allow-list, two-device merges |
+| `tests/drive-lifecycle.spec.js` | Start/stop races, GPS errors, geocode after save |
+| `tests/entry.spec.js` | Manual and quick-add validation |
+| `tests/sanitize.spec.js` | Escaping of rendered fields, import sanitising |
+| `tests/sync-import.spec.js` | Sync and import data-loss cases |
+| `tests/home-drive.spec.js` | GPS permission, swipe nav, storage fallbacks, inclement codes, skills badge, timers, compass |
+| `tests/skills.spec.js` | Skills view, statuses, tips, suggestions |
+| `tests/onboarding.spec.js` | Onboarding steps, help modal |
+| `tests/settings.spec.js` | Settings form, theme/accent/font/car setters, clear all |
+| `tests/detail.spec.js` | Detail modal, elevation/speed SVGs, replay, share card, notes, delete |
+| `tests/history.spec.js` | Filters, search, swipe delete, undo, JSON/CSV export, print |
+| `tests/sync-lifecycle.spec.js` | Create/connect/upgrade sync, parent link, copy/email code |
+| `tests/service-worker.spec.js` | `rtr-service-worker.js` in a Node `vm` (install, activate, fetch strategies) plus registration |
+| `tests/sync-server.spec.js` | Real `rtr-sync.php` under `php -S`: actions, caps, CORS, rate limit |
+
+`tests/sync-server.spec.js` runs the real `rtr-sync.php` under `php -S` and skips itself when `php` is not on PATH.
+
+Coverage (V8, the app's inline script):
+
+```powershell
+$env:RTR_COVERAGE = '1'; npx playwright test --reporter=dot; Remove-Item Env:RTR_COVERAGE
+```
+
+```powershell
+node tests/coverage-report.js
+```
+
+The second command writes `coverage/report.txt`, listing never-called functions and unexecuted lines.
+
+Mutation check: each `tests/mutants/<module>.json` lists edits the named specs must catch. This runs one module:
+
+```powershell
+node tests/mutate.js tests/mutants/skills.json --port 4399
+```
+
+It reports to `coverage/mutation-<port>.txt`.
 
 ## Deployment
 

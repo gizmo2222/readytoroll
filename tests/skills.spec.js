@@ -1,7 +1,6 @@
 // Skills view: rendering per status, toggling and persistence, badge/counts, tips, suggestSkill, corrupt stored data.
-const { test, expect, openApp } = require('./helpers');
+const { test, expect, openApp, readStore: read } = require('./helpers');
 
-const read = (page, key) => page.evaluate(k => JSON.parse(localStorage.getItem(k) || 'null'), key);
 const goSkills = async page => { await page.locator('.nav-btn[data-view="skills"]').click(); await expect(page.locator('#skills-view')).toBeVisible(); };
 const summary = async page => page.locator('.skills-summary-box .sv').allTextContents();
 const row = (page, id) => page.locator(`.skill-row[data-id="${id}"]`);

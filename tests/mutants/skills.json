@@ -62,8 +62,8 @@
 {
 "id": "skills-7",
 "file": "readytoroll.html",
-"find": "skillsData[s.id].status!=='mastered');\n  if(!unmastered.length)",
-"replace": "skillsData[s.id].status==='not_started');\n  if(!unmastered.length)",
+"find": "skillsData[s.id]?.status!=='mastered');\n  if(!unmastered.length)",
+"replace": "skillsData[s.id]?.status==='not_started');\n  if(!unmastered.length)",
 "spec": [
 "tests/skills.spec.js"
 ],

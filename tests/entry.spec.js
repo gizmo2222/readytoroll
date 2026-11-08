@@ -1,20 +1,7 @@
 // Manual and quick entry validation, date-only drives, sticky milestones and totals display.
-const { test, expect, openApp, sess } = require('./helpers');
+const { test, expect, openApp, sess, manual } = require('./helpers');
 
 const NOW = new Date('2026-11-06T20:00:00.000Z');   // 12:00 PST on Fri 2026-11-06
-
-async function manual(page, f) {
-  return page.evaluate(f => {
-    openManualModal();
-    const set = (id, v) => { document.getElementById(id).value = v ?? ''; };
-    set('m-date', f.date); set('m-start', f.start); set('m-end', f.end);
-    set('m-dur-h', f.h); set('m-dur-m', f.m); set('m-daynight', f.dn || 'auto');
-    const before = sessions.length;
-    saveManualDrive();
-    return { added: sessions.length - before, s: sessions[sessions.length - 1],
-      toast: document.getElementById('toast').textContent };
-  }, f);
-}
 
 async function quick(page, h, m) {
   return page.evaluate(([h, m]) => {

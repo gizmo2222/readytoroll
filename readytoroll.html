@@ -15,7 +15,6 @@
   <style>
 /* ── 1. CSS Custom Properties ── */
 :root {
-  --blue:#2563eb; --blue-dk:#1d4ed8; --blue-lt:rgba(37,99,235,.12);
   --green:#16a34a; --green-lt:rgba(22,163,74,.12);
   --purple:#7c3aed; --purple-lt:rgba(124,58,237,.12);
   --amber:#d97706; --amber-lt:rgba(217,119,6,.12);
@@ -28,19 +27,16 @@
 [data-theme="dark"] {
   --bg:#0f172a; --card:#1e293b; --text:#f1f5f9; --muted:#94a3b8; --border:#334155;
   --shadow:0 1px 4px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.2);
-  --blue-lt:rgba(37,99,235,.18); --green-lt:rgba(22,163,74,.18);
+  --green-lt:rgba(22,163,74,.18);
   --purple-lt:rgba(124,58,237,.18); --amber-lt:rgba(217,119,6,.18); --red-lt:rgba(220,38,38,.18);
-  --accent-lt:rgba(37,99,235,.18);
 }
 [data-theme="contrast"] {
   --bg:#000; --card:#111; --text:#fff; --muted:#ccc; --border:#888;
   --shadow:0 0 0 2px #888,0 4px 16px rgba(0,0,0,.8);
-  --blue:#60a5fa; --blue-dk:#93c5fd; --blue-lt:rgba(96,165,250,.2);
   --green:#4ade80; --green-lt:rgba(74,222,128,.2);
   --purple:#a78bfa; --purple-lt:rgba(167,139,250,.2);
   --amber:#fbbf24; --amber-lt:rgba(251,191,36,.2);
   --red:#f87171; --red-lt:rgba(248,113,113,.2);
-  --accent-lt:rgba(255,255,255,.18);
 }
 
 /* ── Accessibility: focus rings ── */
@@ -75,7 +71,7 @@ body{display:flex;flex-direction:column;overflow:hidden}
 
 /* ── 5. Main + page transitions ── */
 #main{flex:1;position:relative;overflow:hidden}
-.view{display:none;position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+.view{display:none;position:absolute;inset:0;overflow-y:auto;overflow-x:hidden}
 .view.active{display:block;animation:viewIn .22s cubic-bezier(.4,0,.2,1)}
 .view.slide-in-right{animation:slideInRight .22s cubic-bezier(.4,0,.2,1)!important}
 .view.slide-in-left{animation:slideInLeft .22s cubic-bezier(.4,0,.2,1)!important}
@@ -108,7 +104,7 @@ body{display:flex;flex-direction:column;overflow:hidden}
 .streak-badge{display:inline-flex;align-items:center;gap:5px;background:var(--amber-lt);color:var(--amber);font-size:.75rem;font-weight:700;padding:5px 11px;border-radius:99px;margin-bottom:12px}
 .recent-skills{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .skill-chip{background:var(--accent-lt);color:var(--accent);font-size:.7rem;font-weight:600;padding:4px 10px;border-radius:99px}
-.session-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;position:relative;overflow:hidden;user-select:none;transition:opacity .2s}
+.session-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;position:relative;overflow:hidden;user-select:none;transition:opacity .2s;border-left:3px solid transparent;padding-left:9px;margin-left:-3px}
 .session-row:last-child{border-bottom:none;padding-bottom:0}
 .session-row.old{opacity:.65}
 .session-row .s-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0}
@@ -120,13 +116,9 @@ body{display:flex;flex-direction:column;overflow:hidden}
 .session-row .s-dur{font-size:.84rem;font-weight:700;color:var(--accent);flex-shrink:0}
 .swipe-delete-bg{position:absolute;right:0;top:0;bottom:0;width:80px;background:var(--red);display:flex;align-items:center;justify-content:center;color:#fff;font-size:.8rem;font-weight:700;transform:translateX(100%);transition:transform .15s;border-radius:0 10px 10px 0}
 .empty-state{text-align:center;padding:40px 20px;color:var(--muted)}
-.empty-state svg{width:80px;height:80px;margin-bottom:12px;opacity:.35}
+.empty-state svg{width:80px;height:80px;margin-bottom:12px;opacity:.35;animation:float-idle 3.4s ease-in-out infinite}
 .empty-state .e-lbl{font-size:.9rem;margin-top:4px}
 .start-fab{display:block;width:100%;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:14px;font-size:.95rem;font-weight:700;cursor:pointer;text-align:center;margin-bottom:12px}
-/* Skeleton */
-.skeleton-card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:12px;overflow:hidden}
-.skel{border-radius:8px;background:linear-gradient(90deg,var(--border) 25%,var(--bg) 50%,var(--border) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite}
-@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 
 /* ── 7. Drive view ── */
 #drive-view{flex-direction:column}
@@ -136,7 +128,7 @@ body{display:flex;flex-direction:column;overflow:hidden}
 #drive-pre h2{font-size:1.4rem;font-weight:800;margin-bottom:8px}
 #drive-pre p{color:var(--muted);font-size:.85rem;margin-bottom:24px;line-height:1.5}
 .btn-big{width:100%;padding:16px;font-size:1rem;font-weight:700;border:none;border-radius:var(--radius);cursor:pointer}
-.btn-start{background:var(--green);color:#fff}
+.btn-start{background:var(--green);color:#fff;animation:pulse-glow 2.4s infinite}
 .btn-stop{background:var(--red);color:#fff}
 .btn-big:active{opacity:.85}
 .speedometer{text-align:center;margin-bottom:8px}
@@ -159,7 +151,7 @@ body{display:flex;flex-direction:column;overflow:hidden}
 /* Rainbow hue slider */
 .hue-slider{-webkit-appearance:none;appearance:none;width:100%;height:28px;border-radius:14px;background:linear-gradient(to right,hsl(0,100%,50%),hsl(40,100%,50%),hsl(80,100%,50%),hsl(120,100%,50%),hsl(160,100%,50%),hsl(200,100%,50%),hsl(240,100%,50%),hsl(280,100%,50%),hsl(320,100%,50%),hsl(360,100%,50%));cursor:pointer;border:none;box-shadow:0 1px 4px rgba(0,0,0,.2)}
 .hue-slider::-webkit-slider-thumb{-webkit-appearance:none;width:34px;height:34px;border-radius:50%;background:#fff;border:3px solid rgba(0,0,0,.15);box-shadow:0 2px 8px rgba(0,0,0,.3);cursor:pointer}
-.hue-slider::-moz-range-thumb{width:34px;height:34px;border-radius:50%;background:#fff;border:3px solid rgba(0,0,0,.15);box-shadow:0 2px 8px rgba(0,0,0,.3);cursor:pointer;border:3px solid rgba(0,0,0,.15)}
+.hue-slider::-moz-range-thumb{width:34px;height:34px;border-radius:50%;background:#fff;border:3px solid rgba(0,0,0,.15);box-shadow:0 2px 8px rgba(0,0,0,.3);cursor:pointer}
 
 /* ── 8. Skills view ── */
 .skill-category-header{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:14px 0 6px;border-bottom:1px solid var(--border);margin-bottom:4px}
@@ -208,16 +200,6 @@ body{display:flex;flex-direction:column;overflow:hidden}
 .btn-outline:hover{border-color:var(--accent);color:var(--accent)}
 .btn-danger{flex:1;border:1.5px solid var(--red);background:var(--card);border-radius:10px;padding:12px;font-size:.86rem;font-weight:600;cursor:pointer;color:var(--red)}
 .btn-save{width:100%;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:14px;font-size:.93rem;font-weight:700;cursor:pointer;margin-top:8px}
-.toggle-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-.toggle{position:relative;width:46px;height:26px}
-.toggle input{opacity:0;width:0;height:0}
-.toggle-slider{position:absolute;inset:0;background:var(--border);border-radius:99px;cursor:pointer;transition:background .2s}
-.toggle-slider::before{content:'';position:absolute;height:20px;width:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform .2s}
-.toggle input:checked+.toggle-slider{background:var(--accent)}
-.toggle input:checked+.toggle-slider::before{transform:translateX(20px)}
-.color-swatches{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-.color-swatch{width:36px;height:36px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:border-color .15s}
-.color-swatch.active{border-color:var(--text)}
 .font-size-btns{display:flex;gap:8px}
 .font-size-btn{flex:1;border:1.5px solid var(--border);background:var(--card);border-radius:10px;padding:10px;text-align:center;cursor:pointer;font-weight:600;color:var(--muted);font-family:inherit;transition:border-color .15s,color .15s,background-color .15s}
 .font-size-btn.active{border-color:var(--accent);color:var(--accent);background:var(--accent-lt)}
@@ -234,7 +216,7 @@ body{display:flex;flex-direction:column;overflow:hidden}
 #detail-map{height:200px}
 .modal-body{padding:16px}
 .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.detail-item .di-label{font-size:.62rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:600;margin-bottom:2px}
+.di-label{font-size:.62rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:600;margin-bottom:2px}
 .detail-item .di-val{font-size:.88rem;font-weight:600}
 .notes-label{font-size:.76rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin:14px 0 6px}
 #detail-notes{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:.86rem;min-height:70px;resize:vertical;font-family:inherit;background:var(--card);color:var(--text)}
@@ -244,7 +226,7 @@ body{display:flex;flex-direction:column;overflow:hidden}
 .btn-save-notes{flex:2;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:11px;font-weight:600;cursor:pointer}
 /* Elevation profile */
 .elevation-wrap{margin:12px 0}
-.elevation-wrap .di-label{font-size:.62rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:600;margin-bottom:6px}
+.elevation-wrap .di-label{margin-bottom:6px}
 /* Route replay */
 .replay-btn{background:var(--accent-lt);color:var(--accent);border:1.5px solid var(--accent);border-radius:8px;padding:7px 14px;font-size:.78rem;font-weight:700;cursor:pointer;margin:8px 16px 0}
 
@@ -276,7 +258,6 @@ body{display:flex;flex-direction:column;overflow:hidden}
 
 /* ── 15. Weekly chart ── */
 .chart-wrap{overflow-x:auto;padding-bottom:4px}
-.chart-bar-label{font-size:.62rem;color:var(--muted);text-align:center;margin-top:4px}
 
 /* ── 16. Tags ── */
 .tag-chips{display:flex;flex-wrap:wrap;gap:6px}
@@ -287,26 +268,23 @@ body{display:flex;flex-direction:column;overflow:hidden}
 /* ── 16b. Stop notice ── */
 #stop-notice{display:none;background:var(--amber-lt);border:1.5px solid var(--amber);border-radius:10px;padding:9px 14px;font-size:.8rem;color:var(--amber);font-weight:600;margin-bottom:10px;text-align:center}
 /* ── 17. Misc ── */
-.chip{display:inline-flex;align-items:center;gap:4px;background:var(--accent-lt);color:var(--accent);font-size:.62rem;font-weight:700;padding:2px 8px;border-radius:99px}
-.chip.night{background:var(--purple-lt);color:var(--purple)}
 .toast{position:fixed;bottom:calc(var(--nav-h) + 14px);left:50%;transform:translateX(-50%) translateY(10px);background:#0f172a;color:#fff;padding:10px 18px;border-radius:99px;font-size:.8rem;font-weight:500;z-index:999;opacity:0;transition:opacity .3s,transform .3s cubic-bezier(.34,1.56,.64,1);pointer-events:none;white-space:nowrap}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .leaflet-control-attribution{font-size:9px!important}
 [data-theme="dark"] .leaflet-container,[data-theme="midnight"] .leaflet-container,[data-theme="neon"] .leaflet-container,[data-theme="contrast"] .leaflet-container{background:#1e293b}
-@media(max-width:380px){.drive-stats{grid-template-columns:1fr 1fr}.stat-grid{grid-template-columns:1fr 1fr 1fr}}
-@media print{#header,#nav,#modal,#manual-modal,#help-modal,#quick-modal,#onboard-overlay{display:none!important}.view{display:block!important;position:static!important;overflow:visible!important}#main{overflow:visible!important;position:static!important}}
+@media(max-width:380px){.drive-stats{grid-template-columns:1fr 1fr}}
+@media print{#header,#nav,.modal-overlay,#onboard-overlay{display:none!important}.view{display:block!important;position:static!important;overflow:visible!important}#main{overflow:visible!important;position:static!important}}
 /* ── 18. Vibe Themes ── */
 [data-theme="pastel"]{--bg:#fdf4ff;--card:#fff0fd;--text:#3b0764;--muted:#9333ea;--border:#e9d5ff;--shadow:0 1px 4px rgba(88,28,135,.08),0 4px 16px rgba(88,28,135,.06);}
-[data-theme="neon"]{--bg:#020617;--card:#0f172a;--text:#f0f9ff;--muted:#38bdf8;--border:#1e3a5f;--shadow:0 0 0 1px rgba(56,189,248,.12),0 4px 24px rgba(0,255,136,.06);--blue-lt:rgba(0,255,136,.14);--green-lt:rgba(0,255,136,.14);--purple-lt:rgba(56,189,248,.14);--amber-lt:rgba(251,191,36,.14);--accent-lt:rgba(0,255,136,.14);--red-lt:rgba(239,68,68,.18);}
+[data-theme="neon"]{--bg:#020617;--card:#0f172a;--text:#f0f9ff;--muted:#38bdf8;--border:#1e3a5f;--shadow:0 0 0 1px rgba(56,189,248,.12),0 4px 24px rgba(0,255,136,.06);--green-lt:rgba(0,255,136,.14);--purple-lt:rgba(56,189,248,.14);--amber-lt:rgba(251,191,36,.14);--accent-lt:rgba(0,255,136,.14);--red-lt:rgba(239,68,68,.18);}
 [data-theme="retro"]{--bg:#fef9ee;--card:#fffef5;--text:#3d2b1f;--muted:#92400e;--border:#fde68a;--shadow:0 1px 4px rgba(120,53,15,.08),0 4px 16px rgba(120,53,15,.05);}
-[data-theme="midnight"]{--bg:#060d1b;--card:#0d1929;--text:#cde8ff;--muted:#6496b8;--border:#1a3150;--shadow:0 1px 4px rgba(0,0,0,.7),0 4px 16px rgba(0,100,200,.1);--blue-lt:rgba(56,189,248,.14);--accent-lt:rgba(56,189,248,.14);--purple-lt:rgba(167,139,250,.14);--amber-lt:rgba(251,191,36,.14);--red-lt:rgba(239,68,68,.18);}
+[data-theme="midnight"]{--bg:#060d1b;--card:#0d1929;--text:#cde8ff;--muted:#6496b8;--border:#1a3150;--shadow:0 1px 4px rgba(0,0,0,.7),0 4px 16px rgba(0,100,200,.1);--accent-lt:rgba(56,189,248,.14);--purple-lt:rgba(167,139,250,.14);--amber-lt:rgba(251,191,36,.14);--red-lt:rgba(239,68,68,.18);}
 /* ── 19. Home extras ── */
 .home-car{display:flex;align-items:center;gap:8px;padding:6px 0 2px;border-top:1px solid var(--border);margin-top:8px}
 .home-car-emoji{font-size:1.5rem;line-height:1;display:inline-block;animation:car-bob 2.8s ease-in-out infinite}
 .home-car-nick{font-size:.75rem;font-weight:700;color:var(--muted)}
 /* Pulse glow on Start Drive */
 @keyframes pulse-glow{0%,100%{box-shadow:0 0 0 0 rgba(22,163,74,.5)}60%{box-shadow:0 0 0 10px rgba(22,163,74,0)}}
-.btn-start{animation:pulse-glow 2.4s infinite}
 .btn-start:active{animation:none}
 /* Streak banner */
 .streak-banner{display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,var(--amber-lt),transparent);border:1.5px solid var(--amber);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px}
@@ -328,7 +306,6 @@ body{display:flex;flex-direction:column;overflow:hidden}
 .nav-btn::after{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:0;height:3px;background:var(--accent);border-radius:0 0 3px 3px;transition:width .2s}
 .nav-btn.active::after{width:28px}
 /* Session row day/night accent */
-.session-row{border-left:3px solid transparent;padding-left:9px;margin-left:-3px}
 .session-row.s-row-day{border-left-color:var(--amber)}
 .session-row.s-row-night{border-left-color:var(--purple)}
 /* Skill category fraction */
@@ -336,8 +313,6 @@ body{display:flex;flex-direction:column;overflow:hidden}
 /* Milestone locked */
 .milestone-badge:not(.earned){cursor:pointer}
 .milestone-badge:not(.earned):active{opacity:.6}
-/* Settings section-title with icon */
-.section-title-icon{display:flex;align-items:center;gap:6px}
 /* ── 20. Settings extras ── */
 .theme-swatches{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
 .theme-swatch{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer}
@@ -402,7 +377,6 @@ body{display:flex;flex-direction:column;overflow:hidden}
 .fire-emoji{display:inline-block;animation:fire-pulse 1.7s ease-in-out infinite}
 /* Empty state float */
 @keyframes float-idle{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
-.empty-state svg{animation:float-idle 3.4s ease-in-out infinite}
 /* Skill mastered flash */
 @keyframes skill-pop{0%{transform:scale(1)}35%{transform:scale(1.22);background:var(--green);color:#fff;border-color:var(--green)}80%{transform:scale(.97)}100%{transform:scale(1)}}
 .skill-btn.just-mastered{animation:skill-pop .48s cubic-bezier(.34,1.56,.64,1) forwards}
@@ -456,12 +430,12 @@ body{display:flex;flex-direction:column;overflow:hidden}
 </div>
 
 <nav id="nav">
-  <button class="nav-btn active" data-view="home" data-idx="0" aria-current="page"><span class="icon">🏠</span>Home</button>
-  <button class="nav-btn" data-view="dashboard" data-idx="1"><span class="icon">📊</span>Progress</button>
-  <button class="nav-btn drive-btn" data-view="drive" data-idx="2"><span class="icon">🚗</span>Drive</button>
-  <button class="nav-btn" data-view="skills" data-idx="3"><span class="icon">✅</span>Skills<span class="nav-badge" id="skills-nav-badge"></span></button>
-  <button class="nav-btn" data-view="history" data-idx="4"><span class="icon">📋</span>History</button>
-  <button class="nav-btn" data-view="settings" data-idx="5"><span class="icon">⚙️</span>Settings</button>
+  <button class="nav-btn active" data-view="home" aria-current="page"><span class="icon">🏠</span>Home</button>
+  <button class="nav-btn" data-view="dashboard"><span class="icon">📊</span>Progress</button>
+  <button class="nav-btn drive-btn" data-view="drive"><span class="icon">🚗</span>Drive</button>
+  <button class="nav-btn" data-view="skills"><span class="icon">✅</span>Skills<span class="nav-badge" id="skills-nav-badge"></span></button>
+  <button class="nav-btn" data-view="history"><span class="icon">📋</span>History</button>
+  <button class="nav-btn" data-view="settings"><span class="icon">⚙️</span>Settings</button>
 </nav>
 
 <!-- Session detail modal -->
@@ -945,7 +919,6 @@ let syncLastAt = null;
 // Quick Add
 let qaSelectedMin = 60;
 let qaIsNight = false;
-let activeSessionId = null;
 let historyFilter = 'all';
 let historySearch = '';
 let historySort = 'newest';
@@ -980,7 +953,6 @@ function loadTombstones(){
 }
 function saveTombstones(m){localStorage.setItem('rtr_deleted',JSON.stringify([...m].map(([id,at])=>({id,at}))));}
 function tombstoneList(){return[...loadTombstones()].map(([id,at])=>({id,at}));}
-function loadDeletedIds(){return new Set(loadTombstones().keys());}
 function saveDeletedId(id){const m=loadTombstones();m.set(id,new Date().toISOString());saveTombstones(m);}
 function clearDeletedId(id){const m=loadTombstones();if(m.delete(id))saveTombstones(m);}
 
@@ -1028,10 +1000,13 @@ function onSessionsChanged(){
   const saved=saveSessions();
   if(saved)checkMilestones();   // don't celebrate a drive that isn't on disk
   scheduleSyncPush();
+  renderSessionViews();
+  return saved;
+}
+function renderSessionViews(){
   if(currentView==='home')renderHome();
   else if(currentView==='dashboard')renderDashboard();
   else if(currentView==='history')renderHistory();
-  return saved;
 }
 
 function loadSkillsData(){
@@ -1051,23 +1026,11 @@ function accentHsl(alpha){
 }
 function applyTheme(){
   const vt=settings.vibeTheme||'default';
-  const darkThemes=['dark','neon','midnight','contrast'];
   document.documentElement.setAttribute('data-theme',vt);
-  document.documentElement.setAttribute('data-dark',darkThemes.includes(vt)?'true':'false');
   const root=document.documentElement.style;
   root.setProperty('--accent',accentHsl());
-  root.setProperty('--blue',accentHsl());
-  root.setProperty('--blue-dk',accentHsl());
-  if(vt==='default'||vt==='dark'){
-    root.setProperty('--accent-lt',accentHsl(0.12));
-    root.setProperty('--blue-lt',accentHsl(0.12));
-  } else if(vt==='contrast'){
-    root.setProperty('--accent-lt',accentHsl(0.22));
-    root.setProperty('--blue-lt',accentHsl(0.22));
-  } else {
-    root.removeProperty('--accent-lt');
-    root.removeProperty('--blue-lt');
-  }
+  const lt=vt==='contrast'?0.22:(vt==='default'||vt==='dark')?0.12:null;
+  if(lt!=null)root.setProperty('--accent-lt',accentHsl(lt));else root.removeProperty('--accent-lt');
   const fs={small:'14px',medium:'16px',large:'18px'}[settings.fontSize]||'16px';
   root.setProperty('--base-size',fs);
   updateAvatar();
@@ -1111,13 +1074,12 @@ function getReqs(){
 // WMO weather codes (Open-Meteo) plus the teen's own tags
 function weatherFlags(s){
   const wx=s.weather?.code,tags=s.tags||[];
-  const rain=(wx!=null&&((wx>=51&&wx<=67)||(wx>=80&&wx<=82)))||tags.includes('rain');   // 66/67 = freezing rain
-  const snow=(wx!=null&&((wx>=71&&wx<=77)||(wx>=85&&wx<=86)))||tags.includes('snow');
+  const rain=(wx>=51&&wx<=67)||(wx>=80&&wx<=82)||tags.includes('rain');   // 66/67 = freezing rain
+  const snow=(wx>=71&&wx<=77)||(wx>=85&&wx<=86)||tags.includes('snow');
   const fog=wx===45||wx===48;
-  const thunder=wx!=null&&wx>=95;
+  const thunder=wx>=95;
   return{rain,snow,fog,thunder,inclement:rain||snow||fog||thunder};
 }
-function isInclement(s){return weatherFlags(s).inclement;}
 
 // ── Day/night split ──────────────────────────────────────
 // Night = sunset to sunrise (sun's upper edge below the horizon), worked out from the
@@ -1130,12 +1092,13 @@ function sunAltitude(ms,lat,lng){
   const gmst=(280.46061837+360.98564736629*d)*rad,H=gmst+lng*rad-ra;
   return Math.asin(Math.sin(lat*rad)*Math.sin(dec)+Math.cos(lat*rad)*Math.cos(dec)*Math.cos(H))/rad;
 }
+const SUN_DOWN_DEG = -0.833;   // sun's upper limb at the horizon, with refraction
 function nightMinutes(startMs,endMs,lat,lng){
   if(!(endMs>startMs))return 0;
   let night=0;
   for(let t=startMs;t<endMs;t+=60000){
     const step=Math.min(60000,endMs-t);
-    if(sunAltitude(t+step/2,lat,lng)<-0.833)night+=step/60000;
+    if(sunAltitude(t+step/2,lat,lng)<SUN_DOWN_DEG)night+=step/60000;
   }
   return Math.round(night*100)/100;
 }
@@ -1156,7 +1119,7 @@ function sessionLatLng(s){
 }
 function driveLatLng(s){
   const own=sessionLatLng(s);if(own)return own;
-  for(const x of [...sessions].sort((a,b)=>new Date(b.startTime)-new Date(a.startTime))){const p=sessionLatLng(x);if(p)return p;}
+  for(const x of newestFirst(sessions)){const p=sessionLatLng(x);if(p)return p;}
   return STATE_CENTER[settings.state]||STATE_CENTER.CA;
 }
 // Sets s.nightMin and s.isNight (night if at least half the drive was after dark)
@@ -1176,9 +1139,11 @@ function sessionNightMin(s){
 }
 
 // Pure: totals for any list of drives (own drives, or the parent view's copy)
+function nightSplit(s){const n=sessionNightMin(s);return{n,split:n>0&&n<(s.duration||0)};}
 function computeTotals(list,now=new Date()){
   let totalMin=0,nightMin=0,inclementMin=0,distMi=0,maxSpeed=0,totalSpeed=0,speedCount=0;
   let rainDrives=0,snowDrives=0,earlyDrives=0,highwayDrives=0;
+  const weeklyHours={};
   for(const s of list){
     totalMin+=s.duration||0;
     nightMin+=sessionNightMin(s);
@@ -1191,16 +1156,9 @@ function computeTotals(list,now=new Date()){
     if(wf.snow)snowDrives++;
     if(s.startTime&&!s.timeUnknown&&new Date(s.startTime).getHours()<7)earlyDrives++;
     if(s.tags&&s.tags.includes('highway'))highwayDrives++;
+    if(s.startTime){const key=localDateStr(weekStart(new Date(s.startTime)));weeklyHours[key]=(weeklyHours[key]||0)+(s.duration||0)/60;}
   }
-  const weeklyHours={};
-  for(const s of list){
-    if(!s.startTime)continue;
-    const d=new Date(s.startTime),ws=new Date(d);
-    ws.setDate(d.getDate()-d.getDay());ws.setHours(0,0,0,0);
-    const key=localDateStr(ws);
-    weeklyHours[key]=(weeklyHours[key]||0)+(s.duration||0)/60;
-  }
-  const bestWeekHours=Object.values(weeklyHours).length?Math.max(0,...Object.values(weeklyHours)):0;
+  const bestWeekHours=Math.max(0,...Object.values(weeklyHours));
   return{
     totalHours:totalMin/60,nightHours:nightMin/60,inclementHours:inclementMin/60,
     sessions:list.length,distMi,
@@ -1211,25 +1169,18 @@ function computeTotals(list,now=new Date()){
 }
 function getTotals(){return computeTotals(sessions);}
 
+function weekStart(d){const ws=new Date(d);ws.setDate(d.getDate()-d.getDay());ws.setHours(0,0,0,0);return ws;}
+function newestFirst(list){return [...list].sort((a,b)=>new Date(b.startTime)-new Date(a.startTime));}
 function localDateStr(d){
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
 
-function getStreak(list=sessions,now=new Date()){
-  if(!list.length)return 0;
+function getStreak(list,now=new Date()){
   const days=new Set(list.map(s=>s.startTime?localDateStr(new Date(s.startTime)):null).filter(Boolean));
-  let streak=0,d=new Date(now);d.setHours(0,0,0,0);
-  // allow today or yesterday to start streak
-  const todayStr=localDateStr(d);
-  const yd=new Date(d);yd.setDate(yd.getDate()-1);
-  const ydStr=localDateStr(yd);
-  if(!days.has(todayStr)&&!days.has(ydStr))return 0;
-  let cur=days.has(todayStr)?new Date(d):new Date(yd);
-  while(true){
-    const s=localDateStr(cur);
-    if(days.has(s)){streak++;cur.setDate(cur.getDate()-1);}
-    else break;
-  }
+  const cur=new Date(now);cur.setHours(0,0,0,0);
+  if(!days.has(localDateStr(cur)))cur.setDate(cur.getDate()-1);   // a streak may start today or yesterday
+  let streak=0;
+  while(days.has(localDateStr(cur))){streak++;cur.setDate(cur.getDate()-1);}
   return streak;
 }
 
@@ -1373,24 +1324,20 @@ function mergeSyncData(data) {
   }
   saveTombstones(tomb);
   if (added || changed || removed) {
-    sessions = [...byId.values()].sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
+    sessions = newestFirst(byId.values());
     saveSessions(); checkMilestones();
-    if (currentView === 'home') renderHome();
-    else if (currentView === 'dashboard') renderDashboard();
-    else if (currentView === 'history') renderHistory();
+    renderSessionViews();
     if (added > 0) toast('Synced — ' + added + ' new drive' + (added === 1 ? '' : 's') + ' added');
   }
   return { added, changed, removed };
 }
-function mergeRemoteSessions(remote) { return mergeSyncData({ sessions: remote }); }
 
 async function createSyncCode() {
   syncStatus = 'busy'; updateSyncUI();
   try {
     settings.syncCode = genSyncCode();
     saveSettings();
-    await pushSync();
-    if (syncStatus !== 'ok') throw new Error('push failed');
+    if (!(await pushSync())) throw new Error('push failed');
     renderSettings();
     toast('Sync code created: ' + fmtSyncCode(settings.syncCode));
   } catch {
@@ -1459,12 +1406,11 @@ async function upgradeLegacySync() {
     return false;
   }
   if (!d.ok) throw new Error(d.error);
-  mergeRemoteSessions(d.sessions);
+  mergeSyncData({ sessions: d.sessions });
   settings.syncCode = genSyncCode();
   settings.parentToken = '';   // old parent links stop working; share a new one
   saveSettings();
-  await pushSync();
-  if (syncStatus !== 'ok') { settings.syncCode = oldCode; saveSettings(); throw new Error('upgrade push failed'); }
+  if (!(await pushSync())) { settings.syncCode = oldCode; saveSettings(); throw new Error('upgrade push failed'); }
   settings.legacyPendingDelete = oldCode; saveSettings();
   await retryLegacyDelete();
   if (currentView === 'settings') renderSettings();
@@ -1486,6 +1432,8 @@ function adoptParent(data) {
   }
   return false;
 }
+function applyRemote(data) { mergeSyncData(data); adoptParent(data); }   // a parent link made or revoked on another device, newest wins
+function markSynced(d) { syncStatus = 'ok'; syncLastAt = d.updatedAt || new Date().toISOString(); }
 function setParent(p) {
   settings.parent = p; settings.parentAt = Math.max(Date.now(), (settings.parentAt || 0) + 1); saveSettings();
 }
@@ -1494,13 +1442,13 @@ async function pushSync() {
   if (!settings.syncCode) return false;
   if (!navigator.onLine) { syncStatus = 'offline'; updateSyncUI(); return false; }
   if (isLegacyCode(settings.syncCode)) { await pullSync(); return false; }   // upgrade first
-  if (settings.legacyPendingDelete) await retryLegacyDelete();
+  await retryLegacyDelete();   // no-op unless an old plaintext file still needs deleting
   syncStatus = 'busy'; updateSyncUI();
   try {
     const { id, key } = await deriveSyncKeys(settings.syncCode);
     // Merge what other devices uploaded first, so this push never overwrites their drives or deletes
     const cur = await syncCall('get', { id });
-    if (cur.ok && cur.blob) { const data = await unseal(key, cur.blob); mergeSyncData(data); adoptParent(data); }
+    if (cur.ok && cur.blob) { applyRemote(await unseal(key, cur.blob)); }
     else if (cur.status !== 404) throw new Error(cur.error || 'Pull failed');
     const sealSync = () => seal(key, { v: 2, sessions, deleted: tombstoneList(), parent: settings.parent || null, parentAt: settings.parentAt || 0 });
     const blob = await sealSync();
@@ -1518,7 +1466,7 @@ async function pushSync() {
         if (!d.ok) throw new Error(d.error || 'Push failed');
       } else if (!p.ok) throw new Error(p.error || 'Parent update failed');
     }
-    syncStatus = 'ok'; syncLastAt = d.updatedAt || new Date().toISOString();
+    markSynced(d);
     updateSyncUI();
     return true;
   } catch {
@@ -1537,10 +1485,8 @@ async function pullSync() {
     const { id, key } = await deriveSyncKeys(settings.syncCode);
     const d = await syncCall('get', { id });
     if (!d.ok) throw new Error(d.error || 'Pull failed');
-    const data = await unseal(key, d.blob);
-    mergeSyncData(data);
-    adoptParent(data);   // a parent link made or revoked on another device, newest wins
-    syncStatus = 'ok'; syncLastAt = d.updatedAt || new Date().toISOString();
+    applyRemote(await unseal(key, d.blob));
+    markSynced(d);
   } catch {
     syncStatus = 'err';
   }
@@ -1671,7 +1617,7 @@ function emailSyncCode(){
 // ═══════════════════════════════════════════════════
 function openQuickModal(){
   qaSelectedMin=60;
-  qaIsNight=sunAltitude(Date.now(),...driveLatLng(null))<-0.833;
+  const sunDown=sunAltitude(Date.now(),...driveLatLng(null))<SUN_DOWN_DEG;
   // Reset chips
   document.querySelectorAll('#qa-dur-chips .qa-chip').forEach(c=>{
     c.classList.toggle('active',parseInt(c.dataset.min||0)===60);
@@ -1679,7 +1625,7 @@ function openQuickModal(){
   document.getElementById('qa-custom-row').style.display='none';
   document.getElementById('qa-h').value='';
   document.getElementById('qa-m').value='';
-  selectQaDN(qaIsNight?'night':'day');
+  selectQaDN(sunDown?'night':'day');
   qaDNTouched=false;   // the sun decides unless the teen taps Day or Night
   document.querySelectorAll('#qa-tag-chips .qa-chip').forEach(c=>c.classList.remove('active'));
   _modalTrigger=document.activeElement;
@@ -1695,13 +1641,8 @@ function selectQaDur(el){
   el.classList.add('active');
   const min=parseInt(el.dataset.min||0);
   const customRow=document.getElementById('qa-custom-row');
-  if(min===0){
-    customRow.style.display='block';
-    qaSelectedMin=0;
-  } else {
-    customRow.style.display='none';
-    qaSelectedMin=min;
-  }
+  customRow.style.display=min===0?'block':'none';
+  qaSelectedMin=min;
 }
 
 let qaDNTouched=false;
@@ -1771,16 +1712,14 @@ async function initParentView(token){
     const reqs=rq?{total:hrs(rq.total,50),night:hrs(rq.night,10),inclement:hrs(rq.inclement,0),stateName:typeof rq.stateName==='string'?rq.stateName:''}
       :{total:50,night:10,stateName:''};
     const {totals,earned}=computeEarnedMilestones(remoteSessions,reqs);
-    const totalPct=reqs.total>0?Math.min(totals.totalHours/reqs.total,1):1;
-    const recent=[...remoteSessions].sort((a,b)=>new Date(b.startTime)-new Date(a.startTime)).slice(0,5);
-    const nightLeft=Math.max(reqs.night-totals.nightHours,0);
-    const hoursLeft=Math.max(reqs.total-totals.totalHours,0);
+    const {totalPct,hoursLeft,nightLeft,allMet}=progressLeft(reqs,totals);
+    const recent=newestFirst(remoteSessions).slice(0,5);
     contentEl.innerHTML=`
       <div class="parent-header">
         <div class="parent-app-name">ReadyToRoll — Parent View</div>
         <div class="parent-driver">🚗 ${data.driverName?esc(data.driverName)+"'s Progress":'Driver Progress'}</div>
         <div class="parent-state">${reqs.stateName?esc(reqs.stateName)+' · ':''}Live data · Updated ${d.updatedAt?new Date(d.updatedAt).toLocaleDateString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'recently'}</div>
-        ${hoursLeft===0&&nightLeft===0&&Math.max((reqs.inclement||0)-(totals.inclementHours||0),0)===0&&(reqs.total>0||reqs.night>0)?'<div class="parent-badge">✅ Hours complete!</div>':''}
+        ${allMet?'<div class="parent-badge">✅ Hours complete!</div>':''}
       </div>
       <div class="card" style="margin-bottom:12px">
         <div style="display:flex;align-items:center;gap:16px">
@@ -1821,11 +1760,7 @@ async function initParentView(token){
       </div>
       <div style="text-align:center;margin-top:24px;font-size:.7rem;color:var(--muted);line-height:1.7">This is a read-only view shared by the driver.<br>Powered by ReadyToRoll</div>
     `;
-    // Animate ring
-    requestAnimationFrame(()=>{
-      const circle=document.querySelector('#parent-content .ring-circle-progress');
-      if(circle)setTimeout(()=>{circle.style.strokeDashoffset=circle.dataset.target;},80);
-    });
+    animateRing(contentEl,80);
   }catch(e){
     contentEl.innerHTML=`<div style="text-align:center;padding:60px 20px;color:var(--muted)">
       <div style="font-size:2rem;margin-bottom:12px">🔒</div>
@@ -1845,9 +1780,7 @@ function getPersonalRecords(){
   const topSpeed=sessions.reduce((best,s)=>Math.max(best,s.maxSpeed||0),0);
   const weeklyHours={};
   for(const s of sessions){
-    const d=new Date(s.startTime),ws=new Date(d);
-    ws.setDate(d.getDate()-d.getDay());ws.setHours(0,0,0,0);
-    const key=localDateStr(ws);
+    const key=localDateStr(weekStart(new Date(s.startTime)));
     weeklyHours[key]=(weeklyHours[key]||0)+(s.duration||0)/60;
   }
   const bestWeek=Math.max(0,...Object.values(weeklyHours));
@@ -1883,13 +1816,13 @@ function updateSkillsBadge(){
 // MILESTONES
 // ═══════════════════════════════════════════════════
 function checkMilestones(){
-  const totals=getTotals(),reqs=getReqs();
+  const {earned:now}=computeEarnedMilestones(sessions,getReqs());
   let prev;
   try{const v=JSON.parse(localStorage.getItem('rtr_milestones')||'[]');prev=new Set(Array.isArray(v)?v:[]);}catch(e){prev=new Set();}
   const earned=new Set(prev);   // achievements are sticky: never un-earn
   let anyNew=false;
   for(const m of MILESTONES){
-    if(m.check(totals,reqs)){
+    if(now.has(m.id)){
       earned.add(m.id);
       if(!prev.has(m.id)){toast(m.icon+' '+m.label+' unlocked!');anyNew=true;}
     }
@@ -1924,7 +1857,7 @@ function checkMilestones(){
   }
 
   function draw(canvas,ctx,elapsed){
-    const progress=elapsed/DURATION;
+    const alpha=Math.max(0,1-Math.max(0,(elapsed-2000)/1500));
     ctx.clearRect(0,0,canvas.width,canvas.height);
     for(const p of particles){
       p.x+=p.vx;
@@ -1932,7 +1865,7 @@ function checkMilestones(){
       p.y+=p.vy;
       p.rot+=p.rotV;
       p.vx*=0.99;
-      p.opacity=Math.max(0,1-Math.max(0,(elapsed-2000)/1500));
+      p.opacity=alpha;
       ctx.save();
       ctx.globalAlpha=p.opacity;
       ctx.translate(p.x,p.y);
@@ -1970,7 +1903,7 @@ function checkMilestones(){
     if(raf)cancelAnimationFrame(raf);
     particles=[];
     startTime=Date.now();
-    // Burst: 120 particles spread across three waves
+    // Burst: 120 particles, each added after a random delay of up to 600 ms
     for(let i=0;i<120;i++){
       setTimeout(()=>particles.push(new Particle()),Math.random()*600);
     }
@@ -2044,8 +1977,6 @@ document.querySelectorAll('.nav-btn').forEach(btn=>{
 });
 
 function navigate(view, direction){
-  const prevIdx = viewOrder.indexOf(currentView);
-  const newIdx = viewOrder.indexOf(view);
   currentView = view;
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active','slide-in-right','slide-in-left'));
   document.querySelectorAll('.nav-btn').forEach(b=>{b.classList.toggle('active',b.dataset.view===view);b.dataset.view===view?b.setAttribute('aria-current','page'):b.removeAttribute('aria-current');});
@@ -2084,11 +2015,8 @@ mainEl.addEventListener('touchend',e=>{
 // ═══════════════════════════════════════════════════
 function renderHome(){
   const reqs=getReqs(),totals=getTotals();
-  const totalPct=reqs.total>0?Math.min(totals.totalHours/reqs.total,1):1;
-  const last=[...sessions].sort((a,b)=>new Date(b.startTime)-new Date(a.startTime))[0]||null;
-  const hoursLeft=Math.max(reqs.total-totals.totalHours,0);
-  const nightLeft=Math.max(reqs.night-totals.nightHours,0);
-  const inclementLeft=Math.max((reqs.inclement||0)-totals.inclementHours,0);
+  const {totalPct,hoursLeft,nightLeft,inclementLeft}=progressLeft(reqs,totals);
+  const last=newestFirst(sessions)[0]||null;
   const tip=getTipOfDay();
   const car=settings.carEmoji||'🚗';
   const nick=settings.carNickname||'';
@@ -2144,7 +2072,7 @@ function renderHome(){
           <div style="font-size:1.5rem;font-weight:800;line-height:1">${totals.totalHours.toFixed(1)}<span style="font-size:.85rem;font-weight:500;color:var(--muted)"> / ${reqs.total||'?'} hrs</span></div>
           <div style="font-size:.78rem;color:var(--muted);margin-top:3px">${reqs.stateName}</div>
           ${reqs.night>0?`<div style="font-size:.76rem;color:var(--purple);margin-top:5px">🌙 ${totals.nightHours.toFixed(1)} / ${reqs.night} night hrs</div>`:''}
-          ${reqs.inclement>0?`<div style="font-size:.76rem;color:var(--blue);margin-top:3px">🌧️ ${totals.inclementHours.toFixed(1)} / ${reqs.inclement} inclement hrs</div>`:''}
+          ${reqs.inclement>0?`<div style="font-size:.76rem;color:var(--accent);margin-top:3px">🌧️ ${totals.inclementHours.toFixed(1)} / ${reqs.inclement} inclement hrs</div>`:''}
           ${hoursLeft>0||nightLeft>0?`<div style="font-size:.72rem;color:var(--muted);margin-top:4px">${hoursLeft>0?hoursLeft.toFixed(1)+' total left':''}${hoursLeft>0&&nightLeft>0?' · ':''}${nightLeft>0?nightLeft.toFixed(1)+' night left':''}</div>`:inclementLeft>0?`<div style="font-size:.72rem;color:var(--muted);margin-top:4px">${inclementLeft.toFixed(1)} inclement left</div>`:(reqs.total>0||reqs.night>0)?`<div style="font-size:.76rem;color:var(--green);margin-top:5px;font-weight:600">✅ Hours complete!</div>`:`<div style="font-size:.72rem;color:var(--muted);margin-top:4px">No hour requirement for this state</div>`}
           ${last?`<div style="font-size:.7rem;color:var(--muted);margin-top:4px;border-top:1px solid var(--border);padding-top:6px">Last drive: ${fmtDate(last.startTime)} · ${fmtDur(last.duration)}${daysSinceLast>=4?`<span class="stale-nudge" style="margin-left:8px">${daysSinceLast}d ago</span>`:''}</div>`:''}
           ${nick||car!=='🚗'||carHue?`<div class="home-car"><span class="home-car-emoji" style="${carHue?'filter:hue-rotate('+carHue+'deg)':''}">${esc(car)}</span><span class="home-car-nick">${esc(nick||'My Car')}</span></div>`:''}
@@ -2167,11 +2095,7 @@ function renderHome(){
       </div>
     </div>
   `;
-  // Animate home ring
-  requestAnimationFrame(()=>{
-    const circle=document.querySelector('#home-content .ring-circle-progress');
-    if(circle)setTimeout(()=>{circle.style.strokeDashoffset=circle.dataset.target;},50);
-  });
+  animateRing(document.getElementById('home-content'));
   // Keep elapsed time ticking if drive is active
   if(activeSession){
     const tick=()=>{
@@ -2187,86 +2111,72 @@ function renderHome(){
 // ═══════════════════════════════════════════════════
 function renderDashboard(){
   const el=document.getElementById('dash-content');
-  {
-    const reqs=getReqs(),totals=getTotals();
-    const totalPct=reqs.total>0?Math.min(totals.totalHours/reqs.total,1):1;
-    const nightPct=reqs.night>0?Math.min(totals.nightHours/reqs.night,1):1;
-    const inclPct=reqs.inclement>0?Math.min(totals.inclementHours/reqs.inclement,1):0;
-    const driverLabel=settings.driverName?esc(settings.driverName)+"'s Log":'My Driving Log';
-    const streak=getStreak();
-    const recent=[...sessions].sort((a,b)=>new Date(b.startTime)-new Date(a.startTime)).slice(0,3);
-    const recentlyPracticed=getRecentSkills();
-    const circSize=106,stroke=10;
-    const r=(circSize-stroke)/2,circ=2*Math.PI*r;
-    const targetOffset=(circ*(1-totalPct)).toFixed(2);
+  const reqs=getReqs(),totals=getTotals();
+  const totalPct=reqs.total>0?Math.min(totals.totalHours/reqs.total,1):1;
+  const nightPct=reqs.night>0?Math.min(totals.nightHours/reqs.night,1):1;
+  const inclPct=reqs.inclement>0?Math.min(totals.inclementHours/reqs.inclement,1):0;
+  const driverLabel=settings.driverName?esc(settings.driverName)+"'s Log":'My Driving Log';
+  const streak=totals.streak;
+  const recent=newestFirst(sessions).slice(0,3);
+  const recentlyPracticed=getRecentSkills();
 
-    el.innerHTML=`
-      ${activeSession?`<button class="start-fab" style="background:var(--red)" onclick="navigate('drive')">● Drive in progress — tap to view</button>`:''}
-      ${streak>=2?`<div class="streak-badge">🔥 ${streak}-day streak</div>`:''}
-      <div class="card">
-        <div class="stats-hero">
-          <div class="ring-wrap">
-            <svg width="${circSize}" height="${circSize}" style="transform:rotate(-90deg)" aria-hidden="true">
-              <circle cx="${circSize/2}" cy="${circSize/2}" r="${r}" fill="none" stroke="var(--border)" stroke-width="${stroke}"/>
-              <circle class="ring-circle-progress" cx="${circSize/2}" cy="${circSize/2}" r="${r}" fill="none" stroke="var(--accent)" stroke-width="${stroke}"
-                stroke-dasharray="${circ.toFixed(2)}" stroke-dashoffset="${circ.toFixed(2)}"
-                stroke-linecap="round" data-target="${targetOffset}"/>
-            </svg>
-            <div class="ring-label">
-              <div class="ring-pct">${reqs.total>0?Math.round(totalPct*100)+'%':'—'}</div>
-              <div class="ring-sub">done</div>
+  el.innerHTML=`
+    ${activeSession?`<button class="start-fab" style="background:var(--red)" onclick="navigate('drive')">● Drive in progress — tap to view</button>`:''}
+    ${streak>=2?`<div class="streak-badge">🔥 ${streak}-day streak</div>`:''}
+    <div class="card">
+      <div class="stats-hero">
+        <div class="ring-wrap">
+          ${progressRing(totalPct,'var(--accent)',106,10,true)}
+          <div class="ring-label">
+            <div class="ring-pct">${reqs.total>0?Math.round(totalPct*100)+'%':'—'}</div>
+            <div class="ring-sub">done</div>
+          </div>
+        </div>
+        <div class="hero-right">
+          <div class="sub">${driverLabel}</div>
+          <h2>${totals.totalHours.toFixed(1)} <small style="font-size:.75rem;font-weight:500;color:var(--muted)">/ ${reqs.total>0?reqs.total:'?'} hrs</small></h2>
+          <div style="font-size:.75rem;color:var(--muted);margin-top:2px">${reqs.stateName}</div>
+          ${reqs.total>0?`
+            <div class="mini-bar-wrap" style="margin-top:10px">
+              <div class="mini-bar-label"><span>🌙 Night ${totals.nightHours.toFixed(1)}h / ${reqs.night}h</span><span style="color:var(--purple)">${reqs.night>0?Math.round(nightPct*100)+'%':'—'}</span></div>
+              <div class="mini-bar-track"><div class="mini-bar-fill" style="width:${nightPct*100}%;background:var(--purple)"></div></div>
             </div>
-          </div>
-          <div class="hero-right">
-            <div class="sub">${driverLabel}</div>
-            <h2>${totals.totalHours.toFixed(1)} <small style="font-size:.75rem;font-weight:500;color:var(--muted)">/ ${reqs.total>0?reqs.total:'?'} hrs</small></h2>
-            <div style="font-size:.75rem;color:var(--muted);margin-top:2px">${reqs.stateName}</div>
-            ${reqs.total>0?`
-              <div class="mini-bar-wrap" style="margin-top:10px">
-                <div class="mini-bar-label"><span>🌙 Night ${totals.nightHours.toFixed(1)}h / ${reqs.night}h</span><span style="color:var(--purple)">${reqs.night>0?Math.round(nightPct*100)+'%':'—'}</span></div>
-                <div class="mini-bar-track"><div class="mini-bar-fill" style="width:${nightPct*100}%;background:var(--purple)"></div></div>
-              </div>
-              <div class="mini-bar-wrap" style="margin-top:6px">
-                <div class="mini-bar-label"><span>☀️ Day ${(totals.totalHours-totals.nightHours).toFixed(1)}h</span></div>
-                <div class="mini-bar-track"><div class="mini-bar-fill" style="width:${Math.min((totals.totalHours-totals.nightHours)/reqs.total,1)*100}%;background:var(--amber)"></div></div>
-              </div>
-              ${reqs.inclement>0?`<div class="mini-bar-wrap" style="margin-top:6px">
-                <div class="mini-bar-label"><span>🌧️ Inclement ${totals.inclementHours.toFixed(1)}h / ${reqs.inclement}h</span><span style="color:var(--blue)">${Math.round(inclPct*100)}%</span></div>
-                <div class="mini-bar-track"><div class="mini-bar-fill" style="width:${inclPct*100}%;background:var(--blue)"></div></div>
-              </div>`:''}
-              `:'<div style="font-size:.72rem;color:var(--muted);margin-top:8px">No hour requirement for this state</div>'}
-          </div>
+            <div class="mini-bar-wrap" style="margin-top:6px">
+              <div class="mini-bar-label"><span>☀️ Day ${(totals.totalHours-totals.nightHours).toFixed(1)}h</span></div>
+              <div class="mini-bar-track"><div class="mini-bar-fill" style="width:${Math.min((totals.totalHours-totals.nightHours)/reqs.total,1)*100}%;background:var(--amber)"></div></div>
+            </div>
+            ${reqs.inclement>0?`<div class="mini-bar-wrap" style="margin-top:6px">
+              <div class="mini-bar-label"><span>🌧️ Inclement ${totals.inclementHours.toFixed(1)}h / ${reqs.inclement}h</span><span style="color:var(--accent)">${Math.round(inclPct*100)}%</span></div>
+              <div class="mini-bar-track"><div class="mini-bar-fill" style="width:${inclPct*100}%;background:var(--accent)"></div></div>
+            </div>`:''}
+            `:'<div style="font-size:.72rem;color:var(--muted);margin-top:8px">No hour requirement for this state</div>'}
         </div>
       </div>
-      <div class="card">
-        <div class="stat-grid">
-          <div class="stat-box"><div class="val">${totals.sessions}</div><div class="lbl">Sessions</div></div>
-          <div class="stat-box"><div class="val">${totals.distMi.toFixed(1)}</div><div class="lbl">Miles</div></div>
-          <div class="stat-box"><div class="val">${totals.sessions>0?fmtDur(totals.totalHours*60/totals.sessions):'—'}</div><div class="lbl">Avg</div></div>
-        </div>
-        ${totals.maxSpeed>0?`<div style="display:flex;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
-          <div class="stat-box" style="flex:1"><div class="val">${totals.maxSpeed.toFixed(0)}</div><div class="lbl">Top Speed</div></div>
-          <div class="stat-box" style="flex:1"><div class="val">${totals.avgSpeed.toFixed(0)}</div><div class="lbl">Avg Speed</div></div>
-        </div>`:''}
+    </div>
+    <div class="card">
+      <div class="stat-grid">
+        <div class="stat-box"><div class="val">${totals.sessions}</div><div class="lbl">Sessions</div></div>
+        <div class="stat-box"><div class="val">${totals.distMi.toFixed(1)}</div><div class="lbl">Miles</div></div>
+        <div class="stat-box"><div class="val">${totals.sessions>0?fmtDur(totals.totalHours*60/totals.sessions):'—'}</div><div class="lbl">Avg</div></div>
       </div>
-      ${goalCard(reqs,totals)}
-      ${personalRecordsHTML()}
-      <div class="section-title">Milestones</div>
-      ${milestonesHTML()}
-      <div class="section-title">Weekly Activity</div>
-      <div class="card">${weeklyChartHTML()}</div>
-      ${recentlyPracticed.length?`<div class="section-title">Recently Practiced Skills</div>
-        <div class="card"><div class="recent-skills">${recentlyPracticed.map(s=>`<span class="skill-chip">✅ ${s.label}</span>`).join('')}</div></div>`:''}
-      <div class="section-title">Recent Sessions</div>
-      ${recent.length?`<div class="card">${recent.map(s=>sessionRowHTML(s,false)).join('')}</div>`:emptyStateHTML('car','No sessions yet','Tap Drive to log your first drive')}
-    `;
-    // Animate ring
-    requestAnimationFrame(()=>{
-      const circle=el.querySelector('.ring-circle-progress');
-      if(circle)setTimeout(()=>{circle.style.strokeDashoffset=circle.dataset.target;},50);
-    });
-    el.querySelectorAll('.session-row').forEach(r=>r.addEventListener('click',()=>showSessionDetail(r.dataset.id)));
-  }
+      ${totals.maxSpeed>0?`<div style="display:flex;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+        <div class="stat-box" style="flex:1"><div class="val">${totals.maxSpeed.toFixed(0)}</div><div class="lbl">Top Speed</div></div>
+        <div class="stat-box" style="flex:1"><div class="val">${totals.avgSpeed.toFixed(0)}</div><div class="lbl">Avg Speed</div></div>
+      </div>`:''}
+    </div>
+    ${goalCard(reqs,totals)}
+    ${personalRecordsHTML()}
+    <div class="section-title">Milestones</div>
+    ${milestonesHTML()}
+    <div class="section-title">Weekly Activity</div>
+    <div class="card">${weeklyChartHTML()}</div>
+    ${recentlyPracticed.length?`<div class="section-title">Recently Practiced Skills</div>
+      <div class="card"><div class="recent-skills">${recentlyPracticed.map(s=>`<span class="skill-chip">✅ ${s.label}</span>`).join('')}</div></div>`:''}
+    <div class="section-title">Recent Sessions</div>
+    ${recent.length?`<div class="card">${recent.map(s=>sessionRowHTML(s,false)).join('')}</div>`:emptyStateHTML('car','No sessions yet','Tap Drive to log your first drive')}
+  `;
+  animateRing(el);
+  el.querySelectorAll('.session-row').forEach(r=>r.addEventListener('click',()=>showSessionDetail(r.dataset.id)));
 }
 
 function getRecentSkills(){
@@ -2276,16 +2186,14 @@ function getRecentSkills(){
     .slice(0,4);
 }
 
+function progressLeft(reqs,totals){const hoursLeft=Math.max(reqs.total-totals.totalHours,0),nightLeft=Math.max((reqs.night||0)-totals.nightHours,0),inclementLeft=Math.max((reqs.inclement||0)-(totals.inclementHours||0),0);return{totalPct:reqs.total>0?Math.min(totals.totalHours/reqs.total,1):1,hoursLeft,nightLeft,inclementLeft,allMet:hoursLeft===0&&nightLeft===0&&inclementLeft===0&&(reqs.total>0||reqs.night>0)};}
 function goalCard(reqs,totals){
   if(!settings.goalDate)return'';
   const today=new Date();today.setHours(0,0,0,0);
   const goal=new Date(settings.goalDate+'T00:00:00');
   if(isNaN(goal))return'';
   const daysLeft=Math.ceil((goal-today)/86400000);
-  const hoursLeft=Math.max(reqs.total-totals.totalHours,0);
-  const nightLeft=Math.max((reqs.night||0)-totals.nightHours,0);
-  const inclementLeft=Math.max((reqs.inclement||0)-totals.inclementHours,0);
-  const allMet=hoursLeft===0&&nightLeft===0&&inclementLeft===0&&(reqs.total>0||reqs.night>0);
+  const {hoursLeft,nightLeft,inclementLeft,allMet}=progressLeft(reqs,totals);
   const paceLeft=Math.max(hoursLeft,nightLeft);
   if(daysLeft<=0){
     if(allMet)return`<div class="card" style="background:var(--green-lt);border:1.5px solid var(--green)"><div style="font-weight:700;color:var(--green)">🎉 Goal date reached — requirements met!</div></div>`;
@@ -2331,6 +2239,8 @@ function progressRing(pct,color,size=106,stroke=10,animated=false){
       stroke-dasharray="${circ.toFixed(2)}" stroke-dashoffset="${startOffset}" stroke-linecap="round"/>
   </svg>`;
 }
+
+function animateRing(root,delay=50){requestAnimationFrame(()=>{const c=root&&root.querySelector('.ring-circle-progress');if(c)setTimeout(()=>{c.style.strokeDashoffset=c.dataset.target;},delay);});}
 
 function sessionRowHTML(s, showSwipeDelete=true){
   const addr=s.startLocation?.city||s.startLocation?.address||(s.supervisor?'Drive with '+s.supervisor:(s.isNight?'Night drive':'Day drive'));
@@ -2421,7 +2331,7 @@ function setSkill(id,status){
 }
 
 function suggestSkill(){
-  const unmastered=SKILLS.filter(s=>!skillsData[s.id]||skillsData[s.id].status!=='mastered');
+  const unmastered=SKILLS.filter(s=>skillsData[s.id]?.status!=='mastered');
   if(!unmastered.length){toast('🏆 All skills mastered!');launchConfetti();return;}
   const pick=unmastered[Math.floor(Math.random()*unmastered.length)];
   toast('🎯 Practice: '+pick.label);
@@ -2436,14 +2346,14 @@ function suggestSkill(){
 // ═══════════════════════════════════════════════════
 // DRIVE VIEW
 // ═══════════════════════════════════════════════════
+function teardownDriveMap(){const compass=document.getElementById('compass-el');if(compass)compass.classList.remove('visible');if(driveMap){driveMap.remove();driveMap=null;}drivePolyline=null;drivePosMarker=null;}
 function renderDrive(){
   const panel=document.getElementById('drive-panel');
   const mapDiv=document.getElementById('drive-map');
   if(!activeSession){
     mapDiv.style.display='none';
     panel.style.flex='1';
-    const compass=document.getElementById('compass-el');
-    if(compass)compass.classList.remove('visible');
+    teardownDriveMap();
     panel.innerHTML=`<div id="drive-pre">
       ${gpsPermState==='denied'?`<div class="gps-warn" style="text-align:left;margin-bottom:16px">
         <div class="gps-warn-icon">📍</div>
@@ -2457,8 +2367,6 @@ function renderDrive(){
       <button class="btn-big btn-start" onclick="startDrive()">Start Drive</button>
       <button class="btn-outline" style="width:100%;margin-top:10px;flex:none" onclick="openManualModal()">Add Drive Manually</button>
     </div>`;
-    if(driveMap){driveMap.remove();driveMap=null;}
-    drivePolyline=null;drivePosMarker=null;
   } else {
     mapDiv.style.display='';
     panel.style.flex='';
@@ -2468,9 +2376,10 @@ function renderDrive(){
   }
 }
 
+const OSM_TILES='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 function initDriveMap(){
   driveMap=L.map('drive-map',{zoomControl:true,attributionControl:true});
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© <a href="https://openstreetmap.org">OSM</a>'}).addTo(driveMap);
+  L.tileLayer(OSM_TILES,{attribution:'© <a href="https://openstreetmap.org">OSM</a>'}).addTo(driveMap);
   drivePolyline=L.polyline([],{color:'var(--accent)',weight:4,opacity:.85}).addTo(driveMap);
   if(activeSession&&activeSession.route.length>0){
     drivePolyline.setLatLngs(activeSession.route.map(p=>[p[0],p[1]]));
@@ -2499,7 +2408,7 @@ function setPulseMarker(lat,lng){
 function renderDrivePanel(){
   const s=activeSession;
   const dist=routeDistMiles(s.route);
-  const speedMph=s.lastSpeed!=null?(s.lastSpeed*2.23694):null;
+  const speedMph=toMph(s.lastSpeed);
   document.getElementById('drive-panel').innerHTML=`
     <div class="speedometer">
       <div class="speed-val" id="speed-display">${speedMph!=null?speedMph.toFixed(0):'—'}</div>
@@ -2519,12 +2428,13 @@ function renderDrivePanel(){
     <button class="btn-big btn-stop" onclick="stopDrive()">Stop Drive</button>`;
 }
 
+const GPS_WATCH_OPTS={enableHighAccuracy:true,maximumAge:5000,timeout:15000};
 async function startDrive(){
   if(activeSession)return;   // double tap: one drive, one timer, one GPS watch
   vibrate([30,50,30]);
   activeSession={
     id:genId(),startTime:new Date().toISOString(),endTime:null,
-    duration:0,isNight:sunAltitude(Date.now(),...driveLatLng(null))<-0.833,
+    duration:0,isNight:sunAltitude(Date.now(),...driveLatLng(null))<SUN_DOWN_DEG,
     startLocation:null,endLocation:null,weather:null,
     route:[],distance:0,lastSpeed:null,maxSpeed:null,avgSpeed:null,
     speedSamples:[],notes:'',supervisor:'',supervisorLicense:'',
@@ -2544,8 +2454,7 @@ async function startDrive(){
   },1000);
   const s=activeSession;
   if(navigator.geolocation&&s){
-    let firstWatchId=null;
-    firstWatchId=gpsWatchId=navigator.geolocation.watchPosition(
+    const firstWatchId=gpsWatchId=navigator.geolocation.watchPosition(
       pos=>handleFirstFix(pos,firstWatchId),
       err=>{
         console.warn('GPS:',err.message);
@@ -2555,7 +2464,7 @@ async function startDrive(){
         const msg=err.code===1?'Location access denied — route won\'t be recorded.':'GPS unavailable — route won\'t be recorded.';
         toast(msg,4000);
       },
-      {enableHighAccuracy:true,maximumAge:5000,timeout:15000}
+      GPS_WATCH_OPTS
     );
   }
 }
@@ -2566,18 +2475,18 @@ function handleFirstFix(pos,watchId){
   const s=activeSession;
   if(!s||s.route.length)return;
   const{latitude:lat,longitude:lng,speed,heading,altitude}=pos.coords;
-  const mph0=speed!=null?speed*2.23694:null;
+  const mph0=toMph(speed);
   s.route.push([lat,lng,altitude,mph0]);
-  s.lastSpeed=speed;s.lastMovedAt=s.lastFixAt=Date.now();
+  s.lastSpeed=speed;s.lastMovedAt=Date.now();
   if(mph0!=null){s.maxSpeed=mph0;s.speedSamples=[mph0];}
-  s.isNight=sunAltitude(Date.now(),lat,lng)<-0.833;   // live hint only; the saved split is worked out at stop
+  s.isNight=sunAltitude(Date.now(),lat,lng)<SUN_DOWN_DEG;   // live hint only; the saved split is worked out at stop
   if(driveMap){
     driveMap.setView([lat,lng],15);
     setPulseMarker(lat,lng);
     if(drivePolyline)drivePolyline.setLatLngs([[lat,lng]]);
   }
   // Keep recording while weather and the start address load
-  gpsWatchId=navigator.geolocation.watchPosition(onPosition,err=>console.warn('GPS:',err.message),{enableHighAccuracy:true,maximumAge:5000,timeout:15000});
+  gpsWatchId=navigator.geolocation.watchPosition(onPosition,err=>console.warn('GPS:',err.message),GPS_WATCH_OPTS);
   if(currentView==='drive')renderDrivePanel();
   updateCompass(heading);
   Promise.all([fetchWeather(lat,lng),reverseGeocode(lat,lng)]).then(([wx,loc])=>{
@@ -2590,11 +2499,9 @@ function handleFirstFix(pos,watchId){
 function onPosition(pos){
   if(!activeSession)return;
   const{latitude:lat,longitude:lng,speed,heading,altitude}=pos.coords;
-  activeSession.lastFixAt=Date.now();
+  const mph=toMph(speed);
   activeSession.lastSpeed=speed;
   if(speed!=null){
-    const mph=speed*2.23694;
-    activeSession.speedSamples=activeSession.speedSamples||[];
     activeSession.speedSamples.push(mph);
     if(mph>(activeSession.maxSpeed||0))activeSession.maxSpeed=mph;
     const speedEl=document.getElementById('speed-display');
@@ -2608,8 +2515,7 @@ function onPosition(pos){
     const d=haversineMeters(last[0],last[1],lat,lng);
     if(d<5)return;
   }
-  const routeSpeedMph=speed!=null?speed*2.23694:null;
-  route.push([lat,lng,altitude,routeSpeedMph]);
+  route.push([lat,lng,altitude,mph]);
   activeSession.lastMovedAt=Date.now();
   const milesEl=document.getElementById('drive-miles');
   if(milesEl)milesEl.textContent=routeDistMiles(route).toFixed(2);
@@ -2633,7 +2539,7 @@ function checkStopDetection(){
   if(!activeSession.route.length){el.style.display='none';return;}
   // Hidden: mobile browsers pause GPS, so idle time is unknown; the resume handler restarts the clock
   if(document.hidden){el.style.display='none';return;}
-  const stoppedMs=Date.now()-(activeSession.lastMovedAt||Date.now());
+  const stoppedMs=Date.now()-activeSession.lastMovedAt;
   const stoppedMin=stoppedMs/60000;
   if(stoppedMin>=10){
     el.style.display='block';
@@ -2642,7 +2548,7 @@ function checkStopDetection(){
       const s=activeSession;s.autoStopping=true;
       setTimeout(()=>{
         if(activeSession!==s)return;
-        if(Date.now()-(s.lastMovedAt||0)>=10*60000)stopDrive({auto:true});
+        if(Date.now()-s.lastMovedAt>=10*60000)stopDrive({auto:true});
         else s.autoStopping=false;   // moved again during the notice
       },2000);
     }
@@ -2677,20 +2583,17 @@ async function stopDrive({auto=false}={}){
   if(wakeLock){const wl=wakeLock;wakeLock=null;try{Promise.resolve(wl.release()).catch(()=>{});}catch(e){}}
   document.getElementById('live-badge').style.display='none';
   document.querySelector('.drive-btn')?.classList.remove('recording');
-  const compass=document.getElementById('compass-el');
-  if(compass)compass.classList.remove('visible');
-  if(driveMap){driveMap.remove();driveMap=null;}
-  drivePolyline=null;drivePosMarker=null;
+  teardownDriveMap();
   const startMs=new Date(s.startTime).getTime();
   // An auto-stop ends the drive when the car stopped moving, not 10 idle minutes later
-  const endMs=auto&&s.lastMovedAt?Math.max(startMs,Math.min(Date.now(),s.lastMovedAt)):Date.now();
+  const endMs=auto?Math.max(startMs,Math.min(Date.now(),s.lastMovedAt)):Date.now();
   s.endTime=new Date(endMs).toISOString();
   s.duration=(endMs-startMs)/60000;
   s.distance=routeDistMiles(s.route);
-  if(s.speedSamples&&s.speedSamples.length)
+  if(s.speedSamples.length)
     s.avgSpeed=s.speedSamples.reduce((a,b)=>a+b,0)/s.speedSamples.length;
   applyNightSplit(s);
-  for(const k of ['speedSamples','lastSpeed','lastMovedAt','lastFixAt','autoStopping','gpsWarned'])delete s[k];
+  for(const k of ['speedSamples','lastSpeed','lastMovedAt','autoStopping','gpsWarned'])delete s[k];
   // An accidental Start/Stop tap is not a drive: no history row, no streak, no milestone
   if(s.duration<1&&s.distance<0.05){
     toast('Drive too short to log');
@@ -2718,11 +2621,8 @@ async function stopDrive({auto=false}={}){
 // HISTORY
 // ═══════════════════════════════════════════════════
 function renderHistory(){
-  let sorted=[...sessions].sort((a,b)=>new Date(b.startTime)-new Date(a.startTime));
-  if(historySort==='oldest')sorted=[...sessions].sort((a,b)=>new Date(a.startTime)-new Date(b.startTime));
-  else if(historySort==='longest')sorted=[...sessions].sort((a,b)=>(b.duration||0)-(a.duration||0));
-  else if(historySort==='shortest')sorted=[...sessions].sort((a,b)=>(a.duration||0)-(b.duration||0));
-  else if(historySort==='farthest')sorted=[...sessions].sort((a,b)=>(b.distance||0)-(a.distance||0));
+  const SORTS={newest:(a,b)=>new Date(b.startTime)-new Date(a.startTime),oldest:(a,b)=>new Date(a.startTime)-new Date(b.startTime),longest:(a,b)=>(b.duration||0)-(a.duration||0),shortest:(a,b)=>(a.duration||0)-(b.duration||0),farthest:(a,b)=>(b.distance||0)-(a.distance||0)};
+  const sorted=[...sessions].sort(SORTS[historySort]||SORTS.newest);
   let filtered=sorted;
   if(historyFilter==='day')filtered=sorted.filter(s=>!s.isNight);
   else if(historyFilter==='night')filtered=sorted.filter(s=>s.isNight);
@@ -2790,7 +2690,7 @@ function setupSwipeDelete(row){
   row.addEventListener('touchend',()=>{
     if(dx<-60){
       if(confirm('Delete this session?')){
-        deleteSession(row.dataset.id,false);return;
+        deleteSession(row.dataset.id);return;
       }
     }
     row.style.transform='';
@@ -2808,19 +2708,19 @@ let currentDetailSession = null;
 function showSessionDetail(id){
   const s=sessions.find(x=>x.id===id);
   if(!s)return;
-  activeSessionId=id;currentDetailSession=s;
+  currentDetailSession=s;
   document.getElementById('modal-title').textContent=fmtDate(s.startTime);
   const route=routePoints(s);
   const alts=route.filter(p=>p[2]!=null).map(p=>p[2]);
   const elevHTML=alts.length>=4?buildElevationSVG(alts):'';
-  const speedHTML=route.some(p=>p[3]!=null)?buildSpeedSVG(route):'';
+  const speedHTML=buildSpeedSVG(route);
   document.getElementById('modal-body').innerHTML=`
     <div class="detail-grid">
       <div class="detail-item"><div class="di-label">Start</div><div class="di-val">${fmtTime(s.startTime)}</div></div>
       <div class="detail-item"><div class="di-label">End</div><div class="di-val">${fmtTime(s.endTime)}</div></div>
       <div class="detail-item"><div class="di-label">Duration</div><div class="di-val">${fmtDur(s.duration)}</div></div>
       <div class="detail-item"><div class="di-label">Distance</div><div class="di-val">${(s.distance||0).toFixed(2)} mi</div></div>
-      <div class="detail-item"><div class="di-label">Conditions</div><div class="di-val">${(()=>{const n=sessionNightMin(s);return n>0&&n<(s.duration||0)?`☀️ ${fmtDur(s.duration-n)} · 🌙 ${fmtDur(n)}`:(s.isNight?'🌙 Night':'☀️ Day');})()}</div></div>
+      <div class="detail-item"><div class="di-label">Conditions</div><div class="di-val">${(()=>{const {n,split}=nightSplit(s);return split?`☀️ ${fmtDur(s.duration-n)} · 🌙 ${fmtDur(n)}`:(s.isNight?'🌙 Night':'☀️ Day');})()}</div></div>
       <div class="detail-item"><div class="di-label">Weather</div><div class="di-val">${s.weather?wxEmoji(s.weather.code)+' '+esc(s.weather.temp)+'°F':'—'}</div></div>
       ${Number.isFinite(s.maxSpeed)&&s.maxSpeed>0?`<div class="detail-item"><div class="di-label">Top Speed</div><div class="di-val">${s.maxSpeed.toFixed(0)} mph</div></div>`:''}
       ${Number.isFinite(s.avgSpeed)&&s.avgSpeed>0?`<div class="detail-item"><div class="di-label">Avg Speed</div><div class="di-val">${s.avgSpeed.toFixed(0)} mph</div></div>`:''}
@@ -2891,7 +2791,7 @@ function initDetailMap(s){
     return;
   }
   detailMap=L.map('detail-map',{zoomControl:false,attributionControl:false});
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(detailMap);
+  L.tileLayer(OSM_TILES).addTo(detailMap);
   const latlngs=pts.map(p=>[p[0],p[1]]);
   const line=L.polyline(latlngs,{color:'var(--accent)',weight:4,opacity:.85}).addTo(detailMap);
   L.circleMarker(latlngs[0],{radius:8,color:'#fff',weight:2,fillColor:'#16a34a',fillOpacity:1}).addTo(detailMap);
@@ -3054,7 +2954,7 @@ async function shareSession(){
 
 function closeModal(){
   document.getElementById('modal').classList.remove('open');
-  activeSessionId=null;currentDetailSession=null;
+  currentDetailSession=null;
   if(replayInterval){clearInterval(replayInterval);replayInterval=null;}
   if(replayMarker){replayMarker.remove();replayMarker=null;}
   if(detailMap){detailMap.remove();detailMap=null;}
@@ -3077,7 +2977,7 @@ function deleteSession(id){
   toastUndo('Session deleted',s);
 }
 
-document.getElementById('modal').addEventListener('click',e=>{if(e.target===document.getElementById('modal'))closeModal();});
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
 
 // ═══════════════════════════════════════════════════
 // SETTINGS
@@ -3185,8 +3085,9 @@ function saveSettingsForm(){
   saveSettings();applyTheme();toast('Settings saved ✓');
 }
 
+const wrapHue=d=>((+d)%360+360)%360;
 function hueToColorName(deg){
-  const h=((+deg)%360+360)%360;
+  const h=wrapHue(deg);
   if(h<15||h>=345)return'Red';
   if(h<45)return'Orange';
   if(h<75)return'Yellow';
@@ -3198,18 +3099,17 @@ function hueToColorName(deg){
   return'Rose';
 }
 function setAccentHue(h){
-  settings.accentHue=((+h)%360+360)%360;saveSettings();applyTheme();
+  settings.accentHue=wrapHue(h);saveSettings();applyTheme();
   const preview=document.getElementById('accent-hue-preview');
   if(preview)preview.style.background=accentHsl();
 }
 function setFontSize(sz){settings.fontSize=sz;saveSettings();applyTheme();renderSettings();}
 function setVibeTheme(id){settings.vibeTheme=id;saveSettings();applyTheme();renderSettings();}
-function setCarEmoji(e){settings.carEmoji=e;saveSettings();if(currentView==='home')renderHome();renderSettings();}
+function setCarEmoji(e){settings.carEmoji=e;saveSettings();renderSettings();}
 function setCarHue(deg){
-  settings.carHue=((+deg)%360+360)%360;saveSettings();
+  settings.carHue=wrapHue(deg);saveSettings();
   const f=settings.carHue?`hue-rotate(${settings.carHue}deg)`:'none';
   const preview=document.getElementById('car-hue-preview');if(preview)preview.style.filter=f;
-  if(currentView==='home')renderHome();
 }
 
 function clearAllData(){
@@ -3239,7 +3139,7 @@ function exportJSON(){
 // nothing downstream (maps, charts, night split) trips over them.
 const SESSION_ID_RE=/^[A-Za-z0-9_-]{1,40}$/;
 function knownTags(tags){return Array.isArray(tags)?tags.filter(t=>typeof t==='string'&&Object.prototype.hasOwnProperty.call(TAG_LABELS,t)):[];}
-function finiteOrDrop(obj,key,min=0){if(obj[key]==null)return;const n=Number(obj[key]);if(Number.isFinite(n)&&n>=min)obj[key]=n;else delete obj[key];}
+function finiteOrDrop(obj,key){if(obj[key]==null)return;const n=Number(obj[key]);if(Number.isFinite(n)&&n>=0)obj[key]=n;else delete obj[key];}
 function capStr(obj,key,max){if(obj[key]==null)return;obj[key]=typeof obj[key]==='string'?obj[key].slice(0,max):'';}
 function cleanImportedSession(s){
   if(!s||typeof s!=='object'||Array.isArray(s))return null;
@@ -3399,7 +3299,7 @@ function printLog(){
     <td>${fmtTime(s.endTime)}</td>
     <td>${fmtDur(s.duration)}</td>
     <td>${(s.distance||0).toFixed(1)} mi</td>
-    <td>${(()=>{const n=sessionNightMin(s);return n>0&&n<(s.duration||0)?'Night '+fmtDur(n):(s.isNight?'Night':'Day');})()}</td>
+    <td>${(()=>{const {n,split}=nightSplit(s);return split?'Night '+fmtDur(n):(s.isNight?'Night':'Day');})()}</td>
     <td>${esc(s.supervisor||'')}</td>
     <td>${s.weather?esc(s.weather.temp)+'°F '+wxEmoji(s.weather.code):''}</td>
     <td>${esc((s.notes||'').substring(0,40))}</td>
@@ -3433,9 +3333,8 @@ function printLog(){
 // ═══════════════════════════════════════════════════
 // fetch + JSON with a hard time limit, so a stalled connection can't hang a drive
 async function fetchJSON(url,opts={},ms=8000){
-  const ctl=typeof AbortController==='function'?new AbortController():null;
-  const t=ctl?setTimeout(()=>ctl.abort(),ms):null;
-  try{const r=await fetch(url,ctl?{...opts,signal:ctl.signal}:opts);return await r.json();}
+  const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),ms);
+  try{const r=await fetch(url,{...opts,signal:ctl.signal});return await r.json();}
   finally{clearTimeout(t);}
 }
 async function fetchWeather(lat,lng){
@@ -3464,10 +3363,12 @@ function openManualModal(editId=null){
   editingSessionId=editId;
   const pad=n=>String(n).padStart(2,'0');
   document.getElementById('manual-modal-title').textContent=editId?'Edit Drive':'Add Drive Manually';
+  let activeTags=[];
   if(editId){
     const s=sessions.find(x=>x.id===editId);if(!s)return;
+    activeTags=s.tags||[];
     const start=new Date(s.startTime);const end=s.endTime?new Date(s.endTime):null;
-    document.getElementById('m-date').value=`${start.getFullYear()}-${pad(start.getMonth()+1)}-${pad(start.getDate())}`;
+    document.getElementById('m-date').value=localDateStr(start);
     document.getElementById('m-start').value=s.timeUnknown?'':`${pad(start.getHours())}:${pad(start.getMinutes())}`;
     document.getElementById('m-end').value=end&&!s.timeUnknown?`${pad(end.getHours())}:${pad(end.getMinutes())}` :'';
     document.getElementById('m-dur-h').value=s.timeUnknown?Math.floor((s.duration||0)/60):'';document.getElementById('m-dur-m').value=s.timeUnknown?Math.round((s.duration||0)%60):'';
@@ -3478,7 +3379,7 @@ function openManualModal(editId=null){
     document.getElementById('m-notes').value=s.notes||'';
   } else {
     const now=new Date();
-    document.getElementById('m-date').value=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+    document.getElementById('m-date').value=localDateStr(now);
     document.getElementById('m-start').value=`${pad(now.getHours())}:${pad(now.getMinutes())}`;
     document.getElementById('m-end').value='';
     document.getElementById('m-dur-h').value='';document.getElementById('m-dur-m').value='';
@@ -3487,7 +3388,6 @@ function openManualModal(editId=null){
     document.getElementById('m-location').value='';document.getElementById('m-notes').value='';
   }
   // Reset tag chips then apply saved tags for edits
-  const activeTags=editingSessionId?(sessions.find(x=>x.id===editingSessionId)?.tags||[]):[];
   document.querySelectorAll('#m-tags .tag-chip').forEach(chip=>{
     const isActive=activeTags.includes(chip.dataset.tag);
     chip.classList.toggle('active', isActive);
@@ -3568,6 +3468,7 @@ function saveManualDrive(){
 // Escape user-supplied strings before inserting into innerHTML
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
+function toMph(v){return v!=null?v*2.23694:null;}
 function haversineMeters(lat1,lng1,lat2,lng2){
   const R=6371000,toRad=x=>x*Math.PI/180;
   const dLat=toRad(lat2-lat1),dLng=toRad(lng2-lng1);
@@ -3579,7 +3480,6 @@ function routeDistMiles(route){
   for(let i=1;i<route.length;i++)d+=haversineMeters(route[i-1][0],route[i-1][1],route[i][0],route[i][1]);
   return d/1609.344;
 }
-function elapsedMin(startTime){return(Date.now()-new Date(startTime).getTime())/60000;}
 function fmtElapsed(startTime){
   const s=Math.floor((Date.now()-new Date(startTime).getTime())/1000);
   const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;
@@ -3618,7 +3518,7 @@ function undoDelete(){
   // Remove from deleted set so sync won't filter it out again
   clearDeletedId(undoSession.id);
   undoSession.updatedAt=new Date().toISOString();   // newer than any synced tombstone, so it wins the merge
-  sessions.push(undoSession);sessions.sort((a,b)=>new Date(b.startTime)-new Date(a.startTime));
+  sessions.push(undoSession);sessions=newestFirst(sessions);
   undoSession=null;
   document.getElementById('toast').classList.remove('show');
   onSessionsChanged();
@@ -3661,7 +3561,7 @@ function obFinish(){
   settings.onboardingDone=true;
   saveSettings();applyTheme();
   document.getElementById('onboard-overlay').classList.remove('open');
-  updateAvatar();renderDashboard();
+  renderDashboard();
 }
 
 // ═══════════════════════════════════════════════════
@@ -3717,12 +3617,10 @@ window.addEventListener('online',async()=>{
   await pullSync();await pushSync();
 });
 
-// ── Page visibility: warn on background during active drive ──
+// ── Page visibility: resume idle clock when visible during active drive ──
 document.addEventListener('visibilitychange', ()=>{
-  if(document.hidden && activeSession){
-    // Drive timer is timestamp-based so duration stays accurate.
-    // GPS will pause on most mobile browsers.
-  } else if(!document.hidden && activeSession){
+  if(!document.hidden && activeSession){
+    // Drive timer is timestamp-based so duration stays accurate; GPS will pause on most mobile browsers.
     // GPS was likely paused while hidden, so the last fix says nothing about whether the car
     // stopped: restart the idle clock and let fresh fixes decide
     activeSession.lastMovedAt=Date.now();

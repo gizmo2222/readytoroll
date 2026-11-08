@@ -1,19 +1,8 @@
 // Regression tests for sync and import data-loss findings (W4).
-const { test, expect, openApp, sess, newDevice } = require('./helpers');
+const { test, expect, openApp, sess, newDevice, pair, ids, toastText } = require('./helpers');
 
 const CODE = 'ABCDEFGHJKLM';
-const ids = p => p.evaluate(() => sessions.map(s => s.id).sort());
 
-async function pair(browser, baseURL, page, sessionsA = [], sessionsB = []) {
-  const store = new Map();
-  await openApp(page, { store, settings: { syncCode: CODE }, sessions: sessionsA });
-  await page.evaluate(() => pushSync());
-  const { ctx, page: b } = await newDevice(browser, baseURL);
-  await openApp(b, { store, settings: { syncCode: CODE }, sessions: sessionsB });
-  await b.evaluate(() => pullSync());
-  return { b, ctx, store };
-}
-const toastText = p => p.evaluate(() => document.getElementById('toast').textContent);
 
 // ── sync-1 ──
 test('a ~2 MB payload seals and unseals', async ({ page }) => {

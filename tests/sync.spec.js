@@ -1,6 +1,6 @@
 // Encrypted sync: nothing readable reaches the server, the parent summary is an allow-list,
 // and two devices merge edits and deletes instead of overwriting each other.
-const { test, expect, openApp, sess, newDevice } = require('./helpers');
+const { test, expect, openApp, sess, newDevice, pair, ids } = require('./helpers');
 
 const CODE = 'ABCDEFGHJKLM';
 const MARK = {
@@ -54,17 +54,6 @@ test('the parent summary holds only progress fields', async ({ page }) => {
     expect(text).not.toContain(m);
 });
 
-// Two devices sharing one fake server
-async function pair(browser, baseURL, page, sessionsA = [], sessionsB = []) {
-  const store = new Map();
-  await openApp(page, { store, settings: { syncCode: CODE }, sessions: sessionsA });
-  await page.evaluate(() => pushSync());
-  const { ctx, page: b } = await newDevice(browser, baseURL);
-  await openApp(b, { store, settings: { syncCode: CODE }, sessions: sessionsB });
-  await b.evaluate(() => pullSync());
-  return { b, ctx };
-}
-const ids = p => p.evaluate(() => sessions.map(s => s.id).sort());
 
 test('a push merges with the server first instead of overwriting', async ({ page, browser, baseURL }) => {
   const { b, ctx } = await pair(browser, baseURL, page, [sess({ id: 's1' })]);

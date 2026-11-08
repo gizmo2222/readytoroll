@@ -130,3 +130,67 @@ fixmes from phase 3 are now `test(`.
 - crypto-5, dom-a-2, dom-b-3, dom-b-5.
 - platform-shared-origin: the SW scope is `./readytoroll.html`, and the other pages on the origin hold no secrets the page can't already reach.
 
+
+## Phase 5 — Clean-up (2026-11-08, branch `overhaul/phase-5`)
+
+Method: eight finders (A–H: state and persistence, sync client, stats and views, drive and detail,
+settings/import/export/onboarding, CSS and markup, PWA/server/tooling, a cross-cutting duplicate sweep),
+then one skeptic per finding: 120 findings, 79 safe (63 applied, the rest duplicates), 38 risky, 3 refuted. Two fixers ran one after the other
+(`readytoroll.html` first, then tests/package/docs). Suite unchanged at 238 (235 pass, 3 `fixme`).
+
+### Applied
+
+- **Dead code:** the `--blue`/`--blue-dk`/`--blue-lt` properties (uses now read `--accent`; the
+  settings.spec asserts on the write-only properties went with them, so F-7 landed as part of A-1),
+  the `data-dark` attribute, `activeSessionId`, `loadDeletedIds`, `isInclement`, the `updateAvatar`
+  stub, `lastFixAt`, `mergeRemoteSessions` (H-13, folded into its one caller), and unused CSS (toggle,
+  skeleton, swatch and other rules with no markup).
+- **Duplication:** `renderSessionViews`, `newestFirst`, `SUN_DOWN_DEG`, one week-start helper,
+  `progressLeft` (hours/night/inclement left plus "all met", used by home, goal card and parent view),
+  `animateRing`, `applyRemote`/`markSynced` in push and pull, `computeEarnedMilestones` shared,
+  `renderDashboard` uses `progressRing`. `computeTotals` is one loop, `getStreak` is simpler.
+- **Sync:** behaviour-preserving only. `parentSummary`, `seal`/`unseal` and the blob shape are
+  untouched; `createSyncCode`/`upgradeLegacySync` test `pushSync()`'s return value instead of
+  `syncStatus` (every exit path agrees).
+- **Tests and tooling (G-3–G-11):** shared helpers in `tests/helpers.js` (`readStore`, `deletedIds`,
+  `ids`, `drive`, `startDriving`, `manual`, `pair`, `json`, `waitForApp`, `toastText`);
+  `@playwright/test` ^1.65.0, `engines.node >=20`, README spec table and PowerShell commands.
+- **Mutants:** `settings-2` removed (its target is gone); 7 retargeted to the new code, and 4 left
+  stale by phase 4 (`sync-lifecycle-10`, `sync-server-8`, `-9`, `-14`) retargeted. All 11 run and killed.
+- Reverted: F-10(b). The `.sync-dot` `off`/`offline` rules look redundant but `syncStatus` takes both
+  values, so removing them changes the dot.
+
+### Risky, not applied
+
+| Id | Finding | Why not |
+|---|---|---|
+| A-5 / C-7 | `getPersonalRecords` re-buckets weeks and recomputes top speed that `computeTotals` returns | Drives without `startTime` (raw old local data) bucket differently; best week could change |
+| A-9 | `ACCENT_COLORS` only feeds the `accentId` migration; `label`/`dk`/`lt` unused | Migration path for old `rtr_settings` |
+| A-12 / H-10 | Repeated localStorage read/parse/fallback and Map→`[{id,at}]` serialisation | Storage compatibility surface; `??` vs `||` differ for stored falsy values |
+| A-15 / D-12* | Drive view has its own GPS-warning block | Copy and layout differ (*D-12 refuted as a pure duplicate) |
+| B-1 / H-11 | Two sync status label maps; `err` text drifts ("Sync error" vs "… — check connection") | Visible text; pick one wording in phase 6 |
+| B-8 | `connectSyncCode` legacy branch fetches `legacy_pull` twice | Legacy v1 path; toasts differ |
+| B-9 | **Bug:** `emailSyncCode` keeps `#drive` in the URL, and the raw `#` cuts off the mailto body | Visible change, untested; fix in phase 6 |
+| B-13 | **Bug:** `openQuickModal` clears `active` on tag chips but leaves `aria-checked="true"` | Assistive-tech change; phase 6 |
+| B-14 | `.sync-dot` rules repeat the base background | No test covers the dot colour |
+| B-15 | `settings.parentToken` (v1) is never read but still written | In `rtr_settings`; tests and mutants assert it |
+| C-8 | Progress view shows top speed twice | Design decision |
+| C-9 | Three "hours left" copies differ slightly (raw vs `||0`) | Partly unified by `progressLeft`; Home's raw `reqs.night` left alone |
+| C-13 | Milestone badge markup built twice (driver vs parent) | Titles and click behaviour differ |
+| C-14 | `checkMilestones` repeats `computeEarnedMilestones`' loop | Writes `rtr_milestones`, whose order matters |
+| D-10 | Canvas font stack repeated 8 times | Nothing checks canvas text |
+| D-11 | Redundant `!route` guard in replay | Removing it would clear a running replay first |
+| E-4 / G-1 / G-2 | SW `sync`/`push` handlers and `BACK_ONLINE` never fire (no `sync.register`, no push) | Spans SW and cache; "future use" is a product call |
+| E-8 | Allowed-key filter after `cleanImportedSettings` is redundant today | Defence in depth on import |
+| E-9 / H-9 | "Edited after delete means restored" rule written three times | Tombstone merge and old format |
+| E-11 | Partly-night predicate inline twice | No test on that visible text |
+| E-13 | **Bug:** settings inputs save on `change` and `blur`, toasting "Settings saved" twice | Visible; phase 6 |
+| E-15 / H-15 | Four modals repeat open/focus/close code | Close paths differ; mutants pin the text |
+| F-6 | **Bug:** help copy is stale (6 vs 7 skill categories, 8- vs 12-character code, button names) | Copy change; phase 6 |
+| F-13 | Inline styles on three form fields override the `:focus` accent border | Visible UI change; phase 6 |
+| F-14 | 26 chips repeat inline handlers | Markup and keyboard behaviour |
+| G-12 | Local `.claude/launch.json` runs `npx serve`; the `serve` npm script is unused | Git-ignored user config |
+| G-13 / G-14 / G-15 | `rtr-sync.php`: triple `parse_url`, duplicated legacy rate-limit lines, redundant `file_exists` | Server responses and CORS are a compatibility surface; port 0 differs |
+
+Refuted: A-14 (the reset is the behaviour), B-4 (tests read `upgradeLegacySync`'s return value), D-12
+(the two GPS blocks differ in what they show).

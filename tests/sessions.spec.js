@@ -1,8 +1,6 @@
 // Editing, deleting (rtr_deleted) and recording GPS drives.
-const { test, expect, openApp, sess } = require('./helpers');
+const { test, expect, openApp, sess, readStore: read, deletedIds, drive, startDriving } = require('./helpers');
 
-const read = (page, key) => page.evaluate(k => JSON.parse(localStorage.getItem(k) || 'null'), key);
-const deletedIds = list => (list || []).map(d => (typeof d === 'string' ? d : d.id));
 
 test('editing a drive keeps its id and updates the totals', async ({ page }) => {
   await openApp(page, { sessions: [sess({ id: 'e1', startTime: '2026-10-01T19:00:00.000Z', duration: 60 })] });
@@ -36,21 +34,6 @@ test('legacy rtr_deleted (plain id strings) is still honoured', async ({ page })
   const ids = await page.evaluate(() => { mergeSyncData({ sessions: [{ ...sessions[0], id: 'gone' }] }); return sessions.map(s => s.id); });
   expect(ids).toEqual(['keep']);
 });
-
-// Drive mode: fake GPS + fake clock
-async function drive(page, minutes, { from = [34.05, -118.24], step = 0.0005 } = {}) {
-  for (let i = 0; i < minutes; i++) {
-    await page.evaluate(([lat, lng]) => window.__geo.emit(lat, lng, 12), [from[0] + i * step, from[1]]);
-    await page.clock.runFor(60000);
-  }
-}
-
-async function startDriving(page) {
-  await page.evaluate(() => startDrive());
-  await page.waitForFunction(() => window.__geo.watchers.size > 0);
-  await page.evaluate(() => window.__geo.emit(34.05, -118.24, 0));   // first fix
-  await page.waitForFunction(() => activeSession && activeSession.route.length > 0);
-}
 
 test('auto-stop ends the drive when the car stopped, not ten minutes later', async ({ page }) => {
   await openApp(page, { clock: new Date('2026-10-01T18:00:00.000Z') });

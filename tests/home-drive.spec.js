@@ -87,10 +87,10 @@ test('nav buttons switch the visible view', async ({ page }) => {
 test('storage loaders fall back on corrupt JSON, and legacy tombstones load as an id set', async ({ page }) => {
   await openApp(page, { deleted: ['old1', { id: 'new1', at: '2026-10-01T00:00:00.000Z' }] });
   const r = await page.evaluate(() => {
-    const ids = [...loadDeletedIds()].sort();
+    const ids = [...loadTombstones().keys()].sort();
     const list = tombstoneList().map(t => t.id).sort();
     localStorage.setItem('rtr_sessions', '{bad'); localStorage.setItem('rtr_skills', '{bad'); localStorage.setItem('rtr_deleted', '{bad');
-    return { ids, list, s: loadSessions(), k: loadSkillsData(), d: [...loadDeletedIds()] };
+    return { ids, list, s: loadSessions(), k: loadSkillsData(), d: [...loadTombstones().keys()] };
   });
   expect(r.ids).toEqual(['new1', 'old1']);
   expect(r.list).toEqual(['new1', 'old1']);
@@ -103,7 +103,7 @@ test('saveDeletedId and clearDeletedId round-trip through rtr_deleted', async ({
     saveDeletedId('x1'); saveDeletedId('x2');
     const a = JSON.parse(localStorage.getItem('rtr_deleted')).map(t => [t.id, typeof t.at]);
     clearDeletedId('x1'); clearDeletedId('nope');
-    return { a, b: [...loadDeletedIds()] };
+    return { a, b: [...loadTombstones().keys()] };
   });
   expect(r.a).toEqual([['x1', 'string'], ['x2', 'string']]);
   expect(r.b).toEqual(['x2']);
@@ -138,9 +138,9 @@ test('inclement detection by weather code, tag, fog and thunder; inclement bar o
     sess({ id: 'ok', weather: { code: 0 }, duration: 60, startTime: '2026-10-04T21:00:00.000Z' }),
   ] });
   const r = await page.evaluate(() => ({
-    flags: sessions.map(s => [s.id, isInclement(s)]),
+    flags: sessions.map(s => [s.id, weatherFlags(s).inclement]),
     hrs: getTotals().inclementHours,
-    codes: [95, 96, 99, 71, 85, 80, 66, 48, 3].map(c => isInclement({ weather: { code: c } })),
+    codes: [95, 96, 99, 71, 85, 80, 66, 48, 3].map(c => weatherFlags({ weather: { code: c } }).inclement),
   }));
   expect(r.flags).toEqual([['r', true], ['f', true], ['t', true], ['ok', false]]);
   expect(r.hrs).toBeCloseTo(2, 6);
@@ -178,7 +178,7 @@ test('drive view idle state, then active map, then idle again', async ({ page })
   const r = await page.evaluate(() => {
     renderDrive(); const again = driveMap !== null;
     driveMap = null; activeSession.route = [[34.05, -118.24, 0], [34.051, -118.24, 0]]; renderDrive();
-    return { again, rebuilt: driveMap !== null, elapsed: Math.round(elapsedMin(activeSession.startTime)) };
+    return { again, rebuilt: driveMap !== null, elapsed: Math.round((Date.now() - new Date(activeSession.startTime).getTime()) / 60000) };
   });
   expect(r).toEqual({ again: true, rebuilt: true, elapsed: 0 });
   await page.evaluate(() => { activeSession = null; renderDrive(); });

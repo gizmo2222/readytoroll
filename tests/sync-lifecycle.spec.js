@@ -1,8 +1,5 @@
 // Sync code lifecycle: code generation, create/connect/disconnect, legacy upgrade, parent link and copy/email/share paths.
-const { test, expect, openApp, sess } = require('./helpers');
-
-const reply = (route, body, status = 200) =>
-  route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+const { test, expect, openApp, sess, json: reply, toastText } = require('./helpers');
 
 // Legacy server stub: serves legacy_pull/legacy_delete, passes everything else to the helpers' fake server.
 async function legacyServer(page, { sessions = [], pullStatus = 200, pullError } = {}) {
@@ -20,7 +17,6 @@ async function legacyServer(page, { sessions = [], pullStatus = 200, pullError }
   });
   return legacy;
 }
-const toastText = page => page.locator('#toast').textContent();
 
 test('generated sync codes are 12 characters from the unambiguous alphabet and unique', async ({ page }) => {
   await openApp(page);

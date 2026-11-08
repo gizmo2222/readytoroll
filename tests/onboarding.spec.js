@@ -1,12 +1,10 @@
 // First-run onboarding flow (show/skip rules, steps, validation, saving) and the Help modal.
-const { test, expect, openApp, sess } = require('./helpers');
+const { test, expect, openApp, sess, readStore: stored, waitForApp: ready } = require('./helpers');
 
 const FIRST = { onboardingDone: false, driverName: '', state: '' };
-const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('rtr_settings') || 'null'));
 const overlay = (page) => page.locator('#onboard-overlay');
 const activeStep = (page) => page.evaluate(() => [...document.querySelectorAll('.onboard-step')].filter(s => s.classList.contains('active')).map(s => s.id));
 const activeDots = (page) => page.evaluate(() => [...document.querySelectorAll('.onboard-dot')].map(d => d.classList.contains('active')));
-const ready = (page) => page.waitForFunction(() => typeof getTotals === 'function' && typeof sessions !== 'undefined');
 
 test('overlay shows on first run, with step 1 and the state list filled', async ({ page }) => {
   await openApp(page, { settings: FIRST });

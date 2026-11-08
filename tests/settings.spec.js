@@ -1,7 +1,6 @@
 // Settings view and theming: form save, state preview, theme/accent/font/car setters, legacy accent migration, clearAllData.
-const { test, expect, openApp, sess } = require('./helpers');
+const { test, expect, openApp, sess, readStore: stored } = require('./helpers');
 
-const stored = (page, key = 'rtr_settings') => page.evaluate(k => JSON.parse(localStorage.getItem(k) || 'null'), key);
 const rootVar = (page, name) => page.evaluate(n => document.documentElement.style.getPropertyValue(n), name);
 const attr = (page, name) => page.evaluate(n => document.documentElement.getAttribute(n), name);
 
@@ -75,14 +74,12 @@ test('override hours are saved and invalid values fall back to the state default
   expect(await page.evaluate(() => getReqs().total)).toBe(ca.total);
 });
 
-test('setVibeTheme sets data-theme / data-dark and persists', async ({ page }) => {
+test('setVibeTheme sets data-theme and persists', async ({ page }) => {
   await openSettings(page);
-  const cases = [['dark', 'true'], ['neon', 'true'], ['midnight', 'true'], ['contrast', 'true'],
-    ['pastel', 'false'], ['retro', 'false'], ['default', 'false']];
-  for (const [id, dark] of cases) {
+  const cases = ['dark', 'neon', 'midnight', 'contrast', 'pastel', 'retro', 'default'];
+  for (const id of cases) {
     await page.evaluate(t => setVibeTheme(t), id);
     expect(await attr(page, 'data-theme')).toBe(id);
-    expect(await attr(page, 'data-dark')).toBe(dark);
     expect((await stored(page)).vibeTheme).toBe(id);
   }
   await page.locator('.theme-swatch[aria-label*="Pastel"]').click();
@@ -96,19 +93,16 @@ test('accent-lt variables depend on theme (set, stronger for contrast, removed f
   expect(await rootVar(page, '--accent-lt')).toContain('0.12');
   await page.evaluate(() => setVibeTheme('dark'));
   expect(await rootVar(page, '--accent-lt')).toContain('0.12');
-  expect(await rootVar(page, '--blue-lt')).toContain('0.12');
   await page.evaluate(() => setVibeTheme('contrast'));
   expect(await rootVar(page, '--accent-lt')).toContain('0.22');
-  expect(await rootVar(page, '--blue-lt')).toContain('0.22');
   await page.evaluate(() => setVibeTheme('neon'));
   expect(await rootVar(page, '--accent-lt')).toBe('');
-  expect(await rootVar(page, '--blue-lt')).toBe('');
 });
 
 test('setAccentHue updates CSS variables, wraps the value and persists', async ({ page }) => {
   await openSettings(page);
   await page.evaluate(() => setAccentHue(120));
-  for (const v of ['--accent', '--blue', '--blue-dk']) expect(await rootVar(page, v)).toBe('hsl(120,80%,50%)');
+  for (const v of ['--accent']) expect(await rootVar(page, v)).toBe('hsl(120,80%,50%)');
   expect((await stored(page)).accentHue).toBe(120);
   await page.evaluate(() => setAccentHue(-30));
   expect((await stored(page)).accentHue).toBe(330);
@@ -170,7 +164,6 @@ test('legacy accentId and darkMode migrate (dark vibe theme, id-based hue)', asy
   const s = await page.evaluate(() => ({ hue: settings.accentHue, theme: settings.vibeTheme, dm: 'darkMode' in settings }));
   expect(s).toEqual({ hue: 347, theme: 'dark', dm: false });
   expect(await attr(page, 'data-theme')).toBe('dark');
-  expect(await attr(page, 'data-dark')).toBe('true');
 });
 
 test('legacy darkMode does not override an explicitly chosen vibe theme', async ({ page }) => {

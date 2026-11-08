@@ -4,7 +4,7 @@
 {"id":"home-drive-3","file":"readytoroll.html","find":"  if(activeSession)return;\n  const dx=","replace":"  const dx=","spec":["tests/home-drive.spec.js"],"why":"swipes work during an active drive"},
 {"id":"home-drive-4","file":"readytoroll.html","find":"if(dx<0&&idx<viewOrder.length-1)","replace":"if(dx>0&&idx<viewOrder.length-1)","spec":["tests/home-drive.spec.js"],"why":"swipe left goes backwards"},
 {"id":"home-drive-5","file":"readytoroll.html","find":"const fog=wx===45||wx===48;","replace":"const fog=wx===45;","spec":["tests/home-drive.spec.js"],"why":"rime fog code 48 not inclement"},
-{"id":"home-drive-6","file":"readytoroll.html","find":"const thunder=wx!=null&&wx>=95;","replace":"const thunder=wx!=null&&wx>=96;","spec":["tests/home-drive.spec.js"],"why":"thunderstorm code 95 not inclement"},
+{"id":"home-drive-6","file":"readytoroll.html","find":"const thunder=wx>=95;","replace":"const thunder=wx>=96;","spec":["tests/home-drive.spec.js"],"why":"thunderstorm code 95 not inclement"},
 {"id":"home-drive-7","file":"readytoroll.html","find":"map.get(id)<at)map.set(id,at)","replace":"map.get(id)>at)map.set(id,at)","spec":["tests/home-drive.spec.js"],"why":"duplicate tombstones keep the older timestamp"},
 {"id":"home-drive-8","file":"readytoroll.html","find":"result.onchange=()=>{gpsPermState=result.state;","replace":"result.onchange=()=>{","spec":["tests/home-drive.spec.js"],"why":"permission change does not update state"},
 {"id":"home-drive-9","file":"readytoroll.html","find":"{gpsPermState='denied';return;}","replace":"{gpsPermState='granted';return;}","spec":["tests/home-drive.spec.js"],"why":"no geolocation API not flagged as denied"},

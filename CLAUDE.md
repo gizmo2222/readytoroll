@@ -27,7 +27,7 @@ python -m http.server 3000
 
 Then open `http://localhost:3000/readytoroll.html`. The tests use Playwright against a stubbed network
 (Leaflet, tiles, Open-Meteo, Nominatim and `rtr-sync.php` are all faked; any other request is blocked).
-Node 18+ is required. First time only:
+Node 20+ is required. First time only:
 
 ```powershell
 npm install

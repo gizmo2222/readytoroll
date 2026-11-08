@@ -36,6 +36,7 @@ function seedStorage(seed) {
   for (const [k, v] of Object.entries(seed)) localStorage.setItem(k, JSON.stringify(v));
 }
 
+const toastText = page => page.locator('#toast').textContent();
 const json = (route, body, status = 200) =>
   route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
@@ -67,6 +68,8 @@ const test = base.extend({
     expect(pageErrors, 'uncaught page errors').toEqual([]);
   }, { auto: true }],
 });
+
+const waitForApp = page => page.waitForFunction(() => typeof getTotals === 'function' && typeof sessions !== 'undefined');
 
 async function openApp(page, opts = {}) {
   if (!page._rtrErrHook) { page._rtrErrHook = true; page.on('pageerror', e => pageErrors.push(String(e))); }
@@ -121,7 +124,7 @@ async function openApp(page, opts = {}) {
   if (opts.clock) await page.clock.install({ time: opts.clock });
 
   await page.goto(opts.url || '/readytoroll.html');
-  await page.waitForFunction(() => typeof getTotals === 'function' && typeof sessions !== 'undefined');
+  await waitForApp(page);
   return { sync: { store, calls }, external };
 }
 
@@ -145,8 +148,51 @@ async function newDevice(browser, baseURL, extra = {}) {
   return { ctx, page: await ctx.newPage() };
 }
 
+const readStore = (page, key = 'rtr_settings') => page.evaluate(k => JSON.parse(localStorage.getItem(k) || 'null'), key);
+const deletedIds = list => (list || []).map(d => (typeof d === 'string' ? d : d.id));
+const ids = p => p.evaluate(() => sessions.map(s => s.id).sort());
+
+// Fake GPS + fake clock: emit one fix per minute
+async function drive(page, minutes, { from = [34.05, -118.24], step = 0.0005, firstStep = 0 } = {}) {
+  for (let i = 0; i < minutes; i++) {
+    await page.evaluate(([lat, lng]) => window.__geo.emit(lat, lng, 12), [from[0] + (i + firstStep) * step, from[1]]);
+    await page.clock.runFor(60000);
+  }
+}
+
+async function startDriving(page) {
+  await page.evaluate(() => startDrive());
+  await page.waitForFunction(() => window.__geo.watchers.size > 0);
+  await page.evaluate(() => window.__geo.emit(34.05, -118.24, 0));   // first fix
+  await page.waitForFunction(() => activeSession && activeSession.route.length > 0);
+}
+
+async function manual(page, f) {
+  return page.evaluate(f => {
+    openManualModal();
+    const set = (id, v) => { document.getElementById(id).value = v ?? ''; };
+    set('m-date', f.date); set('m-start', f.start); set('m-end', f.end);
+    set('m-dur-h', f.h); set('m-dur-m', f.m); set('m-daynight', f.dn || 'auto');
+    const before = sessions.length;
+    saveManualDrive();
+    return { added: sessions.length - before, s: sessions[sessions.length - 1],
+      toast: document.getElementById('toast').textContent };
+  }, f);
+}
+
+// Two devices sharing one fake server
+async function pair(browser, baseURL, page, sessionsA = [], sessionsB = [], code = 'ABCDEFGHJKLM') {
+  const store = new Map();
+  await openApp(page, { store, settings: { syncCode: code }, sessions: sessionsA });
+  await page.evaluate(() => pushSync());
+  const { ctx, page: b } = await newDevice(browser, baseURL);
+  await openApp(b, { store, settings: { syncCode: code }, sessions: sessionsB });
+  await b.evaluate(() => pullSync());
+  return { b, ctx, store };
+}
+
 // Folder holding the app files under test (a mutated copy during tests/mutate.js runs).
 // Specs that read app files directly (rtr-sync.php, rtr-service-worker.js) must read them from here.
 const appRoot = require('path').resolve(process.env.RTR_SERVE_ROOT || require('path').join(__dirname, '..'));
 
-module.exports = { test, expect, openApp, sess, newDevice, appRoot };
+module.exports = { test, expect, openApp, sess, newDevice, appRoot, readStore, deletedIds, ids, drive, startDriving, manual, pair, json, waitForApp, toastText };

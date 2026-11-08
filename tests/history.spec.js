@@ -1,8 +1,6 @@
 // History list (filters, search, sort, row open), swipe delete + undo, JSON/CSV export and the print log.
-const { test, expect, openApp, sess, newDevice } = require('./helpers');
+const { test, expect, openApp, sess, newDevice, readStore: read, deletedIds } = require('./helpers');
 
-const read = (page, key) => page.evaluate(k => JSON.parse(localStorage.getItem(k) || 'null'), key);
-const deletedIds = list => (list || []).map(d => (typeof d === 'string' ? d : d.id));
 
 const SESSIONS = () => [
   sess({ id: 'h-day1', startTime: '2026-10-01T21:00:00.000Z', duration: 30, supervisor: 'Pat Parent', notes: 'parking lot',
@@ -84,7 +82,7 @@ test('tapping a row opens its detail modal', async ({ page }) => {
   await openHistory(page, { sessions: SESSIONS() });
   await page.locator('.session-row[data-id="h-day1"] .s-title').click();
   await expect(page.locator('#modal')).toHaveClass(/open/);
-  expect(await page.evaluate(() => activeSessionId)).toBe('h-day1');
+  expect(await page.evaluate(() => currentDetailSession?.id)).toBe('h-day1');
 });
 
 // BUG: the search box value is interpolated into value="..." unescaped, so a quote in the query breaks out of the attribute.

@@ -3,7 +3,7 @@
 Every overhaul session reads this file first and writes to it last. One phase per session, each on
 branch `overhaul/phase-N` cut from the previous phase's branch (phase 1 from `master` at fc757e7).
 Rules that apply to every phase: do not push, merge or open a PR; the full suite (`npm run test:quiet`,
-238 tests after phase 4, 3 of them `test.fixme`) must pass before the phase commit; never touch deploy or CI config, secrets or user data.
+238 tests after phase 5, 3 of them `test.fixme`) must pass before the phase commit; never touch deploy or CI config, secrets or user data.
 
 | Phase | Name | Status | Branch |
 |---|---|---|---|
@@ -11,7 +11,7 @@ Rules that apply to every phase: do not push, merge or open a PR; the full suite
 | 2 | Bug hunt | done | overhaul/phase-2 |
 | 3 | Tests | done | overhaul/phase-3 |
 | 4 | Security | done | overhaul/phase-4 |
-| 5 | Clean-up | todo | |
+| 5 | Clean-up | done | overhaul/phase-5 |
 | 6 | UI | todo | |
 | 7 | Simulation or game balance | todo | |
 | 8 | Research | todo | |
@@ -65,3 +65,7 @@ Rules that apply to every phase: do not push, merge or open a PR; the full suite
 - Deferred items and their reasons are in `docs/overhaul-findings.md` under Phase 4. A legacy v1 sunset and blob expiry would both delete user data, so landing decides. Write keys separate from the ids are a protocol change (backlog). Pinning `deploy.yml` and SFTP key auth are CI, so report only.
 - For phase 5: `clientKey`, `rateLimit` and the `HTACCESS` constant in `rtr-sync.php`, and the device-only setting `legacyPendingDelete`, are all new. For phase 6: a meta CSP, a confirm step before `connectSyncCode` uploads, and a warning when the code is emailed. The server changes reach users only on deploy.
 
+### Phase 5 — Clean-up (done 2026-11-08, branch `overhaul/phase-5`)
+- Eight finders, then a skeptic per finding: 120 findings. 79 judged safe; 63 applied (the other 16 were duplicates or superseded, one reverted) (dead code, the `--blue*` vars and `data-dark`, shared helpers `progressLeft`/`newestFirst`/`renderSessionViews`/`applyRemote`, one-loop `computeTotals`; `readytoroll.html` is about 100 lines shorter), 38 risky ones deferred, 3 refuted. Sync and the `parentSummary` allow-list are untouched in behaviour. Tests stay at 238 (3 fixme).
+- Decisions: tests that called removed dead functions now use their replacements, mutant `settings-2` was dropped and 11 stale ones retargeted, the shared test helpers moved into `tests/helpers.js`, and Node 20+ is now required (`engines`, README, CLAUDE.md). F-10(b) was reverted because the `off`/`offline` sync dot rules matter.
+- For phase 6: real UI bugs found here and not fixed are B-9 (`#drive` breaks the emailed code), B-13 (quick-add chips keep `aria-checked`), E-13 (double "Settings saved" toast), F-6 (stale help copy), F-13 (inline styles hide the focus border) and B-1/H-11 (two sync error wordings). See `docs/overhaul-findings.md` → Phase 5. The doc map line numbers in CLAUDE.md are about 100 off after the `// Cloud sync` banner; phase 9 refreshes them.
