@@ -3,7 +3,7 @@
 Every overhaul session reads this file first and writes to it last. One phase per session, each on
 branch `overhaul/phase-N` cut from the previous phase's branch (phase 1 from `master` at fc757e7).
 Rules that apply to every phase: do not push, merge or open a PR; the full suite (`npm run test:quiet`,
-260 tests after phase 6, no `test.fixme`) must pass before the phase commit; never touch deploy or CI config, secrets or user data.
+260 tests after phase 6, 282 after phase 10, no `test.fixme`) must pass before the phase commit; never touch deploy or CI config, secrets or user data.
 
 | Phase | Name | Status | Branch |
 |---|---|---|---|
@@ -16,7 +16,7 @@ Rules that apply to every phase: do not push, merge or open a PR; the full suite
 | 7 | Simulation or game balance | skipped | |
 | 8 | Research | done | overhaul/phase-8 |
 | 9 | Wrap-up | done | overhaul/phase-9 |
-| 10 | Land | todo | |
+| 10 | Land | done | merged into `master` (fc3aff4) |
 
 ## Phase applicability (decided in phase 1)
 
@@ -88,3 +88,20 @@ Rules that apply to every phase: do not push, merge or open a PR; the full suite
 - Refreshed the `CLAUDE.md` doc map: `readytoroll.html` is 3743 lines, and every line was re-derived by grepping symbols. It now covers all 19 specs, `tests/helpers.js`, `tests/screens.shots.js`, `docs/research.md`, the overhaul docs, `package.json` and Node 20+. Wrote `docs/overhaul-summary.md`: the changes by phase, what was left and the top ten next steps. Suite: 260 passed.
 - Decisions: the phase was done inline without a workflow, since it is documentation only and the token budget is small. No app code changed. `isInclement` and the skeleton CSS have been removed from the map, because phase 5 deleted them.
 - For /land: the decisions landing owns are listed in the summary under "What was left": the legacy v1 sunset, blob expiry, pinning `deploy.yml` with SFTP key auth, and the `frame-ancestors` header. The summary's top ten (live-drive checkpoint, clearing the cloud on clear all, the offline push retry, then the research picks) is the seed for `docs/BACKLOG.md`. The branch chain is phase-1 → … → phase-6 → phase-8 → phase-9.
+
+### Phase 10 — Land (done 2026-11-08, merged into `master` at fc3aff4, deployed as 1.4.34)
+- Fixed on `overhaul/phase-9`, each with tests: c55c0a6 (the small-bug batch: `lsSave` quota guard with one toast, the `dl_*` migration guarded, days-to-goal across DST with `Math.round`, an unknown skill status counted as not started, merged or imported milestones recorded silently), f2ca0a5 (the live drive checkpointed to device-only `rtr_active`, with resume or save offered after a reload or crash), 2b1cc54 (Clear all deletes the cloud blob and the parent id, asks again if that fails; device-only `syncDirty` retried on online, visible and load), 7036ccd (`pushSync`/`pullSync` queue through `syncSerial`, so a load-time pull or retry never overlaps a push; it fixed a flaky `sync-import.spec.js:64`). Suite 260 -> 282, green three times (once after the merge).
+- `master` had not moved since phase 1, so there was no base merge. Merged with `--no-ff`, pushed `fc757e7..fc3aff4`, and the deploy action ran green (`Bump version to 1.4.34`). Deleted the local `overhaul/phase-1..9` branches and the remote `tests` branch. There were no worktrees or worker branches.
+- Smoke check on https://metacrystal.com/readytoroll.html: the page, service worker, manifest and icon all return 200, `APP_VERSION` is 1.4.34, the new code (`syncSerial`, `rtr_active`, `#resume-modal`) is present, `rtr-sync.php` answers a bad request with 400 JSON, `rtr-sync-data/` returns 403, the service worker registers, and a reload in Chrome gave no console or CSP errors.
+
+## Deferred (pick up with /backlog)
+Ids refer to `docs/overhaul-findings.md` unless they say otherwise. Line numbers in the `CLAUDE.md` doc map are now about 100 lines off below the Cloud sync area, because of the phase 10 additions. Grep the symbol.
+- **Pin `deploy.yml`, and use SFTP key auth** (platform-deploy-pin). `actions/checkout@v5` is a mutable tag in a job with `contents: write`, and `sshpass` signs in by password. Pin the action to a commit SHA, move to an SSH key secret, and keep `.github/known_hosts`. This is a CI change that you declined at landing.
+- **Legacy v1 sunset and blob expiry** (server-legacy-bruteforce, server-disk-fill). Both delete user data, so they need a policy and an in-app notice first: a cut-off date for the plaintext v1 files, and an expiry for blobs untouched for about 12 months. Deferred by your choice at landing.
+- **Server and hosting**: a `frame-ancestors` response header (a meta CSP cannot set it); moving `rtr-sync-data/` out of the webroot (server-storage-in-webroot); rate-limit counters in a private folder, not the shared tmp (server-tmp-ratelimit-files). All three are hosting or deploy config.
+- **Write keys separate from ids** (server-id-is-write-capability / crypto-4). Put and delete authorise on the id alone, and the parent token travels in `?parent=`. This is a protocol change on both client and server.
+- **Small client bugs**: quick-parent-milestones-3 (the parent view uses the parent's time zone; needs the teen's zone in `parentSummary`, allow-list review), quick-parent-milestones-5 (the quick-add Day/Night chip reflects the sun now, not the backdated interval), quick-parent-milestones-9 ("0.0 total left"), sync-9 (a failing `legacy_delete` after an upgrade shows "Sync error" and hides the new-code toast), io-manual-sw-11 (map tiles are never cached; needs a size-bounded tile cache), detail-settings-5 (unsure: `renderSettings()` drops unblurred typing).
+- **Route size** (W2, sync-1). Routes are not thinned or rounded, so long histories grow toward the 2.9 MB sync cap. Thinning changes stored data and needs a design.
+- **Phase 5 risky clean-ups**: 38 items in Phase 5 → Risky, not applied, including B-15 (v1 `settings.parentToken` still written).
+- **Phase 6 design items**: the focus-restore helper (review 62), moving 98 inline handlers off `unsafe-inline`, theme art (review 15/21/24/25/30), nav label size (review 7), and the map-failure placeholder (review 4/5/39).
+- **Features**: `docs/overhaul-summary.md` top ten, items 4-10 (state-form print starting with Ohio BMV 5791, the supervisor list, per-state rules, pace and target date with a weekly streak, forgotten-start backfill, reminders and backup health, RoadReady import). Sources are in `docs/research.md` section 5.

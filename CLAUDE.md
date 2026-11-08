@@ -39,7 +39,7 @@ npm install
 npx playwright install chromium
 ```
 
-Run the suite (260 tests; under a minute; it starts its own server on port 4173).
+Run the suite (282 tests; under a minute; it starts its own server on port 4173).
 `tests/sync-server.spec.js` runs the real `rtr-sync.php` under `php -S` and skips itself if `php` is not on PATH:
 
 ```powershell
