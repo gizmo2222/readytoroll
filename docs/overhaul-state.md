@@ -14,7 +14,7 @@ Rules that apply to every phase: do not push, merge or open a PR; the full suite
 | 5 | Clean-up | done | overhaul/phase-5 |
 | 6 | UI | done | overhaul/phase-6 |
 | 7 | Simulation or game balance | skipped | |
-| 8 | Research | todo | |
+| 8 | Research | done | overhaul/phase-8 |
 | 9 | Wrap-up | todo | |
 | 10 | Land | todo | |
 
@@ -78,3 +78,8 @@ Rules that apply to every phase: do not push, merge or open a PR; the full suite
 ### Phase 7 — Simulation or game balance (skipped 2026-11-08)
 - Skipped by the orchestrator: phase 1 recorded that the app has no simulation or game to balance.
 - No branch; phase 8 cuts `overhaul/phase-8` from `overhaul/phase-6`.
+
+### Phase 8 — Research (done 2026-11-08, branch `overhaul/phase-8`)
+- Wrote `docs/research.md`: six segments (teen log apps, course providers, official apps and state forms, reviews and engagement research, telematics, generic trackers), one research agent and one fact-check agent each. 180 unique sources (156 cited), 10 of 64 checked claims corrected before writing. Sections: landscape with prices, what rivals do better, where ReadyToRoll is ahead, the empty-home answer, 17 ranked features with size and privacy notes, and what not to build.
+- Decisions and gaps: no app code changed, so the suite was not rerun (still 260). Reddit blocked automated reads, some Google Play figures are snippets, and DMV.org was unreachable. Permit Pal, DriveTime, Roadcrew, 50 Hours, Smartdrive and Teen Driver Pro were not found in any store. RoadReady's maker is Safe Roads Alliance, not a DMV.
+- For phase 9: add `docs/research.md` to the CLAUDE.md doc map. The answer to review items 6/27/36/45/48 is research.md section 4: a first-run panel before any drive, then pace and target date, a weekly streak and backup health in place of the duplicate tiles, and a pre-drive checklist on drive idle. The backlog should draw on section 5. The top five are state-form print (Ohio BMV 5791 first), a supervisor list, per-state rules in `STATE_REQS`, pace and target date, and a weekly streak.
