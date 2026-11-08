@@ -126,11 +126,38 @@ test('help modal moves focus inside and returns it to the trigger on close', asy
   await expect.poll(() => page.evaluate(() => document.activeElement.id)).toBe('avatar');
 });
 
-// BUG: no Escape handler exists; the help modal is aria-modal but Escape does not close it.
-test.fixme('Escape closes the help modal', async ({ page }) => {
+test('Escape closes the help modal', async ({ page }) => {
   await openApp(page);
   await page.locator('#avatar').click();
   await expect(page.locator('#help-modal')).toHaveClass(/open/);
   await page.keyboard.press('Escape');
   await expect(page.locator('#help-modal')).not.toHaveClass(/open/);
+});
+
+test('help copy matches the app: skill categories, code length, button names, search fields', async ({ page }) => {
+  await openApp(page);
+  const r = await page.evaluate(() => ({
+    cats: new Set(SKILLS.map(s => s.cat)).size, n: SKILLS.length,
+    len: genSyncCode().replace(/[^A-Z0-9]/gi, '').length,
+    txt: document.getElementById('help-modal').innerText,
+  }));
+  expect(r.txt).toContain(`${r.n} skills across ${r.cats} categories`);
+  expect(r.txt).toContain(`${r.len}-character code`);
+  expect(r.txt).not.toContain('Share Parent View Link');
+  expect(r.txt).toContain('Create & Share');
+  expect(r.txt).toMatch(/Search by address, notes, or supervisor/);
+  expect(r.txt).not.toMatch(/Search by location, supervisor, or tag/);
+});
+
+test('onboarding inputs are labelled and each step focuses its first input', async ({ page }) => {
+  await openApp(page, { settings: FIRST });
+  await expect(page.locator('#ob-name')).toBeFocused();
+  await page.locator('#ob-name').fill('Sam');
+  await page.locator('#ob-1 .btn-save').click();
+  await expect(page.locator('#ob-state')).toBeFocused();
+  await page.locator('#ob-2 .btn-save').click();
+  await expect(page.locator('#ob-goal')).toBeFocused();
+  const unlabeled = await page.evaluate(() => [...document.querySelectorAll('#onboard-overlay input,#onboard-overlay select')]
+    .filter(e => !(e.labels && e.labels.length) && !e.getAttribute('aria-label')).map(e => e.id));
+  expect(unlabeled).toEqual([]);
 });

@@ -194,3 +194,47 @@ then one skeptic per finding: 120 findings, 79 safe (63 applied, the rest duplic
 
 Refuted: A-14 (the reset is the behaviour), B-4 (tests read `upgradeLegacySync`'s return value), D-12
 (the two GPS blocks differ in what they show).
+
+## Phase 6 — UI (2026-11-08, branch `overhaul/phase-6`)
+
+Method: `tests/screens.shots.js` (run with `playwright.shots.config.js`) screenshots the five views, drive-live,
+the detail, help, manual and quick modals, the empty states, onboarding and the parent view at phone, tablet and
+desktop widths, in all seven themes at phone width, with an in-page audit for text contrast, touch targets under
+44px, unnamed controls and CSP console errors. Three reviewers read the captures (layout, theme contrast, a11y and copy)
+and filed 69 issues in `coverage/review-issues.txt` (git-ignored). Two Sonnet fix workers ran one after the other. Suite 238 -> 260, no fixme left.
+
+### Fixed
+
+- **Layout:** above 700px the views cap at 720px and centre, the nav centres, and the bottom sheets become centred 640px dialogs with `max-height:90dvh`.
+  Toasts wrap. The sync code scales to the phone width. The drive-live stats keep three columns on narrow phones.
+- **Contrast:** new `--X-ink` / `--on-X` tokens computed at runtime by `applyThemeInks()` (WCAG maths, from each theme's real
+  `--X-lt` tint) keep accent, green, amber, purple and red text at 4.5:1 on cards and tinted chips in every theme and accent hue
+  (test in `settings.spec.js`). Locked milestone tiles no longer fade their labels.
+- **Targets and keyboard:** 44px minimum on chips, skill buttons, filters, swatches, the avatar and the REC badge. Skill tips are
+  real buttons with `aria-expanded` and keep focus. Session rows are `role=button` and open with Enter or Space. Escape closes every modal, and Tab is trapped
+  in the open sheet. History search keeps focus and caret. `aria-pressed` is set on the filter and font-size toggles. Nav emoji are `aria-hidden`.
+- **Screen readers:** the undo toast announces through `#sr-announce`. `#stop-notice` is a live region. The onboarding, manual,
+  quick-add, history search/sort and notes fields all have labels.
+- **Ledger items:** B-9 and crypto-6 (the emailed code uses `origin+pathname`, the body is encoded, and the user confirms a warning first).
+  crypto-2 (joining asks before merging local drives into the synced log). B-13, E-13 (one save, one toast), B-1/H-11 (`syncStatusLabel()`).
+  F-6 (help copy), F-13 (`.field-inline` keeps the focus border).
+- **The 3 old fixmes:** a swipe-delete no longer changes tabs, the undo toast is no longer cut short by a milestone toast, and Escape closes help.
+- **Other:** a share double-tap opens one sheet, the share-card bar is capped at 100%, the replay ends on the last point,
+  the detail's "Save" button now reads "Save notes", and the manual entry has a Cancel button.
+- **CSP:** a meta CSP (`default-src 'self'`, with unpkg for Leaflet, OSM tiles, Open-Meteo and Nominatim; `object-src`, `base-uri`
+  and `form-action` are 'none'). `script-src` still needs `'unsafe-inline'` because of 98 inline `on*=` handlers and the print
+  window's inline script. `frame-ancestors` cannot go in a meta tag; it needs a server header (deploy config, so left out).
+
+### Deferred (design, not defects)
+
+| Ref | Issue | Why left |
+|---|---|---|
+| review 6, 27, 36, 45, 48 | Home and drive idle have empty lower halves; the home tiles repeat the ring card's "left" numbers | Content change (which teaser to add); phase 8 research should pick |
+| review 7 | Nav labels are 9–10px | A nav redesign; the 44px targets are met |
+| review 4, 5, 39 | Detail charts and grid at desktop; an empty block when the map fails | The 640px cap fixes most of it; a map-failure placeholder is a small follow-up |
+| review 15, 21, 24, 25, 30 | Retro keeps default header colours; neon has no glow; the swatch ring is thin; the Dark swatch is hard to see on midnight; the car slider thumb is hard to see | Theme art direction; the contrast floors already hold |
+| review 23 | The dimmed page shows above a sheet | It is a sheet; on desktop it is now a centred dialog |
+| review 43 | History rows fade in with a stagger | Entrance animation; the capture caught it mid-way |
+| review 44, 50, 51, 52 | "In Progress" vs "Practicing" wording; orphan swatches and cars in the wrapping grids; Data/Danger sections without a card; the weather icon wraps apart from its temperature | Copy and layout polish for the backlog |
+| review 62 | setVibeTheme, setCarEmoji, setFontSize and setFilter re-render the view and drop focus | Needs a focus-restore helper across views; search and skill tips are done |
+| CSP | `'unsafe-inline'` scripts | Moving 98 inline handlers to listeners is a refactor |

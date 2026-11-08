@@ -211,3 +211,63 @@ test('clearAllData wipes sessions, skills, milestones and settings after confirm
   expect(await rootVar(page, '--accent')).toBe('hsl(217,80%,50%)');
   await expect(page.locator('#s-name')).toHaveValue('');
 });
+
+test('every theme and accent hue keeps text inks at 4.5:1 on cards and tinted chips', async ({ page }) => {
+  await openApp(page);
+  const bad = await page.evaluate(() => {
+    const out = [];
+    const rgbOf = v => { const d = document.createElement('div'); d.style.color = v; document.body.appendChild(d);
+      const m = getComputedStyle(d).color.match(/[\d.]+/g).map(Number); d.remove(); return m; };
+    for (const vt of ['default', 'dark', 'contrast', 'pastel', 'neon', 'retro', 'midnight']) {
+      for (const hue of [0, 60, 120, 217, 280]) {
+        settings.vibeTheme = vt; settings.accentHue = hue; applyTheme();
+        const cs = getComputedStyle(document.documentElement), card = rgbOf(cs.getPropertyValue('--card')).slice(0, 3).map(x => x / 255);
+        for (const k of ['accent', 'green', 'amber', 'purple', 'red']) {
+          const ink = rgbOf(cs.getPropertyValue(`--${k}-ink`)).slice(0, 3).map(x => x / 255);
+          const lt = rgbOf(cs.getPropertyValue(`--${k}-lt`) || 'transparent');
+          const a = lt.length > 3 ? lt[3] : 1, chip = lt.slice(0, 3).map((x, i) => x / 255 * a + card[i] * (1 - a));
+          for (const [where, bg] of [['card', card], ['chip', chip]]) {
+            const r = contrastRatio(ink, bg);
+            if (r < 4.5) out.push(`${vt} hue ${hue} --${k}-ink on ${where}: ${r.toFixed(2)}`);
+          }
+        }
+        const muted = rgbOf(cs.getPropertyValue('--muted')).slice(0, 3).map(x => x / 255);
+        if (contrastRatio(muted, card) < 4.5) out.push(`${vt} --muted on card`);
+      }
+    }
+    return out;
+  });
+  expect(bad).toEqual([]);
+});
+
+test('editing a settings field saves once and toasts once (change and blur do not both fire)', async ({ page }) => {
+  await openSettings(page);
+  await page.evaluate(() => { window.__saves = 0; const o = saveSettings; saveSettings = function () { window.__saves++; return o.apply(this, arguments); }; });
+  await page.locator('#s-name').fill('Sam');
+  await page.locator('#s-name').blur();
+  await page.locator('#s-custom-total').focus();
+  await page.waitForTimeout(100);
+  expect(await page.evaluate(() => window.__saves)).toBe(1);
+  expect(await page.locator('.toast', { hasText: 'Settings saved' }).count()).toBe(1);
+});
+
+test('form fields that used inline borders now take the accent border on focus', async ({ page }) => {
+  await openApp(page);
+  const r = await page.evaluate(() => ['m-dur-h', 'm-dur-m', 'm-daynight', 'qa-h', 'qa-m'].map(id => {
+    const el = document.getElementById(id);
+    return [id, el.classList.contains('field-inline'), el.style.border === '' && el.style.borderColor === ''];
+  }));
+  for (const [id, hasClass, noInline] of r) { expect(hasClass, id).toBe(true); expect(noInline, id).toBe(true); }
+  await page.evaluate(() => { openQuickModal(); selectQaDur(document.getElementById('qa-custom-chip')); });
+  await page.locator('#qa-h').focus();
+  await expect.poll(() => page.locator('#qa-h').evaluate(el => getComputedStyle(el).borderTopColor))
+    .toBe(await page.evaluate(() => { const d = document.createElement('div'); d.style.color = 'var(--accent)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; }));
+});
+
+test('font size buttons expose aria-pressed for the active size', async ({ page }) => {
+  await openApp(page);
+  await page.evaluate(() => navigate('settings'));
+  await page.locator('.font-size-btn', { hasText: 'Large' }).click();
+  await expect(page.locator('.font-size-btn', { hasText: 'Large' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.font-size-btn', { hasText: 'Small' })).toHaveAttribute('aria-pressed', 'false');
+});

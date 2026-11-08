@@ -12,6 +12,7 @@ and an end-to-end-encrypted cloud sync with a read-only parent view. Live at
 - Weather: Open-Meteo (free, no key)
 - Geocoding: Nominatim/OpenStreetMap
 - Sync backend: `rtr-sync.php` (flat-file PHP, SFTP-deployed via GitHub Actions). **End-to-end encrypted**: the app seals everything with WebCrypto before upload; the server only stores blobs by ID and can't read them. Never send drive data, the sync code, or keys to the server in the clear. The parent summary (`parentSummary()`) must not include routes, locations/addresses, supervisor details or notes. See README → Cloud Sync Backend.
+- Content Security Policy: a `<meta http-equiv="Content-Security-Policy">` at the top of `<head>`. A new external host (script, style, image, fetch) must be added there or the browser blocks it; `tests/sanitize.spec.js` fails on any CSP console error.
 - Service worker: `rtr-service-worker.js` (cache name `rtr-v6`, network-first for HTML), registered with scope `./readytoroll.html` so it never controls other metacrystal.com pages. PWA files are all `rtr-`-prefixed. Bump the cache name when cached assets change.
 
 ## Storage
@@ -37,7 +38,7 @@ npm install
 npx playwright install chromium
 ```
 
-Run the suite (238 tests, 3 of them `test.fixme` for known bugs; under a minute; it starts its own server on port 4173).
+Run the suite (260 tests; under a minute; it starts its own server on port 4173).
 `tests/sync-server.spec.js` runs the real `rtr-sync.php` under `php -S` and skips itself if `php` is not on PATH:
 
 ```powershell
@@ -66,6 +67,15 @@ $env:RTR_COVERAGE = '1'; npx playwright test --reporter=dot; Remove-Item Env:RTR
 node tests/coverage-report.js
 ```
 
+UI review screenshots (not part of the suite): every view, modal, empty state, onboarding and the parent view at
+phone, tablet and desktop widths and in each theme, into `coverage/shots/` with an audit per width and theme in
+`coverage/shots/audit/` (contrast, targets under 44px, unnamed controls, CSP errors). Narrow a run with
+`$env:RTR_SHOTS_WIDTHS='phone'` or `$env:RTR_SHOTS_THEMES='dark,neon'`:
+
+```powershell
+npx playwright test --config playwright.shots.config.js
+```
+
 Mutation check: each `tests/mutants/<module>.json` lists exact find/replace edits and the specs that must catch them.
 `tests/mutate.js` applies each to a copy in `coverage/`, runs those specs, and reports to `coverage/mutation-<port>.txt`
 (the whole set takes a long time; run one module, or `--only id1,id2`):
@@ -78,7 +88,8 @@ node tests/mutate.js tests/mutants/skills.json --port 4399
 Push to `master` → GitHub Actions bumps patch version in `version.txt`, stamps `APP_VERSION` into HTML, SFTPs to `metacrystal.com` (host keys pinned in `.github/known_hosts`). New files that must ship need adding to the workflow's upload list. Always `git pull --rebase origin master` before pushing to avoid version-bump conflicts.
 
 ## Doc map
-Line numbers are for `readytoroll.html` at the start of the overhaul (phase 1, 2026-11-07) and drift as
+Line numbers are for `readytoroll.html` at the start of the overhaul (phase 1, 2026-11-07); after phase 6 the JS sits
+80 lines lower near `renderHome` to 220 near `initOnboarding` (contrast inks, modal keyboard handling, CSP meta) and phase 9 refreshes them. They drift as
 code changes; search for the symbol or the `// NAME` banner when in doubt. Never read the file whole:
 open the range you need.
 

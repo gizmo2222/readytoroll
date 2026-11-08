@@ -236,3 +236,55 @@ test('an unknown id opens nothing and share with no drive is a no-op', async ({ 
   await expect(page.locator('#modal')).not.toHaveClass(/open/);
   await page.evaluate(() => shareSession());
 });
+
+test('replay ends exactly on the final point even when the step does not divide the route', async ({ page }) => {
+  const route = Array.from({ length: 131 }, (_, i) => pt(i, null, null));   // step 2: old code stopped at point 129
+  await openApp(page, { sessions: [sess({ id: 'r4', route })], clock: new Date('2026-10-02T18:00:00.000Z') });
+  await open(page, 'r4');
+  await page.clock.runFor(200);
+  await fakeReplayMap(page);
+  await page.evaluate(() => startReplay());
+  await page.clock.runFor(80 * 150);
+  const moves = await page.evaluate(() => window.__moves);
+  expect(moves[moves.length - 1]).toEqual([route[130][0], route[130][1]]);
+  await page.clock.runFor(2000);
+  expect((await page.evaluate(() => window.__moves)).length).toBe(moves.length);
+});
+
+test('double-tapping share opens one share sheet, and sharing works again afterwards', async ({ page }) => {
+  await openApp(page, { sessions: [sess({ id: 's4' })] });
+  await open(page, 's4');
+  await page.evaluate(() => {
+    window.__shares = [];
+    Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
+    Object.defineProperty(navigator, 'share', { configurable: true, value: async d => { window.__shares.push(d); await new Promise(r => setTimeout(r, 200)); } });
+  });
+  await page.evaluate(() => { shareSession(); shareSession(); });
+  await page.waitForFunction(() => window.__shares.length >= 1);
+  await page.waitForTimeout(500);
+  expect(await page.evaluate(() => window.__shares.length)).toBe(1);
+  await page.evaluate(() => shareSession());
+  await page.waitForFunction(() => window.__shares.length === 2);
+});
+
+test('share card progress bar never draws past 100%', async ({ page }) => {
+  await openApp(page, { settings: { customTotal: 1 }, sessions: [sess({ id: 's5', duration: 120 })] });
+  await open(page, 's5');
+  await stubShare(page, 'ok');
+  await page.evaluate(() => shareSession());
+  await page.waitForFunction(() => window.__shares.length === 1);
+  const hits = await page.evaluate(async () => {
+    const bmp = await createImageBitmap(window.__file);
+    const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+    const x = c.getContext('2d', { willReadFrequently: true });
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+    x.fillStyle = accent; x.fillRect(0, 0, 1, 1);
+    const want = Array.from(x.getImageData(0, 0, 1, 1).data);
+    x.clearRect(0, 0, 1, 1); x.drawImage(bmp, 0, 0);
+    const col = x.getImageData(bmp.width - 12, 12, 1, bmp.height - 12).data;   // right margin, below the top accent strip
+    let n = 0;
+    for (let i = 0; i < col.length; i += 4) if (col[i] === want[0] && col[i + 1] === want[1] && col[i + 2] === want[2]) n++;
+    return n;
+  });
+  expect(hits).toBe(0);
+});

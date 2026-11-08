@@ -129,14 +129,11 @@ test.describe('swipe to delete', () => {
     await expect(page.locator('#toast')).toContainText('Session restored');
     expect(deletedIds(await read(page, 'rtr_deleted'))).not.toContain('h-day1');
     expect((await read(page, 'rtr_sessions')).map(s => s.id).sort()).toEqual(['h-day1', 'h-day2', 'h-night1']);
-    // (the swipe also changed tabs, see the fixme below, so go back to History to check the rows)
-    await page.evaluate(() => navigate('history'));
+    // the swipe stays on History (see the swipe test below), so the rows re-render in place
     expect((await rowIds(page)).sort()).toEqual(['h-day1', 'h-day2', 'h-night1']);
   });
 
-  // BUG: the swipe also bubbles to the #main tab-swipe handler (dx > 50), so deleting a row switches to the next tab,
-  // and undo then no longer re-renders the History list.
-  test.fixme('swiping a row to delete stays on the History tab', async () => {
+  test('swiping a row to delete stays on the History tab', async () => {
     await openHistory(page, { sessions: SESSIONS() });
     await swipe(page, 'h-day1', -120);
     expect(await page.evaluate(() => currentView)).toBe('history');
@@ -178,8 +175,8 @@ test('undo stamps the restored drive newer than before so it wins a sync merge',
   expect(stored.updatedAt.startsWith('2026-10-10')).toBe(true);
 });
 
-// BUG: toast() timers are not cleared by toastUndo(), so a milestone toast shown just before a delete hides the undo toast after 2.8 s.
-test.fixme('undo toast stays visible for 5 seconds after a delete that unlocks a milestone', async ({ page }) => {
+// A toast shown just before a delete must not hide the undo toast early; later toasts wait until the undo window ends.
+test('undo toast stays visible for 5 seconds after a delete that unlocks a milestone', async ({ page }) => {
   await openHistory(page, { sessions: SESSIONS() });
   await page.evaluate(() => { toast('earlier toast'); deleteSession('h-day2'); });
   await page.clock.runFor(3500);
@@ -317,4 +314,77 @@ test('print log with pop-ups blocked shows a toast instead of failing', async ({
   await page.evaluate(() => { window.open = () => null; });
   await page.evaluate(() => printLog());
   await expect(page.locator('#toast')).toContainText('Allow pop-ups');
+});
+
+test('session rows are keyboard buttons: Enter and Space open the detail, Escape closes it and returns focus', async ({ page }) => {
+  await openHistory(page, { sessions: SESSIONS() });
+  const row = page.locator('.session-row[data-id="h-day1"]');
+  await expect(row).toHaveAttribute('role', 'button');
+  await expect(row).toHaveAttribute('tabindex', '0');
+  await row.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#modal')).toHaveClass(/open/);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#modal')).not.toHaveClass(/open/);
+  await expect.poll(() => page.evaluate(() => document.activeElement.dataset.id)).toBe('h-day1');
+  await page.keyboard.press('Space');
+  await expect(page.locator('#modal')).toHaveClass(/open/);
+});
+
+test('Tab wraps inside the open modal sheet', async ({ page }) => {
+  await openHistory(page, { sessions: SESSIONS() });
+  await page.locator('.session-row[data-id="h-day1"]').click();
+  await expect(page.locator('#modal')).toHaveClass(/open/);
+  const inside = () => page.evaluate(() => !!document.activeElement.closest('#modal .modal-sheet'));
+  for (let i = 0; i < 40; i++) { await page.keyboard.press('Tab'); expect(await inside()).toBe(true); }
+  for (let i = 0; i < 40; i++) { await page.keyboard.press('Shift+Tab'); expect(await inside()).toBe(true); }
+});
+
+test('Escape closes the manual and quick-add modals', async ({ page }) => {
+  await openHistory(page, { sessions: SESSIONS() });
+  await page.evaluate(() => openManualModal());
+  await expect(page.locator('#manual-modal')).toHaveClass(/open/);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#manual-modal')).not.toHaveClass(/open/);
+  await page.evaluate(() => openQuickModal());
+  await expect(page.locator('#quick-modal')).toHaveClass(/open/);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#quick-modal')).not.toHaveClass(/open/);
+});
+
+test('typing in the search box keeps focus and caret, and filter chips expose aria-pressed', async ({ page }) => {
+  await openHistory(page, { sessions: SESSIONS() });
+  const box = page.locator('.history-search');
+  await box.click();
+  await page.keyboard.type('oakville');
+  await expect(box).toBeFocused();
+  await page.keyboard.press('ArrowLeft'); await page.keyboard.press('ArrowLeft');
+  await page.keyboard.type('X');
+  await expect(box).toBeFocused();
+  expect(await box.evaluate(e => [e.value, e.selectionStart])).toEqual(['oakvilXle', 7]);
+  await page.evaluate(() => { historySearch = ''; renderHistory(); });
+  await expect(page.locator('.filter-chip', { hasText: 'All' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.filter-chip', { hasText: 'Night' })).toHaveAttribute('aria-pressed', 'false');
+  await page.locator('.filter-chip', { hasText: 'Night' }).click();
+  await expect(page.locator('.filter-chip', { hasText: 'Night' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.filter-chip', { hasText: 'All' })).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('undo toast is announced in the live region and a later toast waits for it', async ({ page }) => {
+  await openHistory(page, { sessions: SESSIONS() });
+  await page.evaluate(() => checkMilestones());
+  await page.clock.runFor(3000);
+  await page.evaluate(() => { deleteSession('h-day2'); toast('later toast'); });
+  await expect(page.locator('#sr-announce')).toContainText('later toast');
+  await expect(page.locator('#toast')).toContainText('Undo');
+  await page.clock.runFor(5100);
+  await expect(page.locator('#toast')).toContainText('later toast');
+});
+
+test('stop notice is a polite live region', async ({ page }) => {
+  await openApp(page);
+  await page.evaluate(() => startDrive());
+  const n = page.locator('#stop-notice');
+  await expect(n).toHaveAttribute('role', 'status');
+  await expect(n).toHaveAttribute('aria-live', 'polite');
 });

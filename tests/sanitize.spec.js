@@ -232,3 +232,18 @@ test('imported start and end locations keep only finite coordinates and short te
   expect(r.startLocation).not.toHaveProperty('extra');
   expect(r.endLocation).toBeNull();
 });
+
+test('the CSP allows every feature the app uses and blocks other hosts', async ({ page }) => {
+  const violations = [];
+  page.on('console', m => { if (/Content Security Policy/i.test(m.text())) violations.push(m.text()); });
+  await openApp(page, { sessions: [sess({ route: [[34.05, -118.24, 80, 20], [34.06, -118.23, 82, 25]], distance: 1 })] });
+  expect(await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content')).toContain("object-src 'none'");
+  for (const v of ['dashboard', 'drive', 'skills', 'history', 'settings', 'home']) await page.evaluate(v => navigate(v), v);
+  await page.evaluate(() => { showSessionDetail(sessions[0].id); closeModal(); openHelp(); closeHelp(); });
+  expect(violations).toEqual([]);
+  const blocked = await page.evaluate(() => new Promise(res => {
+    document.addEventListener('securitypolicyviolation', e => res(e.blockedURI), { once: true });
+    fetch('https://example.invalid/x').catch(() => {});
+  }));
+  expect(blocked).toContain('example.invalid');
+});

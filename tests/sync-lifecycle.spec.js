@@ -263,6 +263,7 @@ test('a failed legacy delete after an upgrade is retried on the next push, and n
 test('emailing the sync code builds a mailto with the code and the app address only', async ({ page }) => {
   await openApp(page, { settings: { syncCode: 'ABCDEFGH2345', driverName: 'Jamie' }, url: '/readytoroll.html?parent=zzz#k=secretkey' });
   // location.href can't be stubbed, so run the real function body with the navigation captured
+  page.once('dialog', d => d.accept());
   const mailto = await page.evaluate(() => {
     const src = emailSyncCode.toString().replace('location.href=', 'window.__mailto=');
     (0, eval)('window.__emailFn = ' + src);
@@ -295,4 +296,67 @@ test('disconnecting asks first, then clears the code, parent link and keys', asy
   expect(s.st).toBe('off');
   expect(s.k).toBeNull();
   expect(await toastText(page)).toBe('Sync disconnected');
+});
+
+async function captureEmail(page) {
+  return page.evaluate(() => {
+    const src = emailSyncCode.toString().replace('location.href=', 'window.__mailto=');
+    window.__mailto = null;
+    (0, eval)('window.__emailFn = ' + src);
+    window.__emailFn();
+    return window.__mailto;
+  });
+}
+
+test('the email warns before opening, is fully encoded and has no hash from the page URL', async ({ page }) => {
+  await openApp(page, { settings: { syncCode: 'ABCDEFGH2345' }, url: '/readytoroll.html#drive' });
+  let msg = '';
+  page.once('dialog', d => { msg = d.message(); d.accept(); });
+  const mailto = await captureEmail(page);
+  expect(msg).toBe('Anyone with this code can read and change your log. Only send it to yourself.');
+  const rawBody = mailto.split('&body=')[1];
+  expect(rawBody).not.toContain('#');            // a raw # would cut the body off
+  expect(rawBody).toContain('%0A');
+  const body = decodeURIComponent(rawBody);
+  expect(body).toContain('/readytoroll.html, go to Settings');
+  expect(body).not.toContain('#drive');
+  expect(body).toContain(msg);
+  expect(body).toContain('ABCD-EFGH-2345');
+});
+
+test('cancelling the email warning does nothing', async ({ page }) => {
+  await openApp(page, { settings: { syncCode: 'ABCDEFGH2345' } });
+  page.once('dialog', d => d.dismiss());
+  expect(await captureEmail(page)).toBeNull();
+});
+
+test('joining a code with local drives asks first; cancel changes and uploads nothing', async ({ page, browser, baseURL }) => {
+  const { sync } = await openApp(page, { sessions: [sess({ id: 'm1' })] });
+  await page.evaluate(() => createSyncCode());
+  const code = await page.evaluate(() => settings.syncCode);
+  const ctx = await browser.newContext({ baseURL, serviceWorkers: 'block', timezoneId: 'America/Los_Angeles', locale: 'en-US' });
+  const p2 = await ctx.newPage();
+  await openApp(p2, { store: sync.store, sessions: [sess({ id: 'm2' }), sess({ id: 'm3' })] });
+  const before = await p2.evaluate(() => localStorage.getItem('rtr_settings'));
+  const puts = sync.calls.filter(c => c.body.action === 'put').length;
+  let msg = '';
+  p2.once('dialog', d => { msg = d.message(); d.dismiss(); });
+  await p2.evaluate(c => connectSyncCode(c), code);
+  expect(msg).toBe('Merge the 2 drives on this device into the synced log?');
+  expect(await p2.evaluate(() => localStorage.getItem('rtr_settings'))).toBe(before);
+  expect(await p2.evaluate(() => settings.syncCode || '')).toBe('');
+  expect(await p2.evaluate(() => sessions.map(s => s.id))).toEqual(['m2', 'm3']);
+  expect(sync.calls.filter(c => c.body.action === 'put').length).toBe(puts);
+  // accepting merges both sides
+  p2.once('dialog', d => d.accept());
+  await p2.evaluate(c => connectSyncCode(c), code);
+  await expect.poll(() => p2.evaluate(() => sessions.map(s => s.id).sort())).toEqual(['m1', 'm2', 'm3']);
+  await ctx.close();
+});
+
+test('both sync status labels come from one map, with the same error wording', async ({ page }) => {
+  await openApp(page, { settings: { syncCode: 'ABCDEFGH2345' } });
+  expect(await page.evaluate(() => { syncStatus = 'err'; return syncCodeHTML(); })).toContain('Sync error — check connection');
+  await page.evaluate(() => { navigate('settings'); renderSettings(); syncStatus = 'busy'; updateSyncUI(); syncStatus = 'err'; updateSyncUI(); });
+  await expect(page.locator('#sync-status-txt')).toHaveText('Sync error — check connection');
 });

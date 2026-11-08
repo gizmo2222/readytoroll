@@ -172,3 +172,21 @@ test('saving an edit for a drive removed elsewhere says so and changes nothing',
   expect(r.n).toBe(0);
   expect(r.open).toBe(false);
 });
+
+test('reopening quick add resets the tag chips to aria-checked false', async ({ page }) => {
+  await openApp(page, { clock: NOW });
+  await page.evaluate(() => openQuickModal());
+  await page.locator('#qa-tag-chips .qa-chip').first().click();
+  await expect(page.locator('#qa-tag-chips .qa-chip').first()).toHaveAttribute('aria-checked', 'true');
+  await page.evaluate(() => { closeQuickModal(); openQuickModal(); });
+  const states = await page.evaluate(() => [...document.querySelectorAll('#qa-tag-chips .qa-chip')].map(c => [c.classList.contains('active'), c.getAttribute('aria-checked')]));
+  for (const [active, checked] of states) { expect(active).toBe(false); expect(checked).toBe('false'); }
+});
+
+test('manual and quick-add controls all have a label', async ({ page }) => {
+  await openApp(page, { clock: NOW });
+  await page.evaluate(() => { openManualModal(); openQuickModal(); selectQaDur(document.getElementById('qa-custom-chip')); });
+  const unlabeled = await page.evaluate(() => [...document.querySelectorAll('#manual-modal input,#manual-modal select,#manual-modal textarea,#quick-modal input,#quick-modal select,#quick-modal textarea')]
+    .filter(e => !(e.labels && e.labels.length) && !e.getAttribute('aria-label')).map(e => e.id || e.outerHTML.slice(0, 60)));
+  expect(unlabeled).toEqual([]);
+});
