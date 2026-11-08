@@ -16,7 +16,8 @@ and an end-to-end-encrypted cloud sync with a read-only parent view. Live at
 - Service worker: `rtr-service-worker.js` (cache name `rtr-v6`, network-first for HTML), registered with scope `./readytoroll.html` so it never controls other metacrystal.com pages. PWA files are all `rtr-`-prefixed. Bump the cache name when cached assets change.
 
 ## Storage
-`localStorage` keys: `rtr_settings`, `rtr_sessions`, `rtr_skills`, `rtr_milestones`, `rtr_deleted`
+`localStorage` keys: `rtr_settings`, `rtr_sessions`, `rtr_skills`, `rtr_milestones`, `rtr_deleted`,
+`rtr_active` (checkpoint of the in-progress drive, device-only: never synced, exported or in `parentSummary`; removed on stop, discard and clear all)
 (tombstones `[{id,at}]`; older builds stored plain id strings). Old `dl_*` keys are migrated once at load.
 
 ## Build, run, test (Windows PowerShell 5.1)

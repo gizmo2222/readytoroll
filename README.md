@@ -93,7 +93,7 @@ States with inclement-weather minimums (PA: 5h, SD: 10h) show a separate 🌧️
 
 ## Data & Privacy
 
-All data is stored locally in your browser's `localStorage`. Nothing is sent to any server except:
+All data is stored locally in your browser's `localStorage`. While a drive is recording, a crash-safety checkpoint is kept under `rtr_active` (this device only; never synced or exported) and removed when the drive is saved or discarded. Nothing is sent to any server except:
 - **Open-Meteo** (weather) — `api.open-meteo.com`
 - **Nominatim / OpenStreetMap** (reverse geocoding) — `nominatim.openstreetmap.org`
 - **OpenStreetMap tiles** (map display) — `tile.openstreetmap.org`

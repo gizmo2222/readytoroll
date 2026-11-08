@@ -119,6 +119,7 @@ async function openApp(page, opts = {}) {
   if (opts.skills) seed.rtr_skills = opts.skills;
   if (opts.milestones) seed.rtr_milestones = opts.milestones;
   if (opts.deleted) seed.rtr_deleted = opts.deleted;
+  if (opts.active !== undefined) seed.rtr_active = opts.active;   // unfinished-drive checkpoint
   await page.addInitScript(fakeGeolocation);
   await page.addInitScript(seedStorage, seed);
   if (opts.clock) await page.clock.install({ time: opts.clock });

@@ -651,6 +651,15 @@ body{display:flex;flex-direction:column;overflow:hidden}
   </div>
 </div>
 
+<!-- Unfinished drive found at load -->
+<div class="modal-overlay" id="resume-modal" role="presentation">
+  <div class="modal-sheet" role="dialog" aria-modal="true" aria-label="Unfinished drive" tabindex="-1">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <div class="modal-header"><h3>🚗 Unfinished drive</h3></div>
+    <div class="modal-body" id="resume-body"></div>
+  </div>
+</div>
+
 <!-- Quick Add modal -->
 <div class="modal-overlay" id="quick-modal" role="presentation">
   <div class="modal-sheet" role="dialog" aria-modal="true" aria-label="Quick Add Drive" tabindex="-1">
@@ -2514,6 +2523,69 @@ function renderDrivePanel(){
     <button class="btn-big btn-stop" onclick="stopDrive()">Stop Drive</button>`;
 }
 
+// ── Crash safety: the live drive is checkpointed to rtr_active (device only: never synced, exported or shared) ──
+const CKPT_KEY='rtr_active',CKPT_EVERY_MS=15000,CKPT_EVERY_FIXES=5,CKPT_FRESH_MS=30*60000;
+let ckptAt=0,ckptFixes=0,ckptWarned=false;
+function checkpointDrive(force,fix){
+  const s=activeSession;
+  if(!s)return;
+  if(fix)ckptFixes++;
+  const now=Date.now();
+  if(!force&&ckptFixes<CKPT_EVERY_FIXES&&now-ckptAt<CKPT_EVERY_MS)return;
+  try{localStorage.setItem(CKPT_KEY,JSON.stringify({...s,checkpointAt:now}));ckptAt=now;ckptFixes=0;}
+  catch(e){
+    console.warn('Drive checkpoint failed:',e);
+    if(!ckptWarned){ckptWarned=true;toast('Storage full — this drive could be lost if the page closes.',5000);}
+  }
+}
+function clearDriveCheckpoint(){try{localStorage.removeItem(CKPT_KEY);}catch(e){}ckptAt=0;ckptFixes=0;}
+let pendingActive=null;
+function offerActiveDrive(){
+  let raw=null,s=null;
+  try{raw=localStorage.getItem(CKPT_KEY);}catch(e){return;}
+  if(raw==null)return;
+  try{s=JSON.parse(raw);}catch(e){s=null;}
+  const okTime=s&&typeof s.startTime==='string'&&!isNaN(new Date(s.startTime).getTime());
+  if(!s||typeof s!=='object'||typeof s.id!=='string'||!okTime||!Array.isArray(s.route)||typeof s.checkpointAt!=='number'||sessions.some(x=>x.id===s.id)){clearDriveCheckpoint();return;}
+  if(!Array.isArray(s.speedSamples))s.speedSamples=[];
+  pendingActive=s;
+  const fresh=Date.now()-s.checkpointAt<=CKPT_FRESH_MS;
+  const mins=Math.max(0,(s.checkpointAt-new Date(s.startTime).getTime())/60000);
+  document.getElementById('resume-body').innerHTML=
+    `<p style="margin:0 0 16px;color:var(--muted)">A drive started ${esc(fmtDate(s.startTime))} at ${esc(fmtTime(s.startTime))} was still recording when the app closed (${esc(fmtDur(mins))}, ${routeDistMiles(s.route).toFixed(1)} mi so far).</p>`+
+    (fresh
+      ?`<button class="btn-big btn-start" style="min-height:48px" onclick="resumeActiveDrive()">Resume drive</button>
+        <button class="btn-outline" style="width:100%;margin-top:10px;min-height:48px" onclick="saveActiveDrive()">Save it now</button>`
+      :`<button class="btn-big btn-start" style="min-height:48px" onclick="saveActiveDrive()">Save it now</button>
+        <button class="btn-outline" style="width:100%;margin-top:10px;min-height:48px" onclick="discardActiveDrive()">Discard</button>`);
+  const m=document.getElementById('resume-modal');
+  m.classList.add('open');
+  setTimeout(()=>{const f=m.querySelector('button');if(f)f.focus();},50);
+}
+function closeResumeModal(){document.getElementById('resume-modal').classList.remove('open');}
+function discardActiveDrive(){pendingActive=null;clearDriveCheckpoint();closeResumeModal();toast('Drive discarded');}
+async function resumeActiveDrive(){
+  const s=pendingActive;pendingActive=null;
+  closeResumeModal();
+  if(!s||activeSession)return;
+  delete s.checkpointAt;
+  s.lastMovedAt=Date.now();s.autoStopping=false;s.gpsWarned=false;
+  activeSession=s;
+  ckptWarned=false;
+  await launchDriveRuntime();
+}
+async function saveActiveDrive(){
+  const s=pendingActive;pendingActive=null;
+  closeResumeModal();
+  if(!s||activeSession)return;
+  const startMs=new Date(s.startTime).getTime();
+  const last=s.route.length&&typeof s.lastMovedAt==='number'?s.lastMovedAt:s.checkpointAt;
+  const endAt=Math.min(s.checkpointAt,Math.max(startMs,last));
+  delete s.checkpointAt;
+  activeSession=s;
+  await stopDrive({endAt});
+}
+
 const GPS_WATCH_OPTS={enableHighAccuracy:true,maximumAge:5000,timeout:15000};
 async function startDrive(){
   if(activeSession)return;   // double tap: one drive, one timer, one GPS watch
@@ -2526,6 +2598,13 @@ async function startDrive(){
     speedSamples:[],notes:'',supervisor:'',supervisorLicense:'',
     lastMovedAt:Date.now()
   };
+  ckptWarned=false;
+  checkpointDrive(true);
+  await launchDriveRuntime();
+}
+
+// Badge, wake lock, timers and GPS watch for activeSession; shared by a new drive and a resumed one
+async function launchDriveRuntime(){
   document.getElementById('live-badge').style.display='inline-block';
   document.querySelector('.drive-btn')?.classList.add('recording');
   // Wake lock
@@ -2539,7 +2618,15 @@ async function startDrive(){
     if(++_driveTick%30===0)checkStopDetection(); // idle check every 30s
   },1000);
   const s=activeSession;
-  if(navigator.geolocation&&s){
+  if(navigator.geolocation&&s&&s.route.length){
+    // Resumed drive: it already has its first fix, so go straight to the steady watch
+    gpsWatchId=navigator.geolocation.watchPosition(onPosition,err=>console.warn('GPS:',err.message),GPS_WATCH_OPTS);
+    if(!s.weather)Promise.all([fetchWeather(s.route[0][0],s.route[0][1]),reverseGeocode(s.route[0][0],s.route[0][1])]).then(([wx,loc])=>{
+      if(activeSession!==s)return;
+      s.weather=wx;s.startLocation=loc;
+      if(currentView==='drive')renderDrivePanel();
+    });
+  } else if(navigator.geolocation&&s){
     const firstWatchId=gpsWatchId=navigator.geolocation.watchPosition(
       pos=>handleFirstFix(pos,firstWatchId),
       err=>{
@@ -2564,6 +2651,7 @@ function handleFirstFix(pos,watchId){
   const mph0=toMph(speed);
   s.route.push([lat,lng,altitude,mph0]);
   s.lastSpeed=speed;s.lastMovedAt=Date.now();
+  checkpointDrive(true);
   if(mph0!=null){s.maxSpeed=mph0;s.speedSamples=[mph0];}
   s.isNight=sunAltitude(Date.now(),lat,lng)<SUN_DOWN_DEG;   // live hint only; the saved split is worked out at stop
   if(driveMap){
@@ -2603,6 +2691,7 @@ function onPosition(pos){
   }
   route.push([lat,lng,altitude,mph]);
   activeSession.lastMovedAt=Date.now();
+  checkpointDrive(false,true);
   const milesEl=document.getElementById('drive-miles');
   if(milesEl)milesEl.textContent=routeDistMiles(route).toFixed(2);
   // Append to polyline instead of rebuilding entire array
@@ -2656,11 +2745,12 @@ function updateCompass(heading){
   }
 }
 
-async function stopDrive({auto=false}={}){
+async function stopDrive({auto=false,endAt=null}={}){
   // Take the drive and clear it first, so a second tap or the auto-stop timer can't save it twice
   const s=activeSession;
   if(!s)return;
   activeSession=null;
+  clearDriveCheckpoint();
   vibrate([50,30,50]);
   // All teardown is synchronous: nothing after the await below may touch a newer drive or its map
   if(gpsWatchId!=null){navigator.geolocation.clearWatch(gpsWatchId);gpsWatchId=null;}
@@ -2672,7 +2762,7 @@ async function stopDrive({auto=false}={}){
   teardownDriveMap();
   const startMs=new Date(s.startTime).getTime();
   // An auto-stop ends the drive when the car stopped moving, not 10 idle minutes later
-  const endMs=auto?Math.max(startMs,Math.min(Date.now(),s.lastMovedAt)):Date.now();
+  const endMs=endAt!=null?Math.max(startMs,endAt):auto?Math.max(startMs,Math.min(Date.now(),s.lastMovedAt)):Date.now();
   s.endTime=new Date(endMs).toISOString();
   s.duration=(endMs-startMs)/60000;
   s.distance=routeDistMiles(s.route);
@@ -3217,6 +3307,7 @@ function clearAllData(){
   saveSessions();saveSettings();saveSkillsData();
   localStorage.removeItem('rtr_milestones');
   localStorage.removeItem('rtr_deleted');
+  clearDriveCheckpoint();
   applyTheme();updateSkillsBadge();onSessionsChanged();toast('All data cleared');renderSettings();
 }
 
@@ -3503,7 +3594,7 @@ document.getElementById('manual-modal').addEventListener('click',e=>{if(e.target
 function openHelp(){_modalTrigger=document.activeElement;document.getElementById('help-modal').classList.add('open');setTimeout(()=>{const f=document.querySelector('#help-modal .modal-sheet');if(f)f.focus();},50);}
 document.addEventListener('keydown',e=>{
   if(e.key!=='Escape'&&e.key!=='Tab')return;
-  const open=[['modal',closeModal],['help-modal',closeHelp],['manual-modal',closeManualModal],['quick-modal',closeQuickModal]].find(([id])=>document.getElementById(id)?.classList.contains('open'));
+  const open=[['modal',closeModal],['help-modal',closeHelp],['manual-modal',closeManualModal],['quick-modal',closeQuickModal],['resume-modal',()=>{}]].find(([id])=>document.getElementById(id)?.classList.contains('open'));
   if(!open)return;
   if(e.key==='Escape'){e.preventDefault();open[1]();return;}
   const sheet=document.querySelector('#'+open[0]+' .modal-sheet');if(!sheet)return;
@@ -3720,6 +3811,8 @@ if('serviceWorker' in navigator){
   const startView = location.hash === '#drive' ? 'drive' : 'home';
   navigate(startView);
 
+  offerActiveDrive();
+
   // ── GPS permission check (async, non-blocking) ──
   checkGpsPermission().then(()=>{
     if(gpsPermState==='denied'&&currentView==='home')renderHome();
@@ -3738,8 +3831,11 @@ window.addEventListener('online',async()=>{
   await pullSync();await pushSync();
 });
 
+window.addEventListener('pagehide',()=>checkpointDrive(true));
+
 // ── Page visibility: resume idle clock when visible during active drive ──
 document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden)checkpointDrive(true);
   if(!document.hidden && activeSession){
     // Drive timer is timestamp-based so duration stays accurate; GPS will pause on most mobile browsers.
     // GPS was likely paused while hidden, so the last fix says nothing about whether the car
