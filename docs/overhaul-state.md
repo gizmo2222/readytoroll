@@ -13,7 +13,7 @@ Rules that apply to every phase: do not push, merge or open a PR; the full suite
 | 4 | Security | done | overhaul/phase-4 |
 | 5 | Clean-up | done | overhaul/phase-5 |
 | 6 | UI | done | overhaul/phase-6 |
-| 7 | Simulation or game balance | todo | |
+| 7 | Simulation or game balance | skipped | |
 | 8 | Research | todo | |
 | 9 | Wrap-up | todo | |
 | 10 | Land | todo | |
@@ -74,3 +74,7 @@ Rules that apply to every phase: do not push, merge or open a PR; the full suite
 - New harness `tests/screens.shots.js` (`npx playwright test --config playwright.shots.config.js`) shot 10 screens plus empty states, onboarding and the parent view at 3 widths in 7 themes and audited contrast, targets under 44px, unnamed controls and CSP errors: 0 issues left in all 21 audits. Fixed: contrast inks computed per theme (`applyThemeInks`), 44px targets, modal Escape and focus trap, keyboard-openable session rows, `aria-pressed`/`aria-label`s, an `#sr-announce` live region, toast queueing behind undo, and every phase-5 ledger bug (B-9, B-13, E-13, F-6, F-13, B-1/H-11). The 3 old fixmes are real passing tests. Suite 238 -> 260.
 - Decisions: a meta CSP keeps `unsafe-inline` (98 inline `on*=` handlers and the print window need it), and `frame-ancestors` cannot be set from a meta tag, so it belongs in a server header (deploy config, not touched). `connectSyncCode` asks before merging local drives into the synced log, and emailing the code warns first. Sync encryption and the `parentSummary` allow-list are unchanged. One run hit a Chromium worker crash (0xC0000409) in `sanitize.spec.js:112`; reruns pass, so it is environmental, not a test bug.
 - For the next phases: 7 is skipped (not a game). 8 (research) could look at what competitors put on an empty home screen (review items 6/27/36/45/48 are deferred). Deferred UI items, including focus loss on re-render and moving inline handlers off `unsafe-inline`, are in `docs/overhaul-findings.md` → Phase 6. Phase 9 refreshes the doc map: the JS sits about 80 lines lower near `renderHome` and about 220 near `initOnboarding`.
+
+### Phase 7 — Simulation or game balance (skipped 2026-11-08)
+- Skipped by the orchestrator: phase 1 recorded that the app has no simulation or game to balance.
+- No branch; phase 8 cuts `overhaul/phase-8` from `overhaul/phase-6`.
