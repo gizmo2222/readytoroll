@@ -47,7 +47,20 @@ const json = (route, body, status = 200) =>
  */
 // Uncaught exceptions on any page opened with openApp fail the test that opened it
 const pageErrors = [];
+// RTR_COVERAGE=1 records V8 JS coverage of every `page` into coverage/raw (see tests/coverage-report.js)
 const test = base.extend({
+  page: async ({ page }, use, testInfo) => {
+    if (!process.env.RTR_COVERAGE) return use(page);
+    await page.coverage.startJSCoverage({ resetOnNavigation: false });
+    await use(page);
+    const entries = (await page.coverage.stopJSCoverage())
+      .filter(e => { try { return /\/(readytoroll\.html|rtr-[\w-]+\.js)$/.test(new URL(e.url).pathname); } catch { return false; } });
+    const fs = require('fs'), path = require('path');
+    const dir = path.join(__dirname, '..', 'coverage', 'raw');
+    fs.mkdirSync(dir, { recursive: true });
+    const name = testInfo.titlePath.join(' > ').replace(/[^\w]+/g, '_').slice(0, 150) + '-' + testInfo.repeatEachIndex + '.json';
+    fs.writeFileSync(path.join(dir, name), JSON.stringify({ title: testInfo.titlePath.join(' > '), entries }));
+  },
   _noPageErrors: [async ({}, use) => {
     pageErrors.length = 0;
     await use();
@@ -123,4 +136,8 @@ async function newDevice(browser, baseURL, extra = {}) {
   return { ctx, page: await ctx.newPage() };
 }
 
-module.exports = { test, expect, openApp, sess, newDevice };
+// Folder holding the app files under test (a mutated copy during tests/mutate.js runs).
+// Specs that read app files directly (rtr-sync.php, rtr-service-worker.js) must read them from here.
+const appRoot = require('path').resolve(process.env.RTR_SERVE_ROOT || require('path').join(__dirname, '..'));
+
+module.exports = { test, expect, openApp, sess, newDevice, appRoot };

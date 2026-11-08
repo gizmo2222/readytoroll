@@ -1,0 +1,16 @@
+[
+{"id":"service-worker-1","file":"rtr-service-worker.js","find":"if (e.request.method !== 'GET') return;","replace":"if (false) return;","spec":["tests/service-worker.spec.js"],"why":"non-GET requests get intercepted"},
+{"id":"service-worker-2","file":"rtr-service-worker.js","find":"k.startsWith('rtr-') && k !== CACHE","replace":"k !== CACHE","spec":["tests/service-worker.spec.js"],"why":"activate deletes non-rtr caches"},
+{"id":"service-worker-3","file":"rtr-service-worker.js","find":"k.startsWith('rtr-') && k !== CACHE","replace":"k.startsWith('rtr-')","spec":["tests/service-worker.spec.js"],"why":"activate deletes the current cache"},
+{"id":"service-worker-4","file":"rtr-service-worker.js","find":"cache.put('./readytoroll.html', clone)","replace":"cache.put('./other.html', clone)","spec":["tests/service-worker.spec.js"],"why":"HTML refresh stored under wrong key"},
+{"id":"service-worker-5","file":"rtr-service-worker.js","find":".catch(() => caches.match('./readytoroll.html'))","replace":".catch(() => new Response('{}'))","spec":["tests/service-worker.spec.js"],"why":"no offline fallback for the page"},
+{"id":"service-worker-6","file":"rtr-service-worker.js","find":"url.hostname.endsWith('tile.openstreetmap.org')","replace":"url.hostname === 'tile.openstreetmap.org'","spec":["tests/service-worker.spec.js"],"why":"tile subdomains not cached"},
+{"id":"service-worker-7","file":"rtr-service-worker.js","find":"if (cached) return cached;","replace":"","spec":["tests/service-worker.spec.js"],"why":"cache-first ignores cache"},
+{"id":"service-worker-8","file":"rtr-service-worker.js","find":"cache.put(e.request, clone)","replace":"cache.put('x', clone)","spec":["tests/service-worker.spec.js"],"why":"cache-first stores under wrong key"},
+{"id":"service-worker-9","file":"rtr-service-worker.js","find":"if (e.tag === 'drive-sync')","replace":"if (true)","spec":["tests/service-worker.spec.js"],"why":"any sync tag notifies clients"},
+{"id":"service-worker-10","file":"rtr-service-worker.js","find":"if (data.title) {","replace":"if (true) {","spec":["tests/service-worker.spec.js"],"why":"push without title notifies"},
+{"id":"service-worker-11","file":"rtr-service-worker.js","find":"Promise.allSettled(STATIC.map(","replace":"Promise.all(STATIC.map(","spec":["tests/service-worker.spec.js"],"why":"install fails when CDN down"},
+{"id":"service-worker-12","file":"rtr-service-worker.js","find":"self.clients.claim();","replace":"","spec":["tests/service-worker.spec.js"],"why":"clients not claimed"},
+{"id":"service-worker-13","file":"readytoroll.html","find":"{scope:'./readytoroll.html'}","replace":"{scope:'./'}","spec":["tests/service-worker.spec.js"],"why":"worker scope widened to whole site"},
+{"id":"service-worker-14","file":"rtr-service-worker.js","find":"url.hostname === 'api.open-meteo.com' ||","replace":"url.hostname === 'api.open-meteo.org' ||","spec":["tests/service-worker.spec.js"],"why":"weather not handled live"}
+]

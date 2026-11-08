@@ -37,7 +37,8 @@ npm install
 npx playwright install chromium
 ```
 
-Run the suite (38 tests, under a minute; it starts its own server on port 4173):
+Run the suite (227 tests, 7 of them `test.fixme` for known bugs; under a minute; it starts its own server on port 4173).
+`tests/sync-server.spec.js` runs the real `rtr-sync.php` under `php -S` and skips itself if `php` is not on PATH:
 
 ```powershell
 npm run test:quiet
@@ -54,6 +55,24 @@ npx playwright test --headed
 ```
 
 Tests run in `America/Los_Angeles` unless a test sets its own zone. Uncaught page errors fail the test.
+
+Coverage (V8, the app's inline script; writes `coverage/report.txt` with never-called functions and unexecuted lines):
+
+```powershell
+$env:RTR_COVERAGE = '1'; npx playwright test --reporter=dot; Remove-Item Env:RTR_COVERAGE
+```
+
+```powershell
+node tests/coverage-report.js
+```
+
+Mutation check: each `tests/mutants/<module>.json` lists exact find/replace edits and the specs that must catch them.
+`tests/mutate.js` applies each to a copy in `coverage/`, runs those specs, and reports to `coverage/mutation-<port>.txt`
+(the whole set takes a long time; run one module, or `--only id1,id2`):
+
+```powershell
+node tests/mutate.js tests/mutants/skills.json --port 4399
+```
 
 ## Deploy
 Push to `master` → GitHub Actions bumps patch version in `version.txt`, stamps `APP_VERSION` into HTML, SFTPs to `metacrystal.com` (host keys pinned in `.github/known_hosts`). New files that must ship need adding to the workflow's upload list. Always `git pull --rebase origin master` before pushing to avoid version-bump conflicts.
@@ -108,12 +127,26 @@ open the range you need.
 | `rtr-sync.php` | 146 | CORS 20–36, `respond`/`err` 51–52, `rateLimit` 55, `blobPath` 77, `legacyPath` 84, actions `get` 93, `put` 100 (3 MB cap), `delete` 116, `legacy_pull` 123, `legacy_delete` 131. Data in `rtr-sync-data/` (git-ignored, `.htaccess`-denied) |
 | `rtr-service-worker.js` | 115 | `CACHE` 9, `STATIC` 10, `isCacheFirst` 20, install 26, activate 37, fetch 46, sync 95, push 104 |
 | `rtr-manifest.json` | 29 | PWA manifest; `#drive` shortcut; icons `rtr-icon-192.svg`, `rtr-icon-512.svg` |
-| `tests/helpers.js` | 126 | `fakeGeolocation` 16, `seedStorage` 32, `openApp` 58 (stubs every network call, fake sync server), `sess` 108, `newDevice` 121 |
+| `tests/helpers.js` | 143 | `test` fixture 51 (coverage hook, page-error check), `fakeGeolocation` 16, `seedStorage` 32, `openApp` 71 (stubs every network call, fake sync server), `sess` 108, `newDevice` 121 |
 | `tests/totals.spec.js` | 120 | Hour totals, sun split across sunset/midnight/DST/time zones, manual and quick-add |
 | `tests/sessions.spec.js` | 96 | Live drives, auto-stop, edits, deletes, tombstones |
 | `tests/milestones.spec.js` | 78 | Streaks, milestones, inclement weather, parent view |
 | `tests/importexport.spec.js` | 78 | JSON/CSV export and import, secrets kept out |
 | `tests/sync.spec.js` | 112 | No plaintext on the wire, parent allow-list, two-device merges |
+| `tests/drive-lifecycle.spec.js` | 127 | Start/stop races, GPS errors, geocode after save |
+| `tests/entry.spec.js` | 187 | Manual and quick-add validation |
+| `tests/sanitize.spec.js` | 181 | Escaping of rendered fields, import sanitising |
+| `tests/sync-import.spec.js` | 239 | Sync and import data-loss cases |
+| `tests/home-drive.spec.js` | 223 | GPS permission, swipe nav, storage fallbacks, inclement codes, skills badge, timers, compass |
+| `tests/skills.spec.js` | 226 | Skills view, statuses, tips, suggestions |
+| `tests/onboarding.spec.js` | 138 | Onboarding steps, help modal |
+| `tests/settings.spec.js` | 220 | Settings form, theme/accent/font/car setters, clear all |
+| `tests/detail.spec.js` | 240 | Detail modal, elevation/speed SVGs, replay, share card, notes, delete |
+| `tests/history.spec.js` | 322 | Filters, search, swipe delete, undo, JSON/CSV export, print |
+| `tests/sync-lifecycle.spec.js` | 280 | Create/connect/upgrade sync, parent link, copy/email code |
+| `tests/service-worker.spec.js` | 186 | `rtr-service-worker.js` in a Node `vm` (install, activate, fetch strategies) plus registration |
+| `tests/sync-server.spec.js` | 303 | Real `rtr-sync.php` under `php -S`: actions, caps, CORS, rate limit |
+| `tests/coverage-report.js`, `tests/mutate.js`, `tests/mutants/` | | Coverage report and mutation runner (see Build, run, test). `RTR_SERVE_ROOT` / `RTR_TEST_PORT` point a run at a copy; `helpers.appRoot` is that folder |
 | `tests/serve.js`, `playwright.config.js` | | Static server on 4173; Chromium, service workers blocked |
 | `.github/workflows/deploy.yml` | | Version bump + SFTP upload list |
 | `docs/state-requirements.md` | | Audit of `STATE_REQS` against official sources (checked 2026-11-05) |

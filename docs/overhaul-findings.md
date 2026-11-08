@@ -58,3 +58,28 @@ Confirmed findings the fix clusters touched, with the part left undone:
 | Parent view (W3) | Parent badge now needs total, night and inclement hours met; the parent view still shows no inclement line | Phase 6 |
 | Service worker | Cached HTML changed in this phase; `rtr-v5` was not bumped because HTML is network-first | Decide at landing |
 
+
+## Phase 3 — Tests (2026-11-07, branch `overhaul/phase-3`)
+
+Method: V8 coverage of the whole suite, then 9 writer workers (one per untested module) and a
+mutator per module that seeded 12-18 mutants each and strengthened tests until they died. The bugs below
+were found while writing tests. Each is pinned by a `test.fixme` (search the spec for `BUG:`) and was
+**not** fixed, since phase 3 only adds tests. Turning a fixme into `test(` is the regression test for the fix.
+
+| Id | Sev | Finding | Where | Pinned by |
+|---|---|---|---|---|
+| p3-history-search | high | History search text is interpolated unescaped into `value="${historySearch}"`, so a query containing `"` breaks out of the attribute (markup and script injection from your own typing; also any future deep-link of the query). | `renderHistory` toolbar | `history.spec.js` "search text is escaped…" |
+| p3-php-newline-id | medium | `rtr-sync.php` id regex ends in `$` without the `D` modifier, so a valid id plus a trailing `\n` passes validation and addresses a different file. | `rtr-sync.php` ~79 | `sync-server.spec.js` "an id with a trailing newline…" |
+| p3-php-array-id | low | A non-string id (object or array) hits "Array to string conversion"; with `display_errors` on, the warning and server path print before the JSON body. | `rtr-sync.php` ~78 | `sync-server.spec.js` "non-string ids get a clean JSON 400…" |
+| p3-clipboard | low | `copySyncCode` and `shareParentLink` call `clipboard.writeText(...).then(toast)` with no `.catch`: a denied clipboard gives an uncaught rejection and no feedback. | `copySyncCode`, `shareParentLink` | `sync-lifecycle.spec.js` "a denied clipboard write toasts…" |
+| p3-swipe-bubble | medium | Swipe-to-delete on a History row bubbles to the `#main` tab-swipe handler, so deleting a row also switches tab; Undo then restores the drive without re-rendering History. | `setupSwipeDelete`, `#main` swipe handlers | `history.spec.js` "swiping a row to delete stays on the History tab" |
+| p3-undo-timer | low | `toastUndo` does not clear the pending `toast()` timer, so a toast shown just before a delete hides the Undo toast after 2.8 s instead of 5 s. Same toast redesign as state-persist-6/9. | `toast`, `toastUndo` | `history.spec.js` "undo toast stays visible for 5 seconds…" |
+| p3-help-escape | low | The help modal is `aria-modal` but Escape does not close it (no keydown handler). | `#help-modal`, `openHelp`/`closeHelp` | `onboarding.spec.js` "Escape closes the help modal" |
+| p3-skill-status | low | `updateSkillsBadge` and `renderSkills` disagree on an unknown stored status (such as `'bogus'`): the badge counts it as started, the view shows it as not started. | `updateSkillsBadge`, `renderSkills` | documented in `skills.spec.js`, no fixme |
+
+Coverage after phase 3: 2300/2338 code lines (98.4%, was 81.1%), 203/208 named functions (was 161/207).
+Still never run: `emailSyncCode` (opens `mailto:`, which the harness blocks), the Leaflet-only callbacks
+(`watchPosition` options object, row `passive` listeners and the detail modal's map `onclick`, which need a real map),
+and short defensive branches at roughly lines 795, 1372, 1426, 1633-1640, 1676, 1800-1804, 2091, 2753-2767,
+3014, 3166, 3230 and 3495. None of them hides a known bug; they are listed so phase 5 can judge dead code.
+`home-dashboard-skills-6` (days-to-goal across DST) is still open; no test was added for it.

@@ -3,13 +3,13 @@
 Every overhaul session reads this file first and writes to it last. One phase per session, each on
 branch `overhaul/phase-N` cut from the previous phase's branch (phase 1 from `master` at fc757e7).
 Rules that apply to every phase: do not push, merge or open a PR; the full suite (`npm run test:quiet`,
-86 tests after phase 2) must pass before the phase commit; never touch deploy or CI config, secrets or user data.
+227 tests after phase 3, 7 of them `test.fixme`) must pass before the phase commit; never touch deploy or CI config, secrets or user data.
 
 | Phase | Name | Status | Branch |
 |---|---|---|---|
 | 1 | Map | done | overhaul/phase-1 |
 | 2 | Bug hunt | done | overhaul/phase-2 |
-| 3 | Tests | todo | |
+| 3 | Tests | done | overhaul/phase-3 |
 | 4 | Security | todo | |
 | 5 | Clean-up | todo | |
 | 6 | UI | todo | |
@@ -49,3 +49,13 @@ Rules that apply to every phase: do not push, merge or open a PR; the full suite
 - For phase 3: new specs are sanitize, drive-lifecycle, entry, sync-import; untested still are the share card,
   replay, print layout, onboarding, skills view and the service worker. Fix workers ran one at a time since
   all edit `readytoroll.html`; do the same for test workers that touch it.
+
+### Phase 3 — Tests (done 2026-11-07, branch `overhaul/phase-3`)
+- Added V8 coverage (`RTR_COVERAGE=1` + `tests/coverage-report.js`) and a mutation runner (`tests/mutate.js`,
+  mutants in `tests/mutants/`); 9 new specs from one writer per module, each followed by a mutator. Tests 86 -> 227,
+  code-line coverage 81.1% -> 98.4%, final mutation pass killed 127/127 mutants. No app code changed.
+- Bugs found while testing are pinned as `test.fixme` (grep `BUG:` in the specs) and listed in
+  `docs/overhaul-findings.md` under Phase 3. For phase 4 (security): the unescaped history search value, the
+  `rtr-sync.php` id regex without `D` and the array-id PHP warning; `tests/sync-server.spec.js` exercises the real PHP.
+- Decision: phase 3 fixed no bugs (tests only). A fix should flip its fixme to `test(`. Specs that read app files must use
+  `helpers.appRoot` so mutation runs see the mutated copy; `coverage/` is git-ignored scratch.

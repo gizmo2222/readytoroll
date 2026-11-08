@@ -1,0 +1,14 @@
+[
+{"id":"home-drive-1","file":"readytoroll.html","find":"Math.abs(dx)>50&&","replace":"Math.abs(dx)>5&&","spec":["tests/home-drive.spec.js"],"why":"short swipes navigate"},
+{"id":"home-drive-2","file":"readytoroll.html","find":"Math.abs(dy)*1.5","replace":"Math.abs(dy)*0.5","spec":["tests/home-drive.spec.js"],"why":"mostly vertical swipes navigate"},
+{"id":"home-drive-3","file":"readytoroll.html","find":"  if(activeSession)return;\n  const dx=","replace":"  const dx=","spec":["tests/home-drive.spec.js"],"why":"swipes work during an active drive"},
+{"id":"home-drive-4","file":"readytoroll.html","find":"if(dx<0&&idx<viewOrder.length-1)","replace":"if(dx>0&&idx<viewOrder.length-1)","spec":["tests/home-drive.spec.js"],"why":"swipe left goes backwards"},
+{"id":"home-drive-5","file":"readytoroll.html","find":"const fog=wx===45||wx===48;","replace":"const fog=wx===45;","spec":["tests/home-drive.spec.js"],"why":"rime fog code 48 not inclement"},
+{"id":"home-drive-6","file":"readytoroll.html","find":"const thunder=wx!=null&&wx>=95;","replace":"const thunder=wx!=null&&wx>=96;","spec":["tests/home-drive.spec.js"],"why":"thunderstorm code 95 not inclement"},
+{"id":"home-drive-7","file":"readytoroll.html","find":"map.get(id)<at)map.set(id,at)","replace":"map.get(id)>at)map.set(id,at)","spec":["tests/home-drive.spec.js"],"why":"duplicate tombstones keep the older timestamp"},
+{"id":"home-drive-8","file":"readytoroll.html","find":"result.onchange=()=>{gpsPermState=result.state;","replace":"result.onchange=()=>{","spec":["tests/home-drive.spec.js"],"why":"permission change does not update state"},
+{"id":"home-drive-9","file":"readytoroll.html","find":"{gpsPermState='denied';return;}","replace":"{gpsPermState='granted';return;}","spec":["tests/home-drive.spec.js"],"why":"no geolocation API not flagged as denied"},
+{"id":"home-drive-10","file":"readytoroll.html","find":"if(notStarted>0){badge","replace":"if(notStarted>1){badge","spec":["tests/home-drive.spec.js"],"why":"badge hidden for a single unstarted skill"},
+{"id":"home-drive-11","file":"readytoroll.html","find":"clearInterval(window._homeTimer);window._homeTimer=null;return;}","replace":"clearInterval(window._homeTimer);return;}","spec":["tests/home-drive.spec.js"],"why":"home timer handle not reset"},
+{"id":"home-drive-12","file":"readytoroll.html","find":"if(heading!=null&&!isNaN(heading)){","replace":"if(!isNaN(heading)){","spec":["tests/home-drive.spec.js"],"why":"null heading shows compass"}
+]
