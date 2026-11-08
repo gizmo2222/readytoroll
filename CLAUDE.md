@@ -7,7 +7,7 @@ and an end-to-end-encrypted cloud sync with a read-only parent view. Live at
 `https://metacrystal.com/readytoroll.html`.
 
 ## Tech Stack
-`readytoroll.html` (~3500 lines). Vanilla HTML/CSS/JS — no framework, no build step.
+`readytoroll.html` (~3750 lines). Vanilla HTML/CSS/JS — no framework, no build step.
 - Maps: Leaflet.js (CDN, `unpkg.com/leaflet@1.9.4`)
 - Weather: Open-Meteo (free, no key)
 - Geocoding: Nominatim/OpenStreetMap
@@ -67,7 +67,7 @@ $env:RTR_COVERAGE = '1'; npx playwright test --reporter=dot; Remove-Item Env:RTR
 node tests/coverage-report.js
 ```
 
-UI review screenshots (not part of the suite): every view, modal, empty state, onboarding and the parent view at
+UI review screenshots (`tests/screens.shots.js`, not part of the suite): every view, modal, empty state, onboarding and the parent view at
 phone, tablet and desktop widths and in each theme, into `coverage/shots/` with an audit per width and theme in
 `coverage/shots/audit/` (contrast, targets under 44px, unnamed controls, CSP errors). Narrow a run with
 `$env:RTR_SHOTS_WIDTHS='phone'` or `$env:RTR_SHOTS_THEMES='dark,neon'`:
@@ -88,80 +88,84 @@ node tests/mutate.js tests/mutants/skills.json --port 4399
 Push to `master` → GitHub Actions bumps patch version in `version.txt`, stamps `APP_VERSION` into HTML, SFTPs to `metacrystal.com` (host keys pinned in `.github/known_hosts`). New files that must ship need adding to the workflow's upload list. Always `git pull --rebase origin master` before pushing to avoid version-bump conflicts.
 
 ## Doc map
-Line numbers are for `readytoroll.html` at the start of the overhaul (phase 1, 2026-11-07); after phase 6 the JS sits
-80 lines lower near `renderHome` to 220 near `initOnboarding` (contrast inks, modal keyboard handling, CSP meta) and phase 9 refreshes them. They drift as
+Line numbers are for `readytoroll.html` (3743 lines) as refreshed in overhaul phase 9 (2026-11-08). They drift as
 code changes; search for the symbol or the `// NAME` banner when in doubt. Never read the file whole:
 open the range you need.
 
-### readytoroll.html — markup and CSS
+### readytoroll.html — head, CSS and markup
 | Area | Lines | Key symbols |
 |---|---|---|
-| CSS tokens and themes | 15–66 | `:root` 17, `[data-theme="dark"]` 28, `contrast` 35, reduced motion 50; pastel/neon/retro/midnight themes 299–302 |
-| Nav, views, cards | 67–132 | `#nav` 68, `.view` 78–84 (slide animations), `.card` 88, skeleton 126–130 |
-| Drive map and overlays | 133–160 | `#drive-map` 133, compass 153, car marker 157, hue slider 159 |
-| Modals and toasts | 226–294 | `.modal-overlay` 226 (bottom sheets), elevation/replay 245–248, `.toast` 292 |
-| Print, parent overlay, motion | 295–432 | `@media print` 297, pulse/streak/nudge 307–326, `#parent-overlay` 373, keyframes 388–414 |
-| Page shell | 435–467 | `#header` 436, `#main` 442 with `#home-view`, `#drive-view`, `#skills-view`, `#history-view`, `#settings-view` 443–455, `<nav id="nav">` 458 |
-| Modal markup | 468–716 | `#modal` (detail) 468, `#help-modal` 488, `#manual-modal` 576, `#onboard-overlay` 624, `#quick-modal` 656, `#parent-overlay` 708 |
+| Head | 1–15 | CSP `<meta>` 5 (keeps `unsafe-inline`: inline `on*=` handlers and the print window need it), Leaflet with SRI 15 |
+| CSS tokens and themes | 16–66 | `:root` 18, `[data-theme="dark"]` 32, `contrast` 38, reduced motion 51; pastel/neon/retro/midnight themes 285–288 |
+| Nav, views, cards | 67–127 | `#nav` 69, `.view` 79–85 (slide animations), `.card` 89, `.start-fab` 126 |
+| Drive map and overlays | 128–160 | `#drive-map` 130, `#compass-el` 151, `.car-map-marker` 155, hue slider 156 |
+| Modals and toasts | 213–280 | `.modal-overlay` 215, `.modal-sheet` 217 (bottom sheets), elevation/replay 235, `#onboard-sheet` 243, `.toast` 278 |
+| Print, themes, motion, sync, parent | 281–394 | `@media print` 283, pulse/streak/nudge 294–302, `.sync-code-box` 340, `#parent-overlay` 355, keyframes 378–392 |
+| Hover, 44px targets, desktop | 395–430 | `@media(hover:hover)` 395, phase-6 touch-target rules 414, `@media (min-width:700px)` 424 |
+| Page shell | 433–464 | `#header` 434, `#main` 440 with `#home-view` 441, `#drive-view` 443, `#skills-view`/`#history-view`/`#settings-view` 451–453, `<nav id="nav">` 456 |
+| Modal markup | 466–716 | `#modal` (detail) 466, `#help-modal` 486, `#manual-modal` 574, `#onboard-overlay` 623, `#quick-modal` 655, `#parent-overlay` 707, `#confetti-canvas` 714, `#sr-announce` live region 715 |
 
-### readytoroll.html — JavaScript (one `<script>` 718–3506)
+### readytoroll.html — JavaScript (one `<script>` 717–3741)
 | Area | Lines | Key symbols |
 |---|---|---|
-| State requirements | 724–798 | `APP_VERSION` 721, `STATE_REQS` 726 (all 50 states + DC; audit in `docs/state-requirements.md`), `WX_DESC` 780, `wxEmoji` 791 |
-| Skills, milestones, themes, tips | 799–914 | `SKILLS` 801, `MILESTONES` 830, `ACCENT_COLORS` 850, `VIBE_THEMES` 859, `CAR_EMOJIS` 869, `DRIVING_TIPS` 871 |
-| App state | 915–946 | `settings`, `sessions`, `skillsData`, `activeSession`, map/GPS/wake-lock handles, sync status, history filters 917–944 |
-| Persistence | 947–1029 | `dl_*` migration 950, tombstones `addTombstones`/`loadTombstones`/`saveDeletedId` 962–978, `loadSettings`/`defaultSettings` 987–1004, `loadSessions`/`saveSessions`/`onSessionsChanged` 1006–1020, `loadSkillsData` 1021, `genId` 1027 |
-| Theme / accent / font | 1030–1079 | `accentHsl` 1032, `applyTheme` 1036, `updateAvatar` 1060, `getTipOfDay` 1067, `handbookLinkHTML` 1073 |
-| Requirements and stats | 1080–1217 | `getReqs` 1082, `weatherFlags`/`isInclement` 1094–1102, day/night split `sunAltitude` 1107, `nightMinutes` 1115, `STATE_CENTER` 1125, `applyNightSplit` 1144, `sessionNightMin` 1154, `computeTotals` 1160, `getStreak` 1199 |
-| GPS permission | 1218–1244 | `checkGpsPermission` 1220, `gpsWarnHTML` 1233 |
-| Cloud sync (E2E) | 1245–1595 | constants 1257–1260 (`SYNC_KDF_ITER` 310000), `genSyncCode` 1272, `deriveSyncKeys` 1284, `seal`/`unseal` 1300–1311, `syncCall` 1312, `parentSummary` 1320 (allow-list!), `mergeSyncData` 1334, `createSyncCode` 1363, `connectSyncCode` 1379, `upgradeLegacySync` 1407, `pushSync` 1431, `pullSync` 1456, `scheduleSyncPush` 1478 (4 s debounce), parent link 1499–1538, `syncCodeHTML` 1539 |
-| Quick add | 1596–1665 | `openQuickModal` 1598, `selectQaDur`/`selectQaDN` 1619–1643, `saveQuickDrive` 1644 |
-| Parent read-only view | 1666–1758 | `computeEarnedMilestones` 1668, `initParentView` 1676 |
-| Records, badges, milestones, confetti | 1759–1912 | `getPersonalRecords` 1761, `updateSkillsBadge` 1794, `checkMilestones` 1805, confetti IIFE 1822–1899, `milestonesHTML` 1900 |
-| Weekly chart and navigation | 1913–2001 | `weeklyChartHTML` 1915, `navigate` 1965, swipe handlers 1987 |
-| Home and dashboard | 2002–2266 | `renderHome` 2004, `renderDashboard` 2101, `goalCard` 2192, `progressRing` 2229, `sessionRowHTML` 2241, `emptyStateHTML` 2259 |
-| Skills view | 2267–2342 | `renderSkills` 2269, `toggleTip` 2308, `setSkill` 2313, `suggestSkill` 2329 |
-| Drive view (live GPS) | 2343–2591 | `renderDrive` 2345, `initDriveMap` 2376, `renderDrivePanel` 2404, `startDrive` 2427, `handleFirstFix` 2462, `onPosition` 2485, `checkStopDetection` 2522 (idle warn 5 min, auto-stop 10 min), `stopDrive` 2555 |
-| History | 2592–2677 | `renderHistory` 2594, `setupSwipeDelete` 2651, `setFilter` 2675 |
-| Session detail modal | 2678–2950 | `showSessionDetail` 2682, elevation/speed SVGs 2721–2754, `initDetailMap` 2755, `startReplay` 2770, `shareSession` 2788 (canvas card), `closeModal` 2923, `saveNotes` 2932, `deleteSession` 2939 |
-| Settings | 2951–3091 | `renderSettings` 2953, `previewState` 3033, `saveSettingsForm` 3042, accent/font/theme/car setters 3067–3081, `clearAllData` 3082 |
-| Export / import / print | 3092–3228 | `DEVICE_ONLY_SETTINGS` 3095, `exportPayload`/`exportJSON` 3096–3104, `cleanImportedSession` 3105, `applyImport` 3118, `exportCSV` 3155, `importData` 3169, `printLog` 3192 |
-| Weather and geocoding | 3229–3249 | `fetchWeather` 3231, `reverseGeocode` 3239 |
-| Manual entry | 3250–3346 | `openManualModal` 3255, `saveManualDrive` 3300 |
-| Helpers | 3347–3409 | `esc` 3350, `haversineMeters` 3352, `routeDistMiles` 3358, `fmtDur`/`fmtTime`/`fmtDate` 3369–3375, `TAG_LABELS` 3378, `toast` 3382, `toastUndo`/`undoDelete` 3389–3409 |
-| Onboarding | 3410–3448 | `initOnboarding` 3412, `obNext` 3425, `obFinish` 3439 |
-| Init | 3449–3506 | service worker registration 3451, parent-view detection 3460, `#drive` shortcut 3476, GPS check 3483, pull sync on load 3488, visibility handler 3495 |
+| State requirements | 720–797 | `APP_VERSION` 720, `STATE_REQS` 725 (all 50 states + DC; audit in `docs/state-requirements.md`), `WX_DESC` 779, `wxEmoji` 790 |
+| Skills, milestones, themes, tips | 798–913 | `SKILLS` 800, `MILESTONES` 829, `ACCENT_COLORS` 849, `VIBE_THEMES` 858, `CAR_EMOJIS` 868, `DRIVING_TIPS` 870 |
+| App state | 914–954 | `dl_*` migration IIFE 917, `settings`/`sessions`/`skillsData`/`activeSession` 926–929, `gpsWatchId`/`wakeLock` 934, `syncStatus` 942, history filters 947–949 |
+| Persistence | 955–1045 | tombstones `addTombstones` 967, `loadTombstones` 975, `saveDeletedId` 981, `loadSettings` 991, `defaultSettings` 1005, `loadSessions`/`saveSessions` 1010–1015, `onSessionsChanged` 1024, `renderSessionViews` 1031, `loadSkillsData` 1037, `genId` 1043 |
+| Theme / accent / font | 1046–1121 | `accentHsl` 1048, WCAG maths `relLum`/`contrastRatio`/`readableHsl` 1053–1059, `applyThemeInks` 1064 (per-theme contrast inks), `applyTheme` 1090, `updateAvatar` 1102, `getTipOfDay` 1109, `handbookLinkHTML` 1115 |
+| Requirements and stats | 1122–1250 | `getReqs` 1126, `weatherFlags` 1138 (its `.inclement`), `sunAltitude` 1150, `nightMinutes` 1159, `STATE_CENTER` 1169, `applyNightSplit` 1189, `sessionNightMin` 1199, `computeTotals` 1206, `getTotals` 1233, `newestFirst` 1236, `getStreak` 1241 |
+| GPS permission | 1251–1277 | `checkGpsPermission` 1253, `gpsWarnHTML` 1266 |
+| Cloud sync (E2E) | 1278–1686 | constants 1290–1292 (`SYNC_KDF_ITER` 310000), `genSyncCode` 1309, `deriveSyncKeys` 1321, `seal`/`unseal` 1337–1343, `syncCall` 1349, `parentSummary` 1357 (allow-list!), `mergeSyncData` 1371, `createSyncCode` 1398, `connectSyncCode` 1413 (asks before merging local drives), `upgradeLegacySync` 1463, `SYNC_MAX_BLOB` 1487, `applyRemote` 1501, `pushSync` 1507, `pullSync` 1545, `scheduleSyncPush` 1562 (4 s debounce), `disconnectSync` 1580, parent link 1586–1627, `syncCodeHTML` 1628, `emailSyncCode` 1674 (warns first) |
+| Quick add | 1687–1753 | `openQuickModal` 1689, `selectQaDur`/`selectQaDN` 1710–1720, `saveQuickDrive` 1730 |
+| Parent read-only view | 1754–1844 | `computeEarnedMilestones` 1756, `initParentView` 1764 |
+| Records, badges, milestones, confetti | 1845–1997 | `getPersonalRecords` 1847, `updateSkillsBadge` 1878, `checkMilestones` 1889, confetti IIFE 1909–1984 (`launchConfetti` 1967), `milestonesHTML` 1985 |
+| Weekly chart and navigation | 1998–2084 | `weeklyChartHTML` 2000, `navigate` 2050, swipe handlers 2072 |
+| Home and dashboard | 2085–2342 | `renderHome` 2087, `renderDashboard` 2183, `progressLeft` 2260, `goalCard` 2261, `progressRing` 2303, `sessionRowHTML` 2317, `emptyStateHTML` 2335 |
+| Skills view | 2343–2419 | `renderSkills` 2345, `toggleTip` 2384, `setSkill` 2390, `suggestSkill` 2406 |
+| Drive view (live GPS) | 2420–2693 | `renderDrive` 2423, `initDriveMap` 2453, `renderDrivePanel` 2481, `startDrive` 2505, `handleFirstFix` 2545, `onPosition` 2572, `checkStopDetection` 2607 (idle warn 5 min, auto-stop 10 min, not while hidden), `updateCompass` 2637, `stopDrive` 2646 |
+| History | 2694–2785 | `renderHistory` 2696, `setupSwipeDelete` 2758, `setFilter` 2783 |
+| Session detail modal | 2786–3068 | `showSessionDetail` 2790, `buildElevationSVG`/`buildSpeedSVG` 2830–2845, `initDetailMap` 2868, `startReplay` 2884, `shareSession` 2905 (canvas card), `closeModal` 3041, `saveNotes` 3050, `deleteSession` 3057 |
+| Settings | 3069–3210 | `renderSettings` 3071, `previewState` 3152, `saveSettingsForm` 3161, accent/font/theme/car setters 3187–3195, `clearAllData` 3201 |
+| Export / import / print | 3211–3417 | `DEVICE_ONLY_SETTINGS` 3214, `exportPayload`/`exportJSON` 3215–3219, `cleanImportedSession` 3230, `cleanImportedSettings` 3260, `applyImport` 3293, `exportCSV` 3340, `importData` 3355, `printLog` 3380 |
+| Weather and geocoding | 3418–3442 | `fetchJSON` 3421, `fetchWeather` 3426, `reverseGeocode` 3433 |
+| Manual entry and help | 3443–3563 | `openManualModal` 3448, `closeManualModal` 3487, `openHelp` 3490, modal Escape and focus-trap `keydown` handler 3491, `closeHelp` 3503, `saveManualDrive` 3506 |
+| Helpers | 3564–3633 | `esc` 3567, `haversineMeters` 3570, `routeDistMiles` 3576, `fmtDur`/`fmtTime`/`fmtDate` 3586–3592, `TAG_LABELS` 3595, `toast` 3600 (queues behind undo, writes `#sr-announce`), `toastUndo`/`undoDelete` 3609–3621 |
+| Onboarding | 3634–3675 | `initOnboarding` 3636, `obNext` 3650, `obFocus` 3664, `obFinish` 3666 |
+| Init | 3676–3741 | service worker registration 3679, parent-view detection 3688, `#drive` shortcut 3703, GPS check 3711, pull sync on load 3717, visibility handler 3729 |
 
 ### Other files
 | File | Lines | What |
 |---|---|---|
-| `rtr-sync.php` | 146 | CORS 20–36, `respond`/`err` 51–52, `rateLimit` 55, `blobPath` 77, `legacyPath` 84, actions `get` 93, `put` 100 (3 MB cap), `delete` 116, `legacy_pull` 123, `legacy_delete` 131. Data in `rtr-sync-data/` (git-ignored, `.htaccess`-denied) |
-| `rtr-service-worker.js` | 115 | `CACHE` 9, `STATIC` 10, `isCacheFirst` 20, install 26, activate 37, fetch 46, sync 95, push 104 |
-| `rtr-manifest.json` | 29 | PWA manifest; `#drive` shortcut; icons `rtr-icon-192.svg`, `rtr-icon-512.svg` |
-| `tests/helpers.js` | 143 | `test` fixture 51 (coverage hook, page-error check), `fakeGeolocation` 16, `seedStorage` 32, `openApp` 71 (stubs every network call, fake sync server), `sess` 108, `newDevice` 121 |
-| `tests/totals.spec.js` | 120 | Hour totals, sun split across sunset/midnight/DST/time zones, manual and quick-add |
-| `tests/sessions.spec.js` | 96 | Live drives, auto-stop, edits, deletes, tombstones |
-| `tests/milestones.spec.js` | 78 | Streaks, milestones, inclement weather, parent view |
+| `rtr-sync.php` | 190 | CORS 20–38, `MAX_BLOB_BYTES` 42 (3 MB), `HTACCESS` 46, `respond`/`err` 57–58, `clientKey` 62, `rateLimit` 67 (locked, with server-wide caps), `blobPath` 96, `isParentId`/`revokedPath` 104–105, `legacyPath` 108, actions `get` 119, `put` 135 (410 on a revoked parent id), `delete` 155 (leaves a `.revoked` marker), `legacy_pull` 165, `legacy_delete` 174. Data in `rtr-sync-data/` (git-ignored, `.htaccess`-denied) |
+| `rtr-service-worker.js` | 115 | `CACHE` 9 (`rtr-v6`), `STATIC` 10, `isCacheFirst` 20, install 26, activate 37, fetch 46, sync 95, push 104 |
+| `rtr-manifest.json` | 24 | PWA manifest; `#drive` shortcut; icons `rtr-icon-192.svg`, `rtr-icon-512.svg` |
+| `package.json` | | Dev-only harness: `@playwright/test`, `engines.node >=20`, scripts `test`, `test:quiet`, `serve` |
+| `tests/helpers.js` | 198 | `fakeGeolocation` 16, `seedStorage` 32, `test` fixture 52 (coverage hook, page-error check), `openApp` 74 (stubs every network call, fake sync server, strips Leaflet `integrity`), `sess` 133, `newDevice` 146, shared `drive`/`startDriving`/`manual`/`pair` 156–184, `appRoot` 196 |
+| `tests/totals.spec.js` | 111 | Hour totals, sun split across sunset/midnight/DST/time zones, manual and quick-add |
+| `tests/sessions.spec.js` | 79 | Live drives, auto-stop, edits, deletes, tombstones |
+| `tests/milestones.spec.js` | 97 | Streaks, milestones, inclement weather, parent view |
 | `tests/importexport.spec.js` | 78 | JSON/CSV export and import, secrets kept out |
-| `tests/sync.spec.js` | 112 | No plaintext on the wire, parent allow-list, two-device merges |
-| `tests/drive-lifecycle.spec.js` | 127 | Start/stop races, GPS errors, geocode after save |
-| `tests/entry.spec.js` | 187 | Manual and quick-add validation |
-| `tests/sanitize.spec.js` | 181 | Escaping of rendered fields, import sanitising |
-| `tests/sync-import.spec.js` | 239 | Sync and import data-loss cases |
+| `tests/sync.spec.js` | 101 | No plaintext on the wire, parent allow-list, two-device merges |
+| `tests/drive-lifecycle.spec.js` | 112 | Start/stop races, GPS errors, geocode after save |
+| `tests/entry.spec.js` | 192 | Manual and quick-add validation |
+| `tests/sanitize.spec.js` | 249 | Escaping of rendered fields, import sanitising, parent-view injection, CSP console errors |
+| `tests/sync-import.spec.js` | 260 | Sync and import data-loss cases |
 | `tests/home-drive.spec.js` | 223 | GPS permission, swipe nav, storage fallbacks, inclement codes, skills badge, timers, compass |
-| `tests/skills.spec.js` | 226 | Skills view, statuses, tips, suggestions |
-| `tests/onboarding.spec.js` | 138 | Onboarding steps, help modal |
-| `tests/settings.spec.js` | 220 | Settings form, theme/accent/font/car setters, clear all |
-| `tests/detail.spec.js` | 240 | Detail modal, elevation/speed SVGs, replay, share card, notes, delete |
-| `tests/history.spec.js` | 322 | Filters, search, swipe delete, undo, JSON/CSV export, print |
-| `tests/sync-lifecycle.spec.js` | 280 | Create/connect/upgrade sync, parent link, copy/email code |
-| `tests/service-worker.spec.js` | 186 | `rtr-service-worker.js` in a Node `vm` (install, activate, fetch strategies) plus registration |
-| `tests/sync-server.spec.js` | 303 | Real `rtr-sync.php` under `php -S`: actions, caps, CORS, rate limit |
+| `tests/skills.spec.js` | 225 | Skills view, statuses, tips, suggestions |
+| `tests/onboarding.spec.js` | 163 | Onboarding steps, help modal, modal Escape and focus trap |
+| `tests/settings.spec.js` | 273 | Settings form, theme/accent/font/car setters, contrast inks, clear all |
+| `tests/detail.spec.js` | 290 | Detail modal, elevation/speed SVGs, replay, share card, notes, delete |
+| `tests/history.spec.js` | 390 | Filters, search, swipe delete, undo, toast queue, JSON/CSV export, print |
+| `tests/sync-lifecycle.spec.js` | 362 | Create/connect/upgrade sync, connect confirm, parent link and revoke, copy/email code |
+| `tests/service-worker.spec.js` | 197 | `rtr-service-worker.js` in a Node `vm` (install, activate, fetch strategies) plus registration |
+| `tests/sync-server.spec.js` | 356 | Real `rtr-sync.php` under `php -S`: actions, caps, CORS, rate limits, revoked marker |
+| `tests/screens.shots.js`, `playwright.shots.config.js` | 150 | UI review screenshots and audits (not part of the suite; see Build, run, test) |
 | `tests/coverage-report.js`, `tests/mutate.js`, `tests/mutants/` | | Coverage report and mutation runner (see Build, run, test). `RTR_SERVE_ROOT` / `RTR_TEST_PORT` point a run at a copy; `helpers.appRoot` is that folder |
 | `tests/serve.js`, `playwright.config.js` | | Static server on 4173; Chromium, service workers blocked |
 | `.github/workflows/deploy.yml` | | Version bump + SFTP upload list |
 | `docs/state-requirements.md` | | Audit of `STATE_REQS` against official sources (checked 2026-11-05) |
-| `docs/overhaul-state.md` | | Shared ledger for the multi-session overhaul |
+| `docs/research.md` | 393 | Competitor research (phase 8): landscape and prices, what rivals do better, the empty-home answer (section 4), 17 ranked features (section 5), what not to build |
+| `docs/overhaul-state.md`, `docs/overhaul-findings.md`, `docs/overhaul-summary.md` | | Overhaul ledger, deferred and unconfirmed findings per phase, and the end-of-overhaul summary with the top ten next steps |
 
 ---
 
