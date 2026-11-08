@@ -1,5 +1,7 @@
 // Hour totals and the day/night split, across sunset, midnight, DST and time zones.
-const { test, expect, openApp, sess, newDevice } = require('./helpers');
+const { test, expect, openApp, sess, newDevice, manual } = require('./helpers');
+
+const addManual = async (page, f) => (await manual(page, f)).s;
 
 const LA = [34.05, -118.24];
 // 2026-11-05 16:00–18:00 PST. Sunset in Los Angeles is about 16:57, so ~63 min are night.
@@ -45,17 +47,6 @@ test('polar night is all night and midnight sun is all day', async ({ page }) =>
   expect(dec).toBeCloseTo(120, 0);
   expect(jun).toBeCloseTo(0, 0);
 });
-
-async function addManual(page, f) {
-  return page.evaluate(f => {
-    openManualModal();
-    const set = (id, v) => { document.getElementById(id).value = v ?? ''; };
-    set('m-date', f.date); set('m-start', f.start); set('m-end', f.end);
-    set('m-dur-h', f.h); set('m-dur-m', f.m); set('m-daynight', f.dn || 'auto');
-    saveManualDrive();
-    return sessions[sessions.length - 1];
-  }, f);
-}
 
 test('manual drive past midnight counts real minutes and is all night', async ({ page }) => {
   await openApp(page);

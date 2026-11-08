@@ -41,28 +41,47 @@ define('DATA_DIR', __DIR__ . '/rtr-sync-data/');
 define('BLOB_DIR', DATA_DIR . 'v2/');
 define('MAX_BLOB_BYTES', 3 * 1024 * 1024); // 3 MB per blob (encryption adds ~35%)
 
-if (!is_dir(BLOB_DIR)) {
-    mkdir(BLOB_DIR, 0750, true);
-    if (!file_exists(DATA_DIR . '.htaccess')) {
-        file_put_contents(DATA_DIR . '.htaccess', "Options -Indexes\nDeny from all\n");
-    }
-}
+// Deny the data folder to the web on Apache 2.4 (Require) and 2.2 (Deny). Checked on every
+// request, so a missing or older file (2.2 syntax only) is put right without a deploy step.
+define('HTACCESS', "Options -Indexes
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Deny from all
+</IfModule>
+");
+if (!is_dir(BLOB_DIR)) mkdir(BLOB_DIR, 0750, true);
+if (@file_get_contents(DATA_DIR . '.htaccess') !== HTACCESS) @file_put_contents(DATA_DIR . '.htaccess', HTACCESS, LOCK_EX);
 
 function respond($data) { echo json_encode($data, JSON_UNESCAPED_UNICODE); exit; }
 function err($msg, $code = 400) { http_response_code($code); respond(['ok' => false, 'error' => $msg]); }
 
-// ── Rate limiting (file-based, per IP) ───────────────────────────────────────
-function rateLimit($action, $max, $windowSec = 60) {
-    $ip   = md5($_SERVER['REMOTE_ADDR'] ?? 'unknown');
-    $file = sys_get_temp_dir() . '/rtr_rl_' . $ip . '_' . $action;
+// ── Rate limiting (file-based, per IP or global) ────────────────────────────
+// IPv6 clients are keyed by their /64, since one host usually holds the whole block.
+function clientKey() {
+    $ip  = (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+    $bin = filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) ? @inet_pton($ip) : false;
+    return $bin !== false ? bin2hex(substr($bin, 0, 8)) . '::/64' : $ip;
+}
+function rateLimit($action, $max, $windowSec = 60, $global = false) {
+    $who  = $global ? 'all' : md5(clientKey());
+    $file = sys_get_temp_dir() . '/rtr_rl_' . $who . '_' . $action;
     $now  = time();
-    $data = ['count' => 0, 'start' => $now];
-    if (file_exists($file)) {
-        $raw = @json_decode(file_get_contents($file), true);
-        if ($raw && ($now - $raw['start']) < $windowSec) $data = $raw;
-    }
+    $fh   = @fopen($file, 'c+');
+    if (!$fh) return;                       // no temp dir: do not lock everyone out
+    flock($fh, LOCK_EX);                    // read, count and write as one step
+    $raw  = json_decode((string)stream_get_contents($fh), true);
+    $ok   = is_array($raw) && is_int($raw['count'] ?? null) && is_int($raw['start'] ?? null)
+         && $raw['start'] <= $now && ($now - $raw['start']) < $windowSec;
+    $data = $ok ? $raw : ['count' => 0, 'start' => $now];
     $data['count']++;
-    @file_put_contents($file, json_encode($data), LOCK_EX);
+    ftruncate($fh, 0);
+    rewind($fh);
+    fwrite($fh, json_encode($data));
+    fflush($fh);
+    flock($fh, LOCK_UN);
+    fclose($fh);
     if ($data['count'] > $max) err('Too many requests — please wait a moment', 429);
 }
 
@@ -75,14 +94,21 @@ $action = strtolower(trim((string)($in['action'] ?? '')));
 
 // Storage IDs: 32 or 64 lowercase hex characters (random or hash-derived)
 function blobPath($in) {
-    $id = (string)($in['id'] ?? '');
-    if (!preg_match('/^(?:[0-9a-f]{32}|[0-9a-f]{64})$/', $id)) err('Invalid id');
+    $id = $in['id'] ?? '';
+    // D: '$' must not match before a trailing newline; non-strings (arrays, numbers) are rejected outright
+    if (!is_string($id) || !preg_match('/^(?:[0-9a-f]{32}|[0-9a-f]{64})$/D', $id)) err('Invalid id');
     return BLOB_DIR . $id . '.blob';
 }
 
+// Parent tokens are the 32-hex random ids; sync ids are 64 hex
+function isParentId($in) { return strlen($in['id']) === 32; }   // blobPath() has validated it
+function revokedPath($in) { return BLOB_DIR . $in['id'] . '.revoked'; }
+
 // Legacy sync codes: 8 characters from the old alphabet
 function legacyPath($in) {
-    $code = preg_replace('/[^A-Z0-9]/', '', strtoupper((string)($in['code'] ?? '')));
+    $raw  = $in['code'] ?? '';
+    if (!is_string($raw)) err('Invalid code');
+    $code = preg_replace('/[^A-Z0-9]/', '', strtoupper($raw));
     if (strlen($code) !== 8) err('Invalid code');
     return DATA_DIR . $code . '.json';
 }
@@ -94,7 +120,16 @@ switch ($action) {
         rateLimit('get', 60, 60);
         $path = blobPath($in);
         if (!file_exists($path)) err('Not found', 404);
-        respond(['ok' => true, 'blob' => file_get_contents($path), 'updatedAt' => date('c', filemtime($path))]);
+        // Shared lock, so a read never sees a put that is half written
+        $fh = @fopen($path, 'rb');
+        if (!$fh) err('Not found', 404);
+        flock($fh, LOCK_SH);
+        $stored = stream_get_contents($fh);
+        flock($fh, LOCK_UN);
+        fclose($fh);
+        if ($stored === false || $stored === '') err('Not found', 404);
+        clearstatcache(true, $path);
+        respond(['ok' => true, 'blob' => $stored, 'updatedAt' => date('c', filemtime($path))]);
 
     // ── Store (create or replace) a sealed blob ───────────────────────────
     case 'put':
@@ -108,20 +143,28 @@ switch ($action) {
         if (!is_array($sealed) || ($sealed['v'] ?? null) !== 2 || !is_string($sealed['iv'] ?? null) || !is_string($sealed['ct'] ?? null)) {
             err('Invalid payload');
         }
-        if (!file_exists($path)) rateLimit('create', 10, 300);   // new blobs are rarer
-        file_put_contents($path, $blob, LOCK_EX);
+        if (isParentId($in) && file_exists(revokedPath($in))) err('Revoked', 410);
+        if (!file_exists($path)) {                                // new blobs are rarer
+            rateLimit('create', 10, 300);
+            rateLimit('create', 500, 3600, true);             // and capped for the whole server
+        }
+        if (file_put_contents($path, $blob, LOCK_EX) !== strlen($blob)) err('Could not save', 500);
         respond(['ok' => true, 'updatedAt' => date('c')]);
 
     // ── Delete a blob (revoked parent link, disconnected sync) ────────────
     case 'delete':
         rateLimit('delete', 20, 60);
         $path = blobPath($in);
+        // A revoked parent link (32-hex random token) stays dead: an empty marker
+        // stops a stale device from re-creating it with a later put
+        if (isParentId($in)) @touch(revokedPath($in));
         if (file_exists($path)) @unlink($path);
         respond(['ok' => true]);
 
     // ── Legacy: read an old plaintext sync file (one-time upgrade) ────────
     case 'legacy_pull':
         rateLimit('legacy', 30, 60);
+        rateLimit('legacy', 300, 3600, true);   // codes are short: cap guessing across all clients
         $path = legacyPath($in);
         if (!file_exists($path)) err('Sync code not found', 404);
         $data = json_decode(file_get_contents($path), true) ?: [];
@@ -130,6 +173,7 @@ switch ($action) {
     // ── Legacy: delete an old plaintext sync file and its parent link ─────
     case 'legacy_delete':
         rateLimit('legacy', 30, 60);
+        rateLimit('legacy', 300, 3600, true);   // codes are short: cap guessing across all clients
         $path = legacyPath($in);
         if (file_exists($path)) {
             $data  = json_decode(file_get_contents($path), true) ?: [];

@@ -1,0 +1,14 @@
+[
+{"id":"settings-1","file":"readytoroll.html","find":"(g<b?6:0)","replace":"(g<b?0:0)","spec":["tests/settings.spec.js"],"why":"hue wrap for red-ish colors with blue > green"},
+{"id":"settings-3","file":"readytoroll.html","find":"(vt==='default'||vt==='dark')?0.12","replace":"(vt==='default')?0.12","spec":["tests/settings.spec.js"],"why":"dark theme loses accent-lt"},
+{"id":"settings-4","file":"readytoroll.html","find":"[settings.fontSize]||'16px'","replace":"[settings.fontSize]||'14px'","spec":["tests/settings.spec.js"],"why":"unknown font size falls back to small"},
+{"id":"settings-5","file":"readytoroll.html","find":"settings.driverName=document.getElementById('s-name').value.trim();","replace":"settings.driverName=document.getElementById('s-name').value;","spec":["tests/settings.spec.js"],"why":"name not trimmed"},
+{"id":"settings-6","file":"readytoroll.html","find":"settings.customNight=cn!==''?+cn:null;","replace":"settings.customNight=cn!==''?+cn:0;","spec":["tests/settings.spec.js"],"why":"empty night override saved as 0"},
+{"id":"settings-7","file":"readytoroll.html","find":"settings.accentHue=wrapHue(h);","replace":"settings.accentHue=(+h)%360;","spec":["tests/settings.spec.js"],"why":"negative hue not wrapped"},
+{"id":"settings-8","file":"readytoroll.html","find":"  localStorage.removeItem('rtr_deleted');\n  applyTheme();","replace":"  applyTheme();","spec":["tests/settings.spec.js"],"why":"clear leaves tombstones"},
+{"id":"settings-9","file":"readytoroll.html","find":"if(s.darkMode===true&&(s.vibeTheme==='default'||!s.vibeTheme)){","replace":"if(s.darkMode===true){","spec":["tests/settings.spec.js"],"why":"legacy darkMode overrides chosen theme"},
+{"id":"settings-10","file":"readytoroll.html","find":"if(hbEl)hbEl.innerHTML=handbookLinkHTML(code);","replace":"","spec":["tests/settings.spec.js"],"why":"preview does not update handbook link"},
+{"id":"settings-11","file":"readytoroll.html","find":"settings.goalDate=document.getElementById('s-goal').value||'';","replace":"settings.goalDate=document.getElementById('s-goal').value||settings.goalDate;","spec":["tests/settings.spec.js"],"why":"goal date cannot be cleared"},
+{"id":"settings-12","file":"readytoroll.html","find":"if(nick)settings.carNickname=nick.value.trim();","replace":"if(nick)settings.carNickname=nick.value;","spec":["tests/settings.spec.js"],"why":"nickname not trimmed"},
+{"id":"settings-13","file":"readytoroll.html","find":"const preview=document.getElementById('accent-hue-preview');\n  if(preview)preview.style.background=accentHsl();","replace":"","spec":["tests/settings.spec.js"],"why":"accent preview not updated"}
+]

@@ -1,0 +1,15 @@
+[
+{"id":"history-1","file":"readytoroll.html","find":"else if(historyFilter==='night')filtered=sorted.filter(s=>s.isNight);","replace":"else if(historyFilter==='night')filtered=sorted.filter(s=>!s.isNight);","spec":["tests/history.spec.js"],"why":"night filter shows day drives"},
+{"id":"history-2","file":"readytoroll.html","find":"||(s.supervisor||'').toLowerCase().includes(q));","replace":");","spec":["tests/history.spec.js"],"why":"search ignores supervisor"},
+{"id":"history-3","file":"readytoroll.html","find":"if(dx<-60){","replace":"if(dx<-30){","spec":["tests/history.spec.js"],"why":"swipe threshold too small"},
+{"id":"history-4","file":"readytoroll.html","find":"if(confirm('Delete this session?')){","replace":"if(true){","spec":["tests/history.spec.js"],"why":"swipe delete skips confirm"},
+{"id":"history-5","file":"readytoroll.html","find":"clearDeletedId(undoSession.id);","replace":"","spec":["tests/history.spec.js"],"why":"undo leaves tombstone"},
+{"id":"history-6","file":"readytoroll.html","find":"undoSession=null;},5000);","replace":"undoSession=null;},3000);","spec":["tests/history.spec.js"],"why":"undo window shortened to 3s"},
+{"id":"history-7","file":"readytoroll.html","find":"@|]/.test(s)?","replace":"@]/.test(s)?","spec":["tests/history.spec.js"],"why":"CSV formula guard misses + - |"},
+{"id":"history-8","file":"readytoroll.html","find":"<td>${esc(s.supervisor||'')}</td>","replace":"<td>${s.supervisor||''}</td>","spec":["tests/history.spec.js"],"why":"print supervisor unescaped"},
+{"id":"history-9","file":"readytoroll.html","find":"(s.notes||'').substring(0,40)","replace":"(s.notes||'').substring(0,80)","spec":["tests/history.spec.js"],"why":"print notes truncation lengthened"},
+{"id":"history-10","file":"readytoroll.html","find":"All (${sorted.length})","replace":"All (${filtered.length})","spec":["tests/history.spec.js"],"why":"All count follows filter/search"},
+{"id":"history-11","file":"readytoroll.html","find":"(s.isNight?'Night':'Day');})()}</td>","replace":"(s.isNight?'Day':'Night');})()}</td>","spec":["tests/history.spec.js"],"why":"print day/night label swapped"},
+{"id":"history-12","file":"readytoroll.html","find":"for(const k of DEVICE_ONLY_SETTINGS)delete s[k];","replace":"","spec":["tests/history.spec.js"],"why":"export leaks device-only settings"},
+{"id":"history-13","file":"readytoroll.html","find":"undoSession.updatedAt=new Date().toISOString();","replace":"","spec":["tests/history.spec.js"],"why":"restored drive not stamped newer"}
+]

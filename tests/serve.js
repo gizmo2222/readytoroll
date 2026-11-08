@@ -3,12 +3,14 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const ROOT = path.resolve(__dirname, '..');
+// RTR_SERVE_ROOT lets tests/mutate.js serve a mutated copy of the app instead of the repo
+const ROOT = path.resolve(process.env.RTR_SERVE_ROOT || path.join(__dirname, '..'));
 const PORT = Number(process.env.RTR_TEST_PORT || 4173);
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.svg': 'image/svg+xml', '.css': 'text/css' };
 
 http.createServer((req, res) => {
-  const url = decodeURIComponent(req.url.split('?')[0]);
+  let url;
+  try { url = decodeURIComponent(req.url.split('?')[0]); } catch (e) { res.writeHead(400); res.end('Bad request'); return; }
   const file = path.join(ROOT, url === '/' ? 'readytoroll.html' : url);
   if (!file.startsWith(ROOT + path.sep) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
     res.writeHead(404); res.end('Not found'); return;

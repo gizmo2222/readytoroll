@@ -1,0 +1,16 @@
+[
+{"id":"onboarding-1","file":"readytoroll.html","find":"if(!name){toast('Please enter a name');return;}","replace":"if(!name){toast('Please enter a name');}","spec":["tests/onboarding.spec.js"],"why":"blank name no longer blocks step 1"},
+{"id":"onboarding-2","file":"readytoroll.html","find":"settings.driverName=name;","replace":"settings.driverName=document.getElementById('ob-name').value;","spec":["tests/onboarding.spec.js"],"why":"name saved untrimmed"},
+{"id":"onboarding-3","file":"readytoroll.html","find":"settings.state=document.getElementById('ob-state').value;","replace":"","spec":["tests/onboarding.spec.js"],"why":"chosen state dropped"},
+{"id":"onboarding-4","file":"readytoroll.html","find":"if(goalVal)settings.goalDate=goalVal;","replace":"","spec":["tests/onboarding.spec.js"],"why":"goal date dropped"},
+{"id":"onboarding-5","file":"readytoroll.html","find":"settings.onboardingDone=true;","replace":"settings.onboardingDone=false;","spec":["tests/onboarding.spec.js"],"why":"never marked done"},
+{"id":"onboarding-6","file":"readytoroll.html","find":"saveSettings();applyTheme();\n  document.getElementById('onboard-overlay')","replace":"applyTheme();\n  document.getElementById('onboard-overlay')","spec":["tests/onboarding.spec.js"],"why":"finish does not persist"},
+{"id":"onboarding-7","file":"readytoroll.html","find":"document.getElementById('onboard-overlay').classList.remove('open');","replace":"","spec":["tests/onboarding.spec.js"],"why":"overlay not closed on finish"},
+{"id":"onboarding-8","file":"readytoroll.html","find":"!settings.onboardingDone&&!sessions.length&&!settings.driverName","replace":"!settings.onboardingDone&&!settings.driverName","spec":["tests/onboarding.spec.js"],"why":"returning user with drives sees onboarding"},
+{"id":"onboarding-9","file":"readytoroll.html","find":"&&!sessions.length&&!settings.driverName){","replace":"&&!sessions.length){","spec":["tests/onboarding.spec.js"],"why":"named user sees onboarding"},
+{"id":"onboarding-10","file":"readytoroll.html","find":"sel.value='CA';","replace":"sel.value='AL';","spec":["tests/onboarding.spec.js"],"why":"wrong default state"},
+{"id":"onboarding-11","file":"readytoroll.html","find":"document.getElementById('ob-'+(step+1)).classList.add('active');","replace":"document.getElementById('ob-'+(step+1)).classList.add('active');if(step===2)document.getElementById('ob-1').classList.add('active');","spec":["tests/onboarding.spec.js"],"why":"step 1 stays active at step 3"},
+{"id":"onboarding-12","file":"readytoroll.html","find":"function closeHelp(){document.getElementById('help-modal').classList.remove('open');if(_modalTrigger){_modalTrigger.focus();_modalTrigger=null;}}","replace":"function closeHelp(){document.getElementById('help-modal').classList.remove('open');}","spec":["tests/onboarding.spec.js"],"why":"focus not returned"},
+{"id":"onboarding-13","file":"readytoroll.html","find":"if(f)f.focus();},50);}","replace":"},50);}","spec":["tests/onboarding.spec.js"],"why":"focus not moved into help"},
+{"id":"onboarding-14","file":"readytoroll.html","find":"function closeHelp(){document.getElementById('help-modal').classList.remove('open');","replace":"function closeHelp(){","spec":["tests/onboarding.spec.js"],"why":"help never closes"}
+]

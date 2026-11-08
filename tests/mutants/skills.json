@@ -1,0 +1,142 @@
+[
+{
+"id": "skills-1",
+"file": "readytoroll.html",
+"find": "const newStatus = current === status ? 'not_started' : status;",
+"replace": "const newStatus = status;",
+"spec": [
+"tests/skills.spec.js"
+],
+"why": "clicking active status no longer resets"
+},
+{
+"id": "skills-2",
+"file": "readytoroll.html",
+"find": "localStorage.setItem('rtr_skills',JSON.stringify(skillsData))",
+"replace": "localStorage.setItem('rtr_skill',JSON.stringify(skillsData))",
+"spec": [
+"tests/skills.spec.js"
+],
+"why": "wrong save key"
+},
+{
+"id": "skills-3",
+"file": "readytoroll.html",
+"find": "JSON.parse(localStorage.getItem('rtr_skills'))||{}",
+"replace": "JSON.parse(localStorage.getItem('rtr_skill'))||{}",
+"spec": [
+"tests/skills.spec.js"
+],
+"why": "wrong load key"
+},
+{
+"id": "skills-4",
+"file": "readytoroll.html",
+"find": "if(notStarted>0){badge.textContent",
+"replace": "if(notStarted>1){badge.textContent",
+"spec": [
+"tests/skills.spec.js"
+],
+"why": "badge hidden when exactly one skill left"
+},
+{
+"id": "skills-5",
+"file": "readytoroll.html",
+"find": "||skillsData[s.id].status==='not_started').length;",
+"replace": ").length;",
+"spec": [
+"tests/skills.spec.js"
+],
+"why": "badge ignores explicit not_started"
+},
+{
+"id": "skills-6",
+"file": "readytoroll.html",
+"find": "saveSkillsData();\n  updateSkillsBadge();\n  renderSkills();",
+"replace": "saveSkillsData();\n  renderSkills();",
+"spec": [
+"tests/skills.spec.js"
+],
+"why": "setSkill does not refresh badge"
+},
+{
+"id": "skills-7",
+"file": "readytoroll.html",
+"find": "skillsData[s.id]?.status!=='mastered');\n  if(!unmastered.length)",
+"replace": "skillsData[s.id]?.status==='not_started');\n  if(!unmastered.length)",
+"spec": [
+"tests/skills.spec.js"
+],
+"why": "suggest skips in-progress skills"
+},
+{
+"id": "skills-8",
+"file": "readytoroll.html",
+"find": "openSkillTip=openSkillTip===id?null:id;",
+"replace": "openSkillTip=id;",
+"spec": [
+"tests/skills.spec.js"
+],
+"why": "tip cannot be closed"
+},
+{
+"id": "skills-9",
+"file": "readytoroll.html",
+"find": "const inProg=SKILLS.filter(s=>skillsData[s.id]?.status==='in_progress').length;",
+"replace": "const inProg=0;",
+"spec": [
+"tests/skills.spec.js"
+],
+"why": "in-progress count always zero"
+},
+{
+"id": "skills-10",
+"file": "readytoroll.html",
+"find": "const catFraction=catMastered===catSkills.length?",
+"replace": "const catFraction=catMastered>0?",
+"spec": [
+"tests/skills.spec.js"
+],
+"why": "partial category shows All done"
+},
+{
+"id": "skills-11",
+"file": "readytoroll.html",
+"find": "lastPracticed:new Date().toISOString()};\n  saveSkillsData",
+"replace": "lastPracticed:skillsData[id]?.lastPracticed};\n  saveSkillsData",
+"spec": [
+"tests/skills.spec.js"
+],
+"why": "lastPracticed not refreshed"
+},
+{
+"id": "skills-12",
+"file": "readytoroll.html",
+"find": "if(!unmastered.length){toast('🏆 All skills mastered!');launchConfetti();return;}",
+"replace": "if(!unmastered.length){toast('🏆 All skills mastered!');return;}",
+"spec": [
+"tests/skills.spec.js"
+],
+"why": "no confetti when all mastered"
+},
+{
+"id": "skills-13",
+"file": "readytoroll.html",
+"find": "openSkillTip=openSkillTip===id?null:id;\n  renderSkills();",
+"replace": "openSkillTip=openSkillTip===id?null:id;",
+"spec": [
+"tests/skills.spec.js"
+],
+"why": "toggleTip does not rerender"
+},
+{
+"id": "skills-14",
+"file": "readytoroll.html",
+"find": "btn.classList.add('just-mastered')",
+"replace": "btn.classList.add('just-mastered-x')",
+"spec": [
+"tests/skills.spec.js"
+],
+"why": "mastered flourish class lost"
+}
+]

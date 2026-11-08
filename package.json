@@ -7,7 +7,10 @@
     "test:quiet": "playwright test --reporter=dot",
     "serve": "node tests/serve.js"
   },
+  "engines": {
+    "node": ">=20"
+  },
   "devDependencies": {
-    "@playwright/test": "^1.49.0"
+    "@playwright/test": "^1.65.0"
   }
 }
